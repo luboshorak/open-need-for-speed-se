@@ -26,6 +26,12 @@ namespace OpenNFS1.Parsers
 		private byte[] Decompress(string filename)
 		{
 			byte[] inbuf = File.ReadAllBytes(filename);
+            if (EaHuffmanDecoder.CanDecode(inbuf))
+                return EaHuffmanDecoder.Decode(inbuf);
+            if (inbuf.Length < 8 || inbuf[1] != 0xFB ||
+                (inbuf[0] != 0x10 && inbuf[0] != 0x11))
+                throw new InvalidDataException("Unsupported or invalid QFS compression method: " +
+                    Path.GetFileName(filename));
 			int buflen = inbuf.Length;
 			byte[] outbuf;
 						
