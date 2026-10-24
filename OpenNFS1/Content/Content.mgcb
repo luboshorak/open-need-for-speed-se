@@ -48,5 +48,5 @@
 #begin ColorCorrection.fx
 /importer:EffectImporter
 /processor:EffectProcessor
-/processorParam:DebugMode:Auto
+/processorParam:DebugMode=Auto
 /build:ColorCorrection.fx
