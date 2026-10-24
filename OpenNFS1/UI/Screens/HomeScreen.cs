@@ -130,6 +130,11 @@ namespace OpenNFS1.UI.Screens
             _currentVehicle = Math.Clamp(_currentVehicle, 0, _vehicles.Count - 1);
             _currentTrack = Math.Clamp(_currentTrack, 0, _tracks.Count - 1);
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
+            if (GameConfig.CurrentRaceMode == RaceMode.Tournament)
+            {
+                _currentTrack = FindTournamentVenue(_currentTrack, 1);
+                EnsureTournamentVehicle(1);
+            }
         }
 
         /// <summary>
@@ -242,6 +247,7 @@ namespace OpenNFS1.UI.Screens
             {
                 case VehicleSelected:
                     _currentVehicle = (_currentVehicle + direction + _vehicles.Count) % _vehicles.Count;
+                    EnsureTournamentVehicle(direction);
                     break;
                 case OpponentSelected:
                     if (GameConfig.CurrentRaceMode == RaceMode.HeadToHead)
@@ -261,29 +267,52 @@ namespace OpenNFS1.UI.Screens
                         ((int)GameConfig.CurrentRaceMode + direction + 4) % 4);
                     GameConfig.NoMercy = GameConfig.CurrentRaceMode == RaceMode.HeadToHead &&
                         Engine.Instance.Input.IsKeyDown(Keys.End);
-                    // Tournament only has supported circuit races, no open-road stages.
+                    // Six original A/B/C venues, including open-road courses.
                     if (GameConfig.CurrentRaceMode == RaceMode.Tournament)
-                        _currentTrack = FindTournamentCircuit(_currentTrack, 1);
+                    {
+                        _currentTrack = FindTournamentVenue(_currentTrack, 1);
+                        EnsureTournamentVehicle(1);
+                    }
                     break;
                 case TrackSelected:
                     _currentTrack = (_currentTrack + direction + _tracks.Count) % _tracks.Count;
                     if (GameConfig.CurrentRaceMode == RaceMode.Tournament)
-                        _currentTrack = FindTournamentCircuit(_currentTrack, direction);
+                    {
+                        _currentTrack = FindTournamentVenue(_currentTrack, direction);
+                        EnsureTournamentVehicle(1);
+                    }
                     break;
             }
         }
 
-        private int FindTournamentCircuit(int start, int direction)
+        private int FindTournamentVenue(int start, int direction)
         {
             for (int offset = 0; offset < _tracks.Count; offset++)
             {
                 int index = (start + offset * direction + _tracks.Count * 2) % _tracks.Count;
-                TrackDescription track = _tracks[index].Descriptor;
-                if (!track.IsOpenRoad && !track.HideFromMenu &&
-                    track.Name.IndexOf("hidden track", StringComparison.OrdinalIgnoreCase) < 0)
+                if (RaceModeRules.TournamentClass(_tracks[index].Descriptor) > 0)
                     return index;
             }
             return start;
+        }
+
+        private void EnsureTournamentVehicle(int direction)
+        {
+            if (GameConfig.CurrentRaceMode != RaceMode.Tournament) return;
+            TrackDescription track = _tracks[_currentTrack].Descriptor;
+            if (RaceModeRules.IsVehicleAllowed(RaceMode.Tournament, track,
+                _vehicles[_currentVehicle].Descriptor)) return;
+
+            for (int n = 1; n <= _vehicles.Count; n++)
+            {
+                int index = (_currentVehicle + n * direction + _vehicles.Count * 2) % _vehicles.Count;
+                if (RaceModeRules.IsVehicleAllowed(RaceMode.Tournament, track,
+                    _vehicles[index].Descriptor))
+                {
+                    _currentVehicle = index;
+                    return;
+                }
+            }
         }
 
         private void OpenRaceOptions()
@@ -322,7 +351,9 @@ namespace OpenNFS1.UI.Screens
             }
             else if (GameConfig.CurrentRaceMode == RaceMode.Tournament)
             {
-                DrawLabel("CLASS A / B / C", new Vector2(370, 164), Color.DarkRed, 0.46f);
+                int carClass = RaceModeRules.TournamentClass(_tracks[_currentTrack].Descriptor);
+                DrawLabel("CLASS " + (carClass == 1 ? "A" : carClass == 2 ? "B" : "C") +
+                    " - 7 OPPONENTS", new Vector2(356, 164), Color.DarkRed, 0.34f);
             }
             else
             {
