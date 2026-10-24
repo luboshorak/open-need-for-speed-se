@@ -14,13 +14,15 @@ namespace OpenNFS1.UI.Screens
     internal sealed class RaceStandingsScreen : IGameScreen
     {
         private readonly Race _race;
+        private readonly TimeSpan _finishedTime;
         private readonly IGameScreen _back;
         private readonly SpriteFont _font;
         private readonly BitmapChunk _art;
 
-        public RaceStandingsScreen(Race race, IGameScreen back)
+        public RaceStandingsScreen(Race race, TimeSpan finishedTime, IGameScreen back)
         {
             _race = race;
+            _finishedTime = finishedTime;
             _back = back;
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
             string asset = race.Track.IsOpenRoad ? "STANDSEG.QFS" : "STANDTRK.QFS";
@@ -61,7 +63,7 @@ namespace OpenNFS1.UI.Screens
             Value((_race.PlayerStats.Position + 1) + " / " +
                 RaceModeRules.OpponentCount(GameConfig.CurrentRaceMode).ToString() +
                 " OPPONENTS", 300, 140, 0.36f);
-            TimeSpan elapsed = _race.RaceTime;
+            TimeSpan elapsed = _finishedTime;
             if (elapsed < TimeSpan.Zero) elapsed = TimeSpan.Zero;
             Value(elapsed.ToString(@"mm\:ss\.f"), 310, 164, 0.48f);
             Value(GameConfig.SelectedVehicle?.Name ?? "PLAYER", 24, 310, 0.37f);
