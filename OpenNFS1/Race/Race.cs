@@ -166,7 +166,8 @@ namespace OpenNFS1
 					continue;
 				if (driver.Vehicle is DrivableVehicle)
 				{
-					((DrivableVehicle)driver.Vehicle).RenderShadow(isPlayer);
+					if (isPlayer || GameConfig.HighCarDetail)
+                        ((DrivableVehicle)driver.Vehicle).RenderShadow(isPlayer);
 				}
                 if (driver is AIDriver && ((AIDriver)driver).AtEndOfTrack)
                     continue; 
