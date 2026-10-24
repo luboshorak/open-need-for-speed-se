@@ -49,6 +49,15 @@ namespace OpenNFS1.UI.Screens
                 .Contains((int)point.X, (int)point.Y);
         }
 
+        private void Cycle(int direction)
+        {
+            if (_back is TrackDetailsScreen details)
+                Engine.Instance.Screen =
+                    new TrackBestTimesScreen(details.CycleTrack(direction), details);
+            else
+                Engine.Instance.Screen = _back;
+        }
+
         public void Update(GameTime time)
         {
             var input = Engine.Instance.Input;
@@ -57,14 +66,18 @@ namespace OpenNFS1.UI.Screens
                 Engine.Instance.Screen = _back;
                 return;
             }
+            if (input.WasPressed(Keys.Left)) { Cycle(-1); return; }
+            if (input.WasPressed(Keys.Right)) { Cycle(1); return; }
             if (input.WasLeftMouseClicked)
             {
                 Vector2 p = input.GameMousePosition;
-                if (Hit("dond", p) || Hit("donl", p))
+                if (Hit("dond", p) || Hit("donl", p) ||
+                    Hit("desd", p) || Hit("desl", p))
                     Engine.Instance.Screen = _back;
-                else if (Hit("lard", p) || Hit("larl", p) ||
-                         Hit("rard", p) || Hit("rarl", p))
-                    Engine.Instance.Screen = _back; // parent owns track cycling
+                else if (Hit("lard", p) || Hit("larl", p))
+                    Cycle(-1);
+                else if (Hit("rard", p) || Hit("rarl", p))
+                    Cycle(1);
             }
         }
 
