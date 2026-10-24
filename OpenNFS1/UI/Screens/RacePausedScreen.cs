@@ -30,9 +30,24 @@ namespace OpenNFS1.UI.Screens
             else if (UIController.Down && _selectedOption < 1)
                 _selectedOption++;
 
+            if (Engine.Instance.Input.WasLeftMouseClicked)
+            {
+                var point = Engine.Instance.Input.GameMousePosition;
+                if (point.X >= 20 && point.X <= 350 && point.Y >= 75 && point.Y <= 120)
+                {
+                    ContinueRace();
+                    return;
+                }
+                if (point.X >= 20 && point.X <= 350 && point.Y > 120 && point.Y <= 178)
+                {
+                    Engine.Instance.Screen = new HomeScreen();
+                    return;
+                }
+            }
+
             if (UIController.Back)
             {
-                Engine.Instance.Screen = _currentRace;
+                ContinueRace();
                 return;
             }
 
@@ -40,14 +55,19 @@ namespace OpenNFS1.UI.Screens
             {
                 if (_selectedOption == 0)
                 {
-                    Engine.Instance.Screen = _currentRace;
-					_currentRace.Resume();
+                    ContinueRace();
                 }
                 else
                 {
                     Engine.Instance.Screen = new HomeScreen();
                 }
             }
+        }
+
+		private void ContinueRace()
+        {
+            _currentRace.Resume();
+            Engine.Instance.Screen = _currentRace;
         }
 
 		public override void Draw()
