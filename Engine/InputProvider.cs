@@ -132,16 +132,9 @@ namespace GameEngine
                 if (w <= 0 || h <= 0)
                     return new Vector2(-1, -1);
 
-                float scale = Math.Min(w / 640f, h / 480f);
-                int destWidth = Math.Max(1, (int)Math.Round(640 * scale));
-                int destHeight = Math.Max(1, (int)Math.Round(480 * scale));
-                int x0 = (w - destWidth) / 2;
-                int y0 = (h - destHeight) / 2;
-                int x = _mouseState.X - x0;
-                int y = _mouseState.Y - y0;
-                if (x < 0 || y < 0 || x >= destWidth || y >= destHeight)
-                    return new Vector2(-1, -1);
-                return new Vector2(x * 640f / destWidth, y * 480f / destHeight);
+                var destination = PresentationLayout.Calculate(w, h,
+                    DisplaySettings.IntegerScaling);
+                return PresentationLayout.ToVirtual(_mouseState.X, _mouseState.Y, destination);
             }
         }
 
