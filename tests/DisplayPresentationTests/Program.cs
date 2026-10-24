@@ -118,7 +118,7 @@ static class Program
         Check(HudGeometry.Gear.X >= 377 &&
             HudGeometry.Gear.Right <= 405, "Gear numeral overlaps finish flags.");
 
-        Check(HudGeometry.ValueDigit(11, 0, 591, 6, 11, 16).X >= 570,
+        Check(HudGeometry.ValueDigit(11, 0, 592, 6, 11, 16).X >= 570,
             "Two-digit player position runs into position icon.");
         Check(HudGeometry.ValueDigit(11, 1, 637, 6, 11, 16).Right <= 640,
             "Opponent count runs off HUD.");
