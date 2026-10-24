@@ -72,6 +72,7 @@ namespace OpenNFS1.UI.Screens
         private readonly BitmapEntry _tournamentArt;
         private readonly BitmapEntry _headToHeadArt;
         private readonly BitmapEntry _noMercyArt;
+        private readonly BitmapEntry _packArt;
         private readonly BitmapEntry _computerOpponentsArt;
         private readonly List<VehicleUIControl> _vehicles = new List<VehicleUIControl>();
         private readonly List<TrackUIControl> _tracks = new List<TrackUIControl>();
@@ -99,6 +100,8 @@ namespace OpenNFS1.UI.Screens
             _headToHeadArt = new QfsFile(@"FRONTEND\ART\CONTROL\HEADHEAD.QFS")
                 .Content.Header.FindByName("0000");
             _noMercyArt = new QfsFile(@"FRONTEND\ART\CONTROL\NOMERCY.QFS")
+                .Content.Header.FindByName("0000");
+            _packArt = new QfsFile(@"FRONTEND\ART\CONTROL\SLEW.QFS")
                 .Content.Header.FindByName("0000");
             _computerOpponentsArt = qfs.Content.Header.FindByName("Coml");
             WriteArtInventory(qfs);
@@ -312,17 +315,10 @@ namespace OpenNFS1.UI.Screens
             }
             else if (GameConfig.CurrentRaceMode == RaceMode.SingleRace && GameConfig.UseOpponentPack)
             {
-                // The Pack: use artwork from several genuine opponent photos.
-                for (int i = 0; i < 3; i++)
-                {
-                    BitmapEntry opponent = _vehicles[i].OpponentBitmap;
-                    if (opponent?.Texture == null) continue;
-                    int srcWidth = opponent.Texture.Width;
-                    int srcHeight = opponent.Texture.Height;
-                    sprite.Draw(opponent.Texture, new Rectangle(350 + i * 88, 132, 86, 61),
-                        new Rectangle(0, 0, srcWidth, srcHeight), Color.White);
-                }
-                DrawLabel("THE PACK", new Vector2(420, 198), Color.DarkRed, 0.34f);
+                // SLEW.QFS is EA's ORIGINAL 284x117 "THE PACK" opponent
+                // photograph, including its caption and native coordinates.
+                if (_packArt?.Texture != null)
+                    sprite.Draw(_packArt.Texture, _packArt.GetDisplayAt(), Color.White);
             }
             else if (GameConfig.CurrentRaceMode == RaceMode.Tournament)
             {
