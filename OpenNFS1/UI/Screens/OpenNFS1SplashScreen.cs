@@ -28,26 +28,27 @@ namespace OpenNFS1.UI.Screens
 			}
 		}
 
-		public override void Draw()
-		{
-			base.Draw();
+        public override void Draw()
+        {
+            base.Draw();
 
-			var version = Assembly.GetExecutingAssembly().GetName().Version;
+            WriteLine("OPENNFS1 SE RELOADED", Color.Yellow, 28, 30, 0.91f);
+            WriteLine("Need for Speed Special Edition - modern redevelopment",
+                Color.White, 63, 30, 0.52f);
+            WriteLine("Modernization, new game systems and ongoing development:",
+                Color.LightGray, 48, 30, 0.43f);
+            WriteLine("LUBOS HORAK", Color.Yellow, 34, 30, 0.70f);
 
-			WriteLine("OpenNFS1 v" + version.ToString(2), Color.Red, 0, 30, TextSize);
-			WriteLine(
-				"OpenNFS1 is a remake of the original EA Need for Speed 1.\r\n\r\n" + 
-				"OpenNFS1 code was written from scratch without reverse\r\n" + 
-				"engineering the NFS executable, and it uses the original data\r\n" + 
-				"files that were on the CD back in 1995!", TextColor, 50, 30, TextSize);
+            WriteLine("Built on the original OpenNFS1 engine by Jeff Harris.",
+                Color.LightGray, 64, 30, 0.39f);
+            WriteLine("Original NFS SE game and assets: Electronic Arts.",
+                Color.LightGray, 35, 30, 0.39f);
+            WriteLine("An unofficial fan project - not affiliated with EA.",
+                Color.LightGray, 29, 30, 0.37f);
 
-			WriteLine("By Jeff H - www.1amstudios.com", TextColor, 40, 30, TextSize);
+            WriteLine("ENTER OR CLICK TO CONTINUE", Color.Yellow, 84, 30, 0.53f);
+            Engine.Instance.SpriteBatch.End();
+        }
 
-			WriteLine(
-				"Need for Speed 1 was produced by Pioneer Productions\r\nand EA Seattle in 1995.\r\n" + 
-				"1amStudios and OpenNFS1 are not affiliated in any way\r\nwith Pioneer Productions or EA Seattle.", Color.LightGray, 190, 30, TextSize);
-
-			Engine.Instance.SpriteBatch.End();
-		}
 	}
 }

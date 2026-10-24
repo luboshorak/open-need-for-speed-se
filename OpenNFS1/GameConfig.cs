@@ -37,6 +37,14 @@ namespace OpenNFS1
         public static TournamentSeries Tournament { get; set; }
 
         public static bool FullScreen { get; set; }
+        // Output only: gameplay and all original QFS coordinates stay 640x480.
+        // 0 = smooth, 1 = sharp nearest, 2 = pixel-perfect integer scaling.
+        public static int ScalingMode { get; set; } = 1;
+        public static int WindowWidth { get; set; } = 1280;
+        public static int WindowHeight { get; set; } = 960;
+        public static float Gamma { get; set; } = 1.0f;
+        public static float Brightness { get; set; } = 0.0f;
+        public static float Contrast { get; set; } = 1.0f;
         public static string CdDataPath { get; set; } = Path.Combine(AppContext.BaseDirectory, "CD_Data");
         public static bool Render2dScenery = true, Render3dScenery = true;
         public static bool RenderOnlyPhysicalTrack = true;
@@ -72,7 +80,14 @@ namespace OpenNFS1
             {
                 using var preferences = JsonDocument.Parse(File.ReadAllText(UserSettingsPath));
                 var cfg = preferences.RootElement;
-                if (cfg.TryGetProperty("musicEnabled", out var value)) MusicEnabled = value.GetBoolean();
+                if (cfg.TryGetProperty("fullScreen", out var value)) FullScreen = value.GetBoolean();
+                if (cfg.TryGetProperty("windowWidth", out value)) WindowWidth = Math.Clamp(value.GetInt32(), 640, 3840);
+                if (cfg.TryGetProperty("windowHeight", out value)) WindowHeight = Math.Clamp(value.GetInt32(), 480, 2160);
+                if (cfg.TryGetProperty("scalingMode", out value)) ScalingMode = Math.Clamp(value.GetInt32(), 0, 2);
+                if (cfg.TryGetProperty("gamma", out value)) Gamma = Math.Clamp(value.GetSingle(), 0.6f, 1.6f);
+                if (cfg.TryGetProperty("brightness", out value)) Brightness = Math.Clamp(value.GetSingle(), -0.3f, 0.3f);
+                if (cfg.TryGetProperty("contrast", out value)) Contrast = Math.Clamp(value.GetSingle(), 0.6f, 1.6f);
+                if (cfg.TryGetProperty("musicEnabled", out value)) MusicEnabled = value.GetBoolean();
                 if (cfg.TryGetProperty("menuMusicEnabled", out value)) MenuMusicEnabled = value.GetBoolean();
                 if (cfg.TryGetProperty("soundEffectsEnabled", out value)) SoundEffectsEnabled = value.GetBoolean();
                 if (cfg.TryGetProperty("rockMusic", out value)) RockMusic = value.GetBoolean();
@@ -110,6 +125,13 @@ namespace OpenNFS1
                 Directory.CreateDirectory(Path.GetDirectoryName(UserSettingsPath));
                 var values = new
                 {
+                    fullScreen = FullScreen,
+                    windowWidth = WindowWidth,
+                    windowHeight = WindowHeight,
+                    scalingMode = ScalingMode,
+                    gamma = Gamma,
+                    brightness = Brightness,
+                    contrast = Contrast,
                     musicEnabled = MusicEnabled,
                     menuMusicEnabled = MenuMusicEnabled,
                     soundEffectsEnabled = SoundEffectsEnabled,
