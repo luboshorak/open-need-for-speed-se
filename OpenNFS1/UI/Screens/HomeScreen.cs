@@ -55,7 +55,9 @@ namespace OpenNFS1.UI.Screens
         private const int RaceTypeSelected = 2;
         private const int TrackSelected = 3;
         private const int RaceButtonSelected = 4;
-        private const int SelectionCount = 5;
+        private const int OptionsButtonSelected = 5;
+        private const int CancelButtonSelected = 6;
+        private const int SelectionCount = 7;
 
         // Original 640x480 coordinate space, not physical window pixels.
         private static readonly Rectangle VehicleArea = new Rectangle(20, 112, 310, 177);
@@ -76,6 +78,7 @@ namespace OpenNFS1.UI.Screens
         private readonly BitmapEntry _timeTrialArt, _timeTrialOpponentArt;
         private readonly BitmapEntry[] _tournamentClassArt = new BitmapEntry[3];
         private readonly BitmapEntry _computerOpponentsArt;
+        private readonly BitmapEntry _optionsSelection, _cancelSelection;
         private readonly List<VehicleUIControl> _vehicles = new List<VehicleUIControl>();
         private readonly List<TrackUIControl> _tracks = new List<TrackUIControl>();
         private readonly SpriteFont _font;
@@ -93,6 +96,8 @@ namespace OpenNFS1.UI.Screens
             _raceTypeSelection = qfs.Content.Header.FindByName("Blb2");
             _trackSelection = qfs.Content.Header.FindByName("Brb4");
             _raceButtonSelection = qfs.Content.Header.FindByName("Ra1l");
+            _optionsSelection = qfs.Content.Header.FindByName("optl");
+            _cancelSelection = qfs.Content.Header.FindByName("canl");
             // Original SINGLE.QFS is 238x66 at (92,316), exactly the
             // race type placeholder in CENTRAL.QFS.
             _singleRaceArt = new QfsFile(@"FRONTEND\ART\CONTROL\SINGLE.QFS")
@@ -209,10 +214,12 @@ namespace OpenNFS1.UI.Screens
                 ChangeSelected(1);
             else if (input.WasPressed(Keys.Enter))
             {
-                if (_selectedControl == RaceButtonSelected)
-                    OpenRaceOptions();
-                else
-                    ChangeSelected(1);
+                if (_selectedControl == RaceButtonSelected) OpenRaceOptions();
+                else if (_selectedControl == OptionsButtonSelected)
+                    Engine.Instance.Screen = new OptionsScreen();
+                else if (_selectedControl == CancelButtonSelected)
+                    Engine.Instance.Screen = new GameModeScreen();
+                else ChangeSelected(1);
             }
         }
 
@@ -244,9 +251,15 @@ namespace OpenNFS1.UI.Screens
                 OpenRaceOptions();
             }
             else if (OptionsButtonArea.Contains(x, y))
+            {
+                _selectedControl = OptionsButtonSelected;
                 Engine.Instance.Screen = new OptionsScreen();
+            }
             else if (CancelButtonArea.Contains(x, y))
+            {
+                _selectedControl = CancelButtonSelected;
                 Engine.Instance.Screen = new GameModeScreen();
+            }
             else
                 return false;
             return true;
@@ -406,6 +419,14 @@ namespace OpenNFS1.UI.Screens
                     break;
                 case RaceButtonSelected:
                     sprite.Draw(_raceButtonSelection.Texture, _raceButtonSelection.GetDisplayAt(), Color.White);
+                    break;
+                case OptionsButtonSelected:
+                    if (_optionsSelection?.Texture != null)
+                        sprite.Draw(_optionsSelection.Texture, _optionsSelection.GetDisplayAt(), Color.White);
+                    break;
+                case CancelButtonSelected:
+                    if (_cancelSelection?.Texture != null)
+                        sprite.Draw(_cancelSelection.Texture, _cancelSelection.GetDisplayAt(), Color.White);
                     break;
             }
             sprite.End();
