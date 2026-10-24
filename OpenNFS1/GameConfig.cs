@@ -23,6 +23,12 @@ namespace OpenNFS1
             1 => SamplerState.LinearWrap,
             _ => SamplerState.AnisotropicWrap
         };
+        public static SamplerState ClampSampler => TextureQuality switch
+        {
+            0 => SamplerState.PointClamp,
+            1 => SamplerState.LinearClamp,
+            _ => SamplerState.AnisotropicClamp
+        };
 
         public static VehicleDescription SelectedVehicle;
         public static VehicleDescription SelectedOpponent;
