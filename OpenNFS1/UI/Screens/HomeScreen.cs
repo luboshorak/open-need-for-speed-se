@@ -69,6 +69,7 @@ namespace OpenNFS1.UI.Screens
         private readonly BitmapEntry _background, _vehicleSelection, _opponentSelection,
             _raceTypeSelection, _trackSelection, _raceButtonSelection;
         private readonly BitmapEntry _singleRaceArt;
+        private readonly BitmapEntry _tournamentArt;
         private readonly BitmapEntry _computerOpponentsArt;
         private readonly List<VehicleUIControl> _vehicles = new List<VehicleUIControl>();
         private readonly List<TrackUIControl> _tracks = new List<TrackUIControl>();
@@ -90,6 +91,8 @@ namespace OpenNFS1.UI.Screens
             // Original SINGLE.QFS is 238x66 at (92,316), exactly the
             // race type placeholder in CENTRAL.QFS.
             _singleRaceArt = new QfsFile(@"FRONTEND\ART\CONTROL\SINGLE.QFS")
+                .Content.Header.FindByName("0000");
+            _tournamentArt = new QfsFile(@"FRONTEND\ART\CONTROL\TOURNY.QFS")
                 .Content.Header.FindByName("0000");
             _computerOpponentsArt = qfs.Content.Header.FindByName("Coml");
             WriteArtInventory(qfs);
@@ -233,12 +236,31 @@ namespace OpenNFS1.UI.Screens
                     _currentOpponent = (_currentOpponent + direction + _vehicles.Count) % _vehicles.Count;
                     break;
                 case RaceTypeSelected:
-                    GameConfig.TimeTrial = !GameConfig.TimeTrial;
+                    GameConfig.CurrentRaceMode = (RaceMode)(
+                        ((int)GameConfig.CurrentRaceMode + direction + 3) % 3);
+                    // Tournament only has supported circuit races, no open-road stages.
+                    if (GameConfig.CurrentRaceMode == RaceMode.Tournament)
+                        _currentTrack = FindTournamentCircuit(_currentTrack, 1);
                     break;
                 case TrackSelected:
                     _currentTrack = (_currentTrack + direction + _tracks.Count) % _tracks.Count;
+                    if (GameConfig.CurrentRaceMode == RaceMode.Tournament)
+                        _currentTrack = FindTournamentCircuit(_currentTrack, direction);
                     break;
             }
+        }
+
+        private int FindTournamentCircuit(int start, int direction)
+        {
+            for (int offset = 0; offset < _tracks.Count; offset++)
+            {
+                int index = (start + offset * direction + _tracks.Count * 2) % _tracks.Count;
+                TrackDescription track = _tracks[index].Descriptor;
+                if (!track.IsOpenRoad && !track.HideFromMenu &&
+                    track.Name.IndexOf("hidden track", StringComparison.OrdinalIgnoreCase) < 0)
+                    return index;
+            }
+            return start;
         }
 
         private void OpenRaceOptions()
@@ -272,12 +294,13 @@ namespace OpenNFS1.UI.Screens
                 sprite.Draw(_computerOpponentsArt.Texture,
                     _computerOpponentsArt.GetDisplayAt(), Color.White);
 
-            // Single Race is a genuine original game graphic. Time Trial is a
-            // modern extension without an original matching asset, so label it clearly.
-            if (!GameConfig.TimeTrial)
+            // Restore the real 1996 race type art where it exists.
+            BitmapEntry raceTypeArt = GameConfig.CurrentRaceMode == RaceMode.Tournament
+                ? _tournamentArt : _singleRaceArt;
+            if (GameConfig.CurrentRaceMode != RaceMode.TimeTrial)
             {
-                if (_singleRaceArt?.Texture != null)
-                    sprite.Draw(_singleRaceArt.Texture, _singleRaceArt.GetDisplayAt(), Color.White);
+                if (raceTypeArt?.Texture != null)
+                    sprite.Draw(raceTypeArt.Texture, raceTypeArt.GetDisplayAt(), Color.White);
             }
             else
             {
