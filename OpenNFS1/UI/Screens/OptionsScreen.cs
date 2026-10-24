@@ -108,7 +108,7 @@ namespace OpenNFS1.UI.Screens
                     Engine.Instance.Screen = new LoadSaveScreen(this);
                     break;
                 case 7:
-                    _message = "OpenNFS1 SE - community remake. Original game (c) EA.";
+                    _message = "OpenNFS1 SE Reloaded - development: Lubos Horak. See CREDITS.md.";
                     break;
                 case 8: Done(); break;
                 default: ChangeOnEnter(); break;
