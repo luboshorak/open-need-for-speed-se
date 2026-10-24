@@ -30,7 +30,7 @@ namespace OpenNFS1.UI.Screens
         private bool _full;
         private int _sizeIndex, _scaling, _selected, _drawDistance;
         private float _gamma, _brightness, _contrast;
-        private string _status = "640 x 480 source - display-only upscale";
+        private string _status = "Large windows auto-fit your monitor";
 
         public DisplayOptionsScreen(IGameScreen back)
         {
@@ -183,7 +183,7 @@ namespace OpenNFS1.UI.Screens
             sprite.Draw(_background, new Rectangle(0,0,640,480), Color.White);
             sprite.Draw(_pixel, new Rectangle(0,0,640,480), Color.Black * .82f);
             Label(sprite, "OPENNFS1 SE RELOADED  /  DISPLAY", 28, 24, 0.72f, Color.White);
-            Label(sprite, "F11: toggle fullscreen any time", 30, 60, .35f, Color.LightGray);
+            Label(sprite, "F10: restore window 800x600   F11: fullscreen", 30, 60, .35f, Color.LightGray);
             string[] labels = { "SCREEN", "WINDOW SIZE", "UPSCALING",
                 "GAMMA", "BRIGHTNESS", "CONTRAST",
                 "DRAW DISTANCE", "RESET", "SAVE", "BACK" };
