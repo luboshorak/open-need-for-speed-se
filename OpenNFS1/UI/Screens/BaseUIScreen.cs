@@ -28,6 +28,9 @@ namespace OpenNFS1.UI.Screens
 
 		public virtual void Draw()
 		{
+			// The driving view uses a 640x400 viewport; every menu and results
+			// screen needs the full 640x480 viewport after leaving a race.
+			Engine.Instance.Device.Viewport = new Viewport(0, 0, 640, 480);
 			Engine.Instance.SpriteBatch.Begin();
 			if (_background != null)
 			{
