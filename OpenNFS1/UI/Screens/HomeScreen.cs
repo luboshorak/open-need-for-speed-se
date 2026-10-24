@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -37,6 +39,7 @@ namespace OpenNFS1.UI.Screens
 
     class HomeScreen : IGameScreen
     {
+        private static bool _assetIndexWritten;
         private const int VehicleSelected = 0;
         private const int OpponentSelected = 1;
         private const int RaceTypeSelected = 2;
@@ -69,6 +72,7 @@ namespace OpenNFS1.UI.Screens
             _vehicleSelection = qfs.Content.Header.FindByName("Tlb1");
             _trackSelection = qfs.Content.Header.FindByName("Brb4");
             _raceButtonSelection = qfs.Content.Header.FindByName("Ra1l");
+            WriteArtInventory(qfs);
 
             foreach (var vehicle in VehicleDescription.Descriptions)
                 _vehicles.Add(new VehicleUIControl(vehicle));
@@ -94,6 +98,42 @@ namespace OpenNFS1.UI.Screens
             _currentVehicle = Math.Clamp(_currentVehicle, 0, _vehicles.Count - 1);
             _currentTrack = Math.Clamp(_currentTrack, 0, _tracks.Count - 1);
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
+        }
+
+        /// <summary>
+        /// Inventory the genuine QFS assets available in the user's own CD copy.
+        /// This helps identify artwork for the missing Race Type/Opponent panels
+        /// without inventing asset names or redistributing proprietary artwork.
+        /// </summary>
+        private static void WriteArtInventory(QfsFile control)
+        {
+            if (_assetIndexWritten) return;
+            _assetIndexWritten = true;
+            try
+            {
+                var lines = new List<string>
+                {
+                    "Original NFS SE control artwork inventory",
+                    "Generated: " + DateTime.UtcNow.ToString("O"),
+                    "CENTRAL.QFS bitmap resources:"
+                };
+                foreach (var bmp in control.Content.Header.Bitmaps)
+                {
+                    lines.Add(string.Format("{0} | {1} | {2}x{3} | at ({4},{5})",
+                        bmp.Id, bmp.Type, bmp.Texture?.Width ?? 0, bmp.Texture?.Height ?? 0,
+                        bmp.Misc[2], bmp.Misc[3]));
+                }
+                lines.Add("");
+                lines.Add("Control QFS files in original CD data:");
+                string directory = Path.Combine(GameConfig.CdDataPath, "FRONTEND", "ART", "CONTROL");
+                if (Directory.Exists(directory))
+                    lines.AddRange(Directory.GetFiles(directory, "*.qfs")
+                        .Select(Path.GetFileName).OrderBy(name => name, StringComparer.OrdinalIgnoreCase));
+
+                File.WriteAllLines(Path.Combine(AppContext.BaseDirectory, "ui-assets.txt"), lines);
+            }
+            catch (IOException) { /* Original artwork stays usable on read-only installations. */ }
+            catch (UnauthorizedAccessException) { }
         }
 
         public void Update(GameTime gameTime)
