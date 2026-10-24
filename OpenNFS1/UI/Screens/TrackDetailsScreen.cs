@@ -23,12 +23,8 @@ namespace OpenNFS1.UI.Screens
         private readonly List<TrackDescription> _segments = new List<TrackDescription>();
         private BitmapChunk _art;
 
-        private static string StageFamily(TrackDescription track)
-        {
-            if (track == null || !track.IsOpenRoad) return null;
-            string name = Path.GetFileNameWithoutExtension(track.FileName.Replace('\\', '/'));
-            return name.Length >= 3 ? name.Substring(0, 2).ToUpperInvariant() : null;
-        }
+        private static string StageFamily(TrackDescription track) =>
+            OpenRoadStageSelector.Family(track?.FileName, track?.IsOpenRoad ?? false);
 
         private void SetSegment(int stageIndex)
         {
