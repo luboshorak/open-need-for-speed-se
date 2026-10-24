@@ -74,7 +74,7 @@ namespace OpenNFS1.Vehicles
 						pixels[i] = BrakeOffColor;
 				}
 
-				_brakeOffTexture = new Texture2D(Engine.Instance.Device, _leftBrakeLight.Texture.Width, _leftBrakeLight.Texture.Height);
+				_brakeOffTexture = new Texture2D(Engine.Instance.Device, rsidPoly.Texture.Width, rsidPoly.Texture.Height);
 				_brakeOffTexture.SetData<Color>(pixels);
 			}
 		}
