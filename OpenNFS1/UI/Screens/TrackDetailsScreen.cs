@@ -64,11 +64,14 @@ namespace OpenNFS1.UI.Screens
             GameConfig.SelectedTrackDescription = _tracks[_index];
         }
 
-        private void NextTrack(int direction)
+        internal TrackDescription CycleTrack(int direction)
         {
             _index = (_index + direction + _tracks.Count) % _tracks.Count;
             Load();
+            return _tracks[_index];
         }
+
+        private void NextTrack(int direction) => CycleTrack(direction);
 
         private void Back() => Engine.Instance.Screen = new HomeScreen();
         private BitmapEntry Entry(string id) => _art?.FindByName(id);
@@ -122,14 +125,13 @@ namespace OpenNFS1.UI.Screens
             if (Hit("pred", p) || Hit("prel", p)) { NextTrack(-1); return; }
             if (Hit("nexd", p) || Hit("nexl", p)) { NextTrack(1); return; }
             if (Hit("besd", p) || Hit("besl", p)) { BestTimes(); return; }
-            if (Hit("midd", p) || Hit("midl", p))
+            // Midday/Morning are alternate sprites at the SAME coordinates.
+            // Their original hitboxes overlap, so a click must toggle the
+            // current value rather than always selecting the first ID.
+            if (Hit("midd", p) || Hit("midl", p) ||
+                Hit("mord", p) || Hit("morl", p))
             {
-                GameConfig.AlternativeTimeOfDay = false;
-                return;
-            }
-            if (Hit("mord", p) || Hit("morl", p))
-            {
-                GameConfig.AlternativeTimeOfDay = true;
+                GameConfig.AlternativeTimeOfDay = !GameConfig.AlternativeTimeOfDay;
                 return;
             }
             // Native track selection uses a small number of click targets.
