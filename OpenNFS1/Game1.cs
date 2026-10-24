@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
 using GameEngine;
 using OpenNFS1.UI.Screens;
 
@@ -106,6 +107,12 @@ namespace OpenNFS1
 		protected override void Update(GameTime gameTime)
 		{
 			base.Update(gameTime);
+            if (Engine.Instance.Input.WasPressed(Keys.F11))
+            {
+                GameConfig.FullScreen = !GameConfig.FullScreen;
+                ApplyDisplaySettings();
+                GameConfig.SaveUserSettings();
+            }
             if (Engine.Instance.Screen != null)
             {
                 OriginalMusicPlayer.Instance.Update(
