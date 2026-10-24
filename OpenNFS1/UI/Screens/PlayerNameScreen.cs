@@ -52,19 +52,19 @@ namespace OpenNFS1.UI.Screens
                 _name += " ";
             else if (_name.Length < 16)
             {
-                for (Keys k = Keys.A; k <= Keys.Z; k++)
+                for (int key = (int)Keys.A; key <= (int)Keys.Z; key++)
                 {
-                    if (input.WasPressed(k))
+                    if (input.WasPressed((Keys)key))
                     {
-                        _name += k.ToString();
+                        _name += (char)('A' + key - (int)Keys.A);
                         break;
                     }
                 }
-                for (Keys k = Keys.D0; k <= Keys.D9; k++)
+                for (int key = (int)Keys.D0; key <= (int)Keys.D9; key++)
                 {
-                    if (input.WasPressed(k))
+                    if (input.WasPressed((Keys)key))
                     {
-                        _name += (char)('0' + k - Keys.D0);
+                        _name += (char)('0' + key - (int)Keys.D0);
                         break;
                     }
                 }
