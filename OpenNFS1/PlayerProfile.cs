@@ -66,8 +66,9 @@ namespace OpenNFS1
             }
         }
 
-        private sealed class ProfileData
+        public sealed class ProfileData
         {
+            public ProfileData() { }
             public int Version { get; set; }
             public string Name { get; set; }
         }
