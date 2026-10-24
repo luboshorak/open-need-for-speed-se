@@ -119,6 +119,20 @@ namespace OpenNFS1.UI.Screens
         {
             GameConfig.ManualGearbox = _gearboxOption == 1;
             GameConfig.AlternativeTimeOfDay = _timeOfDayOption == 1;
+
+            // Begin a fresh local championship only when the player starts.
+            // The next courses are selected by RaceFinishedScreen, not here.
+            if (GameConfig.CurrentRaceMode == RaceMode.Tournament)
+            {
+                GameConfig.Tournament = new TournamentSeries(
+                    GameConfig.SelectedTrackDescription, TrackDescription.Descriptions);
+                GameConfig.SelectedTrackDescription = GameConfig.Tournament.CurrentCourse;
+            }
+            else
+            {
+                GameConfig.Tournament = null;
+            }
+
             Engine.Instance.Screen = new LoadRaceScreen();
         }
 
