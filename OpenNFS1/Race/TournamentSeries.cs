@@ -8,7 +8,8 @@ namespace OpenNFS1
     {
         SingleRace = 0,
         Tournament = 1,
-        TimeTrial = 2
+        TimeTrial = 2,
+        HeadToHead = 3
     }
 
     /// <summary>
