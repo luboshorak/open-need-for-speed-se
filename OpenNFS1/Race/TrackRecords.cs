@@ -20,6 +20,7 @@ namespace OpenNFS1
 
         internal sealed class Entry
         {
+            public Entry() { }
             public string TrackFile { get; set; }
             public string Player { get; set; }
             public string Car { get; set; }
