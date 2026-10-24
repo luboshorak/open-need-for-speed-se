@@ -23,7 +23,8 @@ namespace OpenNFS1.UI.Screens
         private readonly Texture2D _pixel;
         private readonly Texture2D _background;
 
-        private readonly bool _originalFull;
+        private readonly bool _originalFull, _savedOriginalColors;
+        private bool _previewOriginalColors;
         private readonly int _originalW, _originalH, _originalScaling, _originalDrawDistance;
         private readonly float _originalGamma, _originalBrightness, _originalContrast;
 
@@ -40,6 +41,7 @@ namespace OpenNFS1.UI.Screens
             _pixel = new Texture2D(Engine.Instance.Device, 1, 1);
             _pixel.SetData(new[] { Color.White });
             _originalFull = _full = GameConfig.FullScreen;
+            _savedOriginalColors = _previewOriginalColors = GameConfig.OriginalColors;
             _originalW = GameConfig.WindowWidth;
             _originalH = GameConfig.WindowHeight;
             _originalScaling = _scaling = GameConfig.ScalingMode;
@@ -55,6 +57,7 @@ namespace OpenNFS1.UI.Screens
 
         private void PreviewColor()
         {
+            GameConfig.OriginalColors = _previewOriginalColors;
             GameConfig.Gamma = _gamma;
             GameConfig.Brightness = _brightness;
             GameConfig.Contrast = _contrast;
@@ -71,9 +74,9 @@ namespace OpenNFS1.UI.Screens
                     _sizeIndex = (_sizeIndex + direction + Sizes.Length) % Sizes.Length;
                     break;
                 case 2: _scaling = (_scaling + direction + 3) % 3; break;
-                case 3: _gamma = Math.Clamp(_gamma + direction * 0.05f, 0.60f, 1.60f); break;
-                case 4: _brightness = Math.Clamp(_brightness + direction * 0.025f, -0.30f, 0.30f); break;
-                case 5: _contrast = Math.Clamp(_contrast + direction * 0.05f, 0.60f, 1.60f); break;
+                case 3: _gamma = Math.Clamp(_gamma + direction * 0.05f, 0.60f, 1.60f); _previewOriginalColors = false; break;
+                case 4: _brightness = Math.Clamp(_brightness + direction * 0.025f, -0.30f, 0.30f); _previewOriginalColors = false; break;
+                case 5: _contrast = Math.Clamp(_contrast + direction * 0.05f, 0.60f, 1.60f); _previewOriginalColors = false; break;
                 case 6:
                     int[] distances = { 2500, 5000, 7500 };
                     int index = Array.IndexOf(distances, _drawDistance);
@@ -89,6 +92,7 @@ namespace OpenNFS1.UI.Screens
 
         private void ResetColors()
         {
+            _previewOriginalColors = true;
             _gamma = 1.0f;
             _brightness = 0;
             _contrast = 1.0f;
@@ -118,6 +122,7 @@ namespace OpenNFS1.UI.Screens
                 GameConfig.WindowWidth = _originalW;
                 GameConfig.WindowHeight = _originalH;
                 _scaling = _originalScaling;
+                _previewOriginalColors = _savedOriginalColors;
                 _gamma = _originalGamma;
                 _brightness = _originalBrightness;
                 _contrast = _originalContrast;
@@ -129,6 +134,7 @@ namespace OpenNFS1.UI.Screens
         {
             GameConfig.DrawDistance = _originalDrawDistance;
             _scaling = _originalScaling;
+            _previewOriginalColors = _savedOriginalColors;
             _gamma = _originalGamma;
             _brightness = _originalBrightness;
             _contrast = _originalContrast;
@@ -170,7 +176,7 @@ namespace OpenNFS1.UI.Screens
                 case 5: return _contrast.ToString("0.00");
                 case 6: return _drawDistance == 2500 ? "LOW" :
                         _drawDistance == 5000 ? "MEDIUM" : "HIGH";
-                case 7: return "DEFAULT COLOR";
+                case 7: return _previewOriginalColors ? "ORIGINAL COLORS ON" : "RESTORE ORIGINAL";
                 case 8: return "APPLY & SAVE";
                 default: return "CANCEL";
             }
@@ -185,7 +191,7 @@ namespace OpenNFS1.UI.Screens
             sprite.Draw(_background, new Rectangle(0,0,640,480), Color.White);
             sprite.Draw(_pixel, new Rectangle(0,0,640,480), Color.Black * .82f);
             Label(sprite, "OPENNFS1 SE RELOADED  /  DISPLAY", 28, 24, 0.72f, Color.White);
-            Label(sprite, "F10: restore window 800x600   F11: fullscreen", 30, 60, .35f, Color.LightGray);
+            Label(sprite, "F8: original colors  F10: window  F11: fullscreen", 30, 60, .35f, Color.LightGray);
             string[] labels = { "SCREEN", "WINDOW SIZE", "UPSCALING",
                 "GAMMA", "BRIGHTNESS", "CONTRAST",
                 "DRAW DISTANCE", "RESET", "SAVE", "BACK" };
