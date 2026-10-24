@@ -20,12 +20,14 @@ namespace OpenNFS1
             // Pairwise cost is modest for the 11-car race grid.
             for (int i = 0; i < drivers.Count; i++)
             {
-                if (drivers[i].Vehicle is not DrivableVehicle first)
+                Vehicle first = drivers[i].Vehicle;
+                if (first == null || first.CurrentNode == null)
                     continue;
 
                 for (int j = i + 1; j < drivers.Count; j++)
                 {
-                    if (drivers[j].Vehicle is not DrivableVehicle second)
+                    Vehicle second = drivers[j].Vehicle;
+                    if (second == null || second.CurrentNode == null)
                         continue;
 
                     // Cars on separate overpass levels must not hit each other.
@@ -60,8 +62,10 @@ namespace OpenNFS1
                     if (relativeClosing <= 0)
                         continue;
 
-                    float massA = Math.Max(1, first.Descriptor.Mass);
-                    float massB = Math.Max(1, second.Descriptor.Mass);
+                    float massA = first is DrivableVehicle carA
+                        ? Math.Max(1, carA.Descriptor.Mass) : 1500f;
+                    float massB = second is DrivableVehicle carB
+                        ? Math.Max(1, carB.Descriptor.Mass) : 1500f;
                     const float restitution = 0.08f;
                     float impulse = (1 + restitution) * relativeClosing /
                                     (1f / massA + 1f / massB);
@@ -75,10 +79,10 @@ namespace OpenNFS1
                     // Subtle lateral response, never a full spin just from touching.
                     float sideA = firstHeading.X * contact.Y - firstHeading.Y * contact.X;
                     float sideB = secondHeading.X * contact.Y - secondHeading.Y * contact.X;
-                    if (Math.Abs(sideA) > 0.2f)
-                        first.RotateCarAfterCollision = -Math.Sign(sideA) * 0.035f;
-                    if (Math.Abs(sideB) > 0.2f)
-                        second.RotateCarAfterCollision = Math.Sign(sideB) * 0.035f;
+                    if (Math.Abs(sideA) > 0.2f && first is DrivableVehicle driveA)
+                        driveA.RotateCarAfterCollision = -Math.Sign(sideA) * 0.035f;
+                    if (Math.Abs(sideB) > 0.2f && second is DrivableVehicle driveB)
+                        driveB.RotateCarAfterCollision = Math.Sign(sideB) * 0.035f;
                 }
             }
         }
