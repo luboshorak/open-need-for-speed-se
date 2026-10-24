@@ -16,13 +16,15 @@ namespace OpenNFS1.UI.Screens
         private readonly BitmapChunk _art;
         private readonly SpriteFont _font;
         private readonly IGameScreen _returnTo;
+        private readonly TrackDescription _upcomingTrackOverride;
         private int _slot = 1;
         private string _message = "Choose slot 1-3, then Save or Load.";
         private bool _confirmDelete;
 
-        public LoadSaveScreen(IGameScreen returnTo)
+        public LoadSaveScreen(IGameScreen returnTo, TrackDescription upcomingTrackOverride = null)
         {
             _returnTo = returnTo ?? new HomeScreen();
+            _upcomingTrackOverride = upcomingTrackOverride;
             _art = new QfsFile(@"FRONTEND\ART\OPTION\LOADSAVE.QFS").Content.Header;
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
         }
@@ -50,7 +52,8 @@ namespace OpenNFS1.UI.Screens
             _confirmDelete = false;
             try
             {
-                TrackDescription upcoming = TournamentSaveManager.SuggestedNextTrack();
+                TrackDescription upcoming = _upcomingTrackOverride ??
+                    TournamentSaveManager.SuggestedNextTrack();
                 if (upcoming == null)
                     _message = "No active championship. Start Tournament first.";
                 else
