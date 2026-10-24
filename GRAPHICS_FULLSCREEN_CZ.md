@@ -1,3 +1,11 @@
+## Nouzová obnova a omezení příliš velkého okna
+
+- **F10**: kdykoli okamžitě vrátí hru do režimu okna **800×600**, vycentruje ji na monitor a uloží nastavení, i když je menu mimo obrazovku. Pokud je otevřená stránka Display, vrátí se do Options.
+- **F11**: přepíná běžně fullscreen a windowed.
+- Při načtení starého nastavení i při každém použití Graphics Detail se rozměr okna automaticky **proporčně zmenší**, pokud by přesáhl rozměr monitoru minus prostor pro titulkový pruh a hlavní panel systému. Nastavený poměr stran okna zůstává zachovaný.
+- Původní virtuální grafika 640×480 a klikací souřadnice se tím nemění.
+- Starší build lze zachránit editací `%LOCALAPPDATA%\OpenNFS1\settings.json`: `fullScreen=false`, `windowWidth=800`, `windowHeight=600`.
+
 # OpenNFS1 SE Reloaded 1.7.0 – fullscreen, obraz, škálování a kredity
 
 ## Co je implementováno
