@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Xml.Linq;
 using GameEngine;
 
 static class Program
@@ -37,6 +39,29 @@ static class Program
         var invalid = PresentationLayout.Calculate(0,0,true);
         Check(invalid.IsEmpty, "Zero-sized backbuffer must not create geometry");
 
-        Console.WriteLine("PASS: fullscreen 4:3, integer scaling, mouse mapping, letterbox hitboxes");
+        // MonoGame SpriteBatch.DrawString throws ArgumentException for any
+        // character absent from a SpriteFont with no DefaultCharacter.
+        // Keep every production UI font safe for locale-specific messages.
+        foreach (string font in new[] { "ArialBlack", "ArialBlack-Italic" })
+        {
+            string fontPath = Path.Combine(AppContext.BaseDirectory, font + ".spritefont");
+            var xml = XDocument.Load(fontPath);
+            string fallback = xml.Root?.Element("Asset")?.Element("DefaultCharacter")?.Value;
+            Check(fallback == "?", font + " has no valid fallback glyph.");
+
+            // '?' must actually be inside the packed glyph ranges (32-126).
+            var regions = xml.Root?.Element("Asset")?.Element("CharacterRegions");
+            bool supportsFallback = false;
+            if (regions != null)
+                foreach (var region in regions.Elements("CharacterRegion"))
+                {
+                    int start = char.Parse(region.Element("Start").Value);
+                    int end = char.Parse(region.Element("End").Value);
+                    if (start <= '?' && '?' <= end) supportsFallback = true;
+                }
+            Check(supportsFallback, font + " fallback is missing from its glyph atlas.");
+        }
+
+        Console.WriteLine("PASS: fullscreen scaling, mouse mapping, and safe UI font fallback");
     }
 }
