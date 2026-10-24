@@ -199,6 +199,12 @@ namespace OpenNFS1.UI.Screens
                     return;
             }
 
+            if (input.WasPressed(Keys.I))
+            {
+                OpenShowroom();
+                return;
+            }
+
             if (input.WasPressed(Keys.Escape))
             {
                 Engine.Instance.Screen = new GameModeScreen();
@@ -219,6 +225,8 @@ namespace OpenNFS1.UI.Screens
                     Engine.Instance.Screen = new OptionsScreen();
                 else if (_selectedControl == CancelButtonSelected)
                     Engine.Instance.Screen = new GameModeScreen();
+                else if (_selectedControl == VehicleSelected)
+                    OpenShowroom();
                 else ChangeSelected(1);
             }
         }
@@ -228,7 +236,11 @@ namespace OpenNFS1.UI.Screens
             if (VehicleArea.Contains(x, y))
             {
                 _selectedControl = VehicleSelected;
-                ChangeSelected(x < VehicleArea.Center.X ? -1 : 1);
+                // Native car photo is an information hotspot. Small strips at
+                // each side still provide fast previous/next vehicle changes.
+                if (x < VehicleArea.Left + 42) ChangeSelected(-1);
+                else if (x >= VehicleArea.Right - 42) ChangeSelected(1);
+                else OpenShowroom();
             }
             else if (OpponentArea.Contains(x, y))
             {
@@ -337,6 +349,12 @@ namespace OpenNFS1.UI.Screens
                     return;
                 }
             }
+        }
+
+        private void OpenShowroom()
+        {
+            GameConfig.SelectedVehicle = _vehicles[_currentVehicle].Descriptor;
+            Engine.Instance.Screen = new VehicleShowroomScreen(GameConfig.SelectedVehicle);
         }
 
         private void OpenRaceOptions()
