@@ -14,6 +14,8 @@ namespace OpenNFS1.Vehicles
     class TrafficController
     {
         Race _race;
+        private PoliceDriver _police;
+        private readonly PolicePursuitLogic _pursuit = new PolicePursuitLogic();
 		List<TrafficDriver> _traffic = new List<TrafficDriver>();
 		static string[] _trafficModels;
 		static TrafficController()
@@ -22,7 +24,7 @@ namespace OpenNFS1.Vehicles
 				@"SIMDATA\CARFAMS\axxess.CFM",
 				@"SIMDATA\CARFAMS\vandura.CFM",
 				@"SIMDATA\CARFAMS\bmw.CFM",
-				@"SIMDATA\CARFAMS\copmust.CFM",
+				// copmust.CFM has its own dedicated pursuit driver; not civilian traffic.
 				@"SIMDATA\CARFAMS\crx.CFM",
 				@"SIMDATA\CARFAMS\jeep.CFM",
 				@"SIMDATA\CARFAMS\jetta.CFM",
@@ -44,6 +46,52 @@ namespace OpenNFS1.Vehicles
         public void Update()
         {
 			var player = _race.Player;
+            int playerNode = player.Vehicle.CurrentNode?.Number ?? 0;
+            float nodeGap = _police == null ? float.MaxValue :
+                Math.Abs(playerNode - (_police.Vehicle.CurrentNode?.Number ?? playerNode));
+            bool spawn = _pursuit.Update(Engine.Instance.FrameTime,
+                Math.Abs(player.Vehicle.Speed), nodeGap);
+
+            if (_pursuit.TicketIssued)
+            {
+                _race.PoliceTicketed = true;
+                _pursuit.ClearTicket();
+                if (_police != null)
+                {
+                    _race.Drivers.Remove(_police);
+                    _police = null;
+                }
+            }
+
+            if (_police != null && (_police.AtEndOfTrack || nodeGap > 95))
+            {
+                _race.Drivers.Remove(_police);
+                _police = null;
+                _pursuit.ResetPursuit();
+            }
+
+            if (spawn && _police == null && playerNode >= 30 &&
+                playerNode < _race.Track.RoadNodes.Count - 40)
+            {
+                int spawnNode = Math.Max(2, playerNode - 15);
+                try
+                {
+                    var officer = new PoliceDriver(player);
+                    _race.AddDriver(officer, _race.Track.RoadNodes[spawnNode]);
+                    _police = officer;
+                }
+                catch (Exception ex) when (ex is System.IO.IOException ||
+                    ex is InvalidOperationException || ex is NullReferenceException)
+                {
+                    System.Diagnostics.Trace.WriteLine("Police Mustang cannot spawn: " + ex);
+                    _pursuit.ResetPursuit();
+                }
+            }
+            // If the player is too close to an end marker, spawning would
+            // be unsafe; do not leave the pursuit state permanently armed.
+            if (spawn && _police == null)
+                _pursuit.ResetPursuit();
+            _race.PolicePursuitActive = _police != null;
             for (int i = _traffic.Count - 1; i >= 0; i--)
             {
 				var driver = _traffic[i];

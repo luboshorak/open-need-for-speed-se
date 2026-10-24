@@ -26,6 +26,12 @@ namespace OpenNFS1.Parsers
 		private byte[] Decompress(string filename)
 		{
 			byte[] inbuf = File.ReadAllBytes(filename);
+            // Some NFS SE art is stored directly as FSH/SHPI despite a QFS
+            // extension. Feed it to the existing FSH parser unchanged.
+            if (inbuf.Length >= 12 && inbuf[0] == (byte)'S' &&
+                inbuf[1] == (byte)'H' && inbuf[2] == (byte)'P' &&
+                inbuf[3] == (byte)'I')
+                return inbuf;
             if (EaHuffmanDecoder.CanDecode(inbuf))
                 return EaHuffmanDecoder.Decode(inbuf);
             if (inbuf.Length < 8 || inbuf[1] != 0xFB ||

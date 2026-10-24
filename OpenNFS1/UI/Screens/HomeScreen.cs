@@ -131,6 +131,14 @@ namespace OpenNFS1.UI.Screens
             if (GameConfig.SelectedTrackDescription != null)
             {
                 int index = _tracks.FindIndex(a => a.Descriptor == GameConfig.SelectedTrackDescription);
+                if (index < 0 && GameConfig.SelectedTrackDescription.IsOpenRoad)
+                {
+                    string stageFile = GameConfig.SelectedTrackDescription.FileName.Replace('\\','/');
+                    string family = stageFile.Substring(stageFile.LastIndexOf('/') + 1, 2);
+                    index = _tracks.FindIndex(t => t.Descriptor.IsOpenRoad &&
+                        t.Descriptor.FileName.Replace('\\','/').Split('/').Last()
+                            .StartsWith(family, StringComparison.OrdinalIgnoreCase));
+                }
                 if (index >= 0) _currentTrack = index;
             }
             if (GameConfig.SelectedVehicle != null)
@@ -373,7 +381,15 @@ namespace OpenNFS1.UI.Screens
         {
             GameConfig.SelectedVehicle = _vehicles[_currentVehicle].Descriptor;
             GameConfig.SelectedOpponent = _vehicles[_currentOpponent].Descriptor;
-            GameConfig.SelectedTrackDescription = _tracks[_currentTrack].Descriptor;
+            // The Control Central thumbnail represents a COURSE, while
+            // TrackDetails may have selected its AL2/AL3 (CL/CY) segment.
+            // Do not overwrite that stage when the user presses RACE.
+            TrackDescription selected = _tracks[_currentTrack].Descriptor;
+            TrackDescription detailed = GameConfig.SelectedTrackDescription;
+            if (detailed == null || !OpenRoadStageSelector.SameFamily(
+                selected.FileName, selected.IsOpenRoad,
+                detailed.FileName, detailed.IsOpenRoad))
+                GameConfig.SelectedTrackDescription = selected;
             RaceLauncher.Start();
         }
 

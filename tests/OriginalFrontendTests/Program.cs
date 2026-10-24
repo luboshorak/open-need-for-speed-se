@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using OpenNFS1;
 using OpenNFS1.Parsers;
+using OpenNFS1.Vehicles;
 
 static class Program
 {
@@ -35,6 +36,35 @@ static class Program
         Assert(PlayerProfile.Normalize("abcdefghijklmnopqr") == "ABCDEFGHIJKLMNOP",
             "Original 16-character name maximum must be enforced.");
 
-        Console.WriteLine("PASS: original EA 32FB Huffman assets, decoder errors, player name normalization");
+        Assert(OpenRoadStageSelector.SameFamily(
+            @"SIMDATA\MISC\AL1.TRI", true, @"SIMDATA\MISC\AL3.TRI", true),
+            "Changing an Alpine segment must preserve the Alpine road group.");
+        Assert(OpenRoadStageSelector.SameFamily(
+            @"SIMDATA\MISC\CL2.TRI", true, @"SIMDATA\MISC\CL3.TRI", true),
+            "Changing a Coastal segment must preserve the Coastal road group.");
+        Assert(!OpenRoadStageSelector.SameFamily(
+            @"SIMDATA\MISC\AL1.TRI", true, @"SIMDATA\MISC\CY1.TRI", true),
+            "Stage navigation crossed into an unrelated road.");
+        Assert(OpenRoadStageSelector.Family(@"SIMDATA\MISC\TR1.TRI", false) == null,
+            "Closed circuits may not be treated as multistage roads.");
+
+        var officer = new PolicePursuitLogic();
+        bool dispatched = false;
+        for (int i = 0; i < 40; i++)
+            dispatched |= officer.Update(.1f, 145, float.MaxValue);
+        Assert(dispatched && officer.IsPursuing, "Sustained speeding did not trigger pursuit.");
+
+        // Only a real pull-over near the cop results in a ticket.
+        for (int i = 0; i < 30; i++)
+            officer.Update(.1f, 0, 2);
+        Assert(officer.TicketIssued, "Stopping close to pursuing police did not issue a ticket.");
+        officer.ClearTicket();
+        Assert(!officer.TicketIssued, "Acknowledging police ticket did not clear the event.");
+        bool immediateRepeat = false;
+        for (int i = 0; i < 50; i++)
+            immediateRepeat |= officer.Update(.1f, 200, float.MaxValue);
+        Assert(!immediateRepeat, "Police pursuit restarted during mandatory cooldown.");
+
+        Console.WriteLine("PASS: Huffman QFS, player name, AL/CL/CY segments, police chase and ticket cooldown");
     }
 }

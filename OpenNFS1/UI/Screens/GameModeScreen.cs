@@ -75,6 +75,11 @@ namespace OpenNFS1.UI.Screens
         public void Update(GameTime gameTime)
         {
             var input = Engine.Instance.Input;
+            if (input.WasPressed(Keys.F6))
+            {
+                Engine.Instance.Screen = new PlayerNameScreen();
+                return;
+            }
             if (input.WasLeftMouseClicked)
             {
                 Vector2 point = input.GameMousePosition;
@@ -135,6 +140,10 @@ namespace OpenNFS1.UI.Screens
                     0, Vector2.Zero, 0.43f, SpriteEffects.None, 0);
             }
 
+            if (PlayerProfile.IsNamed)
+                sprite.DrawString(_font, "PLAYER: " + PlayerProfile.Name + "  /  F6: CHANGE",
+                    new Vector2(22, 451), Color.Yellow, 0, Vector2.Zero,
+                    .28f, SpriteEffects.None, 0);
             sprite.End();
         }
     }

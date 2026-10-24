@@ -6,5 +6,7 @@
   <ItemGroup>
     <Compile Include="..\..\OpenNFS1\Parsers\EaHuffmanDecoder.cs" Link="EaHuffmanDecoder.cs" />
     <Compile Include="..\..\OpenNFS1\PlayerProfile.cs" Link="PlayerProfile.cs" />
+    <Compile Include="..\..\OpenNFS1\Vehicles\Traffic\PolicePursuitLogic.cs" Link="PolicePursuitLogic.cs" />
+    <Compile Include="..\..\OpenNFS1\Race\OpenRoadStageSelector.cs" Link="OpenRoadStageSelector.cs" />
   </ItemGroup>
 </Project>

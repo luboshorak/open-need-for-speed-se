@@ -123,11 +123,18 @@ namespace OpenNFS1
 			base.Update(gameTime);
             // Panic key: always restore a usable 800x600 window, even if the
             // graphics menu itself is inaccessible. Available from any screen.
+            // F7 switches the optional VGA-like color profile on/off.
+            if (Engine.Instance.Input.WasPressed(Keys.F7))
+            {
+                GameConfig.VividColors = !GameConfig.VividColors;
+                GameConfig.SaveUserSettings();
+            }
             if (Engine.Instance.Input.WasPressed(Keys.F8))
             {
                 // Emergency one-key return to the unmodified DOS palette,
                 // regardless of saved gamma/brightness/contrast.
                 GameConfig.OriginalColors = true;
+                GameConfig.VividColors = false;
                 GameConfig.Gamma = 1;
                 GameConfig.Brightness = 0;
                 GameConfig.Contrast = 1;
@@ -186,12 +193,18 @@ namespace OpenNFS1
             SamplerState sampling = GameConfig.ScalingMode == 0
                 ? SamplerState.LinearClamp : SamplerState.PointClamp;
             Effect correction = null;
-            if (!GameConfig.OriginalColors)
+            if (GameConfig.VividColors || !GameConfig.OriginalColors)
             {
+                // Two distinct modes:
+                //  - VGA-like vivid display (F7): stronger contrast and color
+                //  - custom adjustments from Graphics Detail
+                // F8 bypasses postprocessing entirely for original raw RGB.
+                bool vivid = GameConfig.VividColors;
                 _colorCorrection.Parameters["Texture"].SetValue(_renderTarget);
-                _colorCorrection.Parameters["Gamma"].SetValue(GameConfig.Gamma);
-                _colorCorrection.Parameters["Brightness"].SetValue(GameConfig.Brightness);
-                _colorCorrection.Parameters["Contrast"].SetValue(GameConfig.Contrast);
+                _colorCorrection.Parameters["Gamma"].SetValue(vivid ? 0.90f : GameConfig.Gamma);
+                _colorCorrection.Parameters["Brightness"].SetValue(vivid ? -0.015f : GameConfig.Brightness);
+                _colorCorrection.Parameters["Contrast"].SetValue(vivid ? 1.14f : GameConfig.Contrast);
+                _colorCorrection.Parameters["Saturation"].SetValue(vivid ? 1.18f : 1.0f);
                 correction = _colorCorrection;
             }
 
