@@ -21,6 +21,13 @@ namespace OpenNFS1.UI.Screens
         private int _slot = 1;
         private string _message = "Choose slot 1-3, then Save or Load.";
         private bool _confirmDelete;
+        private readonly string[] _slotDescriptions = new string[4];
+
+        private void RefreshSlots()
+        {
+            for (int index = 0; index < 4; index++)
+                _slotDescriptions[index] = TournamentSaveManager.Describe(index);
+        }
 
         public LoadSaveScreen(IGameScreen returnTo, TrackDescription upcomingTrackOverride = null)
         {
@@ -28,6 +35,7 @@ namespace OpenNFS1.UI.Screens
             _upcomingTrackOverride = upcomingTrackOverride;
             _art = new QfsFile(@"FRONTEND\ART\OPTION\LOADSAVE.QFS").Content.Header;
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
+            RefreshSlots();
         }
 
         private BitmapEntry Art(string id) => _art.FindByName(id);
@@ -65,6 +73,7 @@ namespace OpenNFS1.UI.Screens
                 else
                 {
                     TournamentSaveManager.Save(_slot, upcoming);
+                    RefreshSlots();
                     _message = "Tournament saved to slot " + _slot + ".";
                 }
             }
@@ -102,6 +111,7 @@ namespace OpenNFS1.UI.Screens
             try
             {
                 TournamentSaveManager.Delete(_slot);
+                RefreshSlots();
                 _message = "Save slot " + _slot + " deleted.";
             }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
@@ -168,7 +178,7 @@ namespace OpenNFS1.UI.Screens
                     (slot == 0 ? "AUTOSAVE" : "SLOT " + slot),
                     328, y, 0.38f,
                     slot == _slot ? Color.Yellow : Color.White);
-                string line = TournamentSaveManager.Describe(slot);
+                string line = _slotDescriptions[slot] ?? "EMPTY";
                 if (line.Length > 34) line = line.Substring(0, 34);
                 Text(line, 334, y + 24, 0.28f, Color.White);
             }
