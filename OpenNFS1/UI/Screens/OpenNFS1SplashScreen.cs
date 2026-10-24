@@ -16,7 +16,8 @@ namespace OpenNFS1.UI.Screens
 		public void Update(GameTime gameTime)
 		{
 			_elapsedTime += Engine.Instance.FrameTime;
-			if (Engine.Instance.Input.WasPressed(Keys.Enter))
+			if (Engine.Instance.Input.WasPressed(Keys.Enter) ||
+                Engine.Instance.Input.WasLeftMouseClicked)
 			{
 				if (!GameConfig.HasOriginalGameData())
 					Engine.Instance.Screen = new ChooseDataDownloadScreen();
