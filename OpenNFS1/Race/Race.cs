@@ -22,6 +22,7 @@ namespace OpenNFS1
 		bool _started;
 		private readonly RaceGateTracker _finishGate;
 		public bool Finished { get; private set; }
+        public float PeakPlayerSpeed { get; private set; }
 		public PlayerDriver Player { get; private set; }
 		TrafficController _trafficController;
 		public List<IDriver> Drivers { get; private set; }
@@ -104,6 +105,11 @@ namespace OpenNFS1
 
 		public void Update()
 		{
+            // Measured on each racing frame; used for authentic Best Times
+            // speed records rather than an invented default table.
+            if (_started && !Finished)
+                PeakPlayerSpeed = Math.Max(PeakPlayerSpeed,
+                    Math.Abs(Player.Vehicle.Speed));
 			foreach (var driver in Drivers)
 				driver.Update(Drivers);
 
