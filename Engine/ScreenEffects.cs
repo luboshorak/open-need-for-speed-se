@@ -86,7 +86,7 @@ namespace GameEngine
 					
                 Engine.Instance.SpriteBatch.Draw(_fadeTexture,
                                  new Rectangle(0, 0, viewport.Width, viewport.Height),
-                                 new Color(255, 255, 255, (byte)_alpha));
+                                 new Color(255, 255, 255, (int)Math.Clamp(_alpha, 0f, 255f)));
 
                 Engine.Instance.SpriteBatch.End();
             }

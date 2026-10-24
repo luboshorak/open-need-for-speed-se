@@ -1,6 +1,16 @@
-*.suo
+# .NET / Visual Studio
+.vs/
+**/bin/
+**/obj/
+packages/
 *.user
-_ReSharper.*
-bin
-obj
-deploy
+*.suo
+*.userosscache
+*.sln.docstates
+# Original proprietary CD data (not distributable)
+**/CD_Data/**
+!OpenNFS1/CD_Data/README.txt
+**/NFSSE/
+# Logs
+exception.txt
+crash.log

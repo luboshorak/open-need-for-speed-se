@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using Microsoft.Xna.Framework.Media;
@@ -22,8 +22,8 @@ namespace OpenNFS1.UI.Screens
 
         public BaseUIScreen()
         {
-			Font = Engine.Instance.ContentManager.Load<SpriteFont>("Content\\ArialBlack-Italic");
-			_background = Engine.Instance.ContentManager.Load<Texture2D>("Content\\splash-screen.jpg");
+			Font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
+			_background = Engine.Instance.ContentManager.Load<Texture2D>("splash-screen");
         }
 
 		public virtual void Draw()
@@ -56,7 +56,7 @@ namespace OpenNFS1.UI.Screens
 			if (String.IsNullOrEmpty(text)) return;
 
 			_currentLine += lineOffset;
-			string[] lines = text.Split(new string[] { "\r\n" }, StringSplitOptions.None);
+			string[] lines = text.Replace("\r\n", "\n").Split('\n');
 			for (int i = 0; i <lines.Length; i++)
 			{
 				if (lines[i] != "")

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
@@ -79,11 +79,8 @@ namespace OpenNFS1.Parsers.Audio
 			sample.NbrSamples = loopLength == 0 ? totalLength : loopLength;
 			byte[] soundData = reader.ReadBytes(bytesPerSample * sample.NbrChannels * sample.NbrSamples);
 
-			if (bytesPerSample == 1)  //convert 8 bit signed PCM data to unsigned
-			{
-				for (int i = 0; i < soundData.Length; i++)
-					soundData[i] = (byte)(soundData[i] + 0x80);
-			}
+			// Original BNK 8-bit samples are signed. MonoGame SoundEffect expects
+			// 16-bit signed little-endian PCM, so expand them before playback.
 
 			if (ForceMono && sample.NbrChannels == 2)
 			{
@@ -134,6 +131,17 @@ namespace OpenNFS1.Parsers.Audio
 				Buffer.BlockCopy(sdata, 0, soundData, 0, lowestValueSample * 2);
 			}*/
 
+			if (bytesPerSample == 1)
+			{
+				byte[] pcm16 = new byte[soundData.Length * 2];
+				for (int i = 0; i < soundData.Length; i++)
+				{
+					short value = (short)(unchecked((sbyte)soundData[i]) << 8);
+					pcm16[i * 2] = (byte)value;
+					pcm16[i * 2 + 1] = (byte)(value >> 8);
+				}
+				soundData = pcm16;
+			}
 			sample.PCMData = soundData;
 			Samples.Add(sample);
 			

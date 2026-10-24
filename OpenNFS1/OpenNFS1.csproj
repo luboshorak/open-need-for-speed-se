@@ -1,178 +1,18 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
-    <ProductVersion>8.0.30703</ProductVersion>
-    <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{2BBFF57F-1C9D-430E-8343-D2662437114D}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>OpenNFS1</RootNamespace>
+    <TargetFramework>net8.0</TargetFramework>
     <AssemblyName>OpenNFS1</AssemblyName>
-    <FileAlignment>512</FileAlignment>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
-    <PlatformTarget>x86</PlatformTarget>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\WindowsGL\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE;WINDOWS</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
-    <PlatformTarget>x86</PlatformTarget>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\WindowsGL\Release\</OutputPath>
-    <DefineConstants>TRACE;WINDOWS</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup>
+    <RootNamespace>OpenNFS1</RootNamespace>
     <ApplicationIcon>Icon.ico</ApplicationIcon>
+    <Version>1.2.2</Version>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Audio\EnvironmentAudioProvider.cs" />
-    <Compile Include="Audio\VehicleAudioProvider.cs" />
-    <Compile Include="Audio\BnkVehicleAudioProvider.cs" />
-    <Compile Include="AverageValue.cs" />
-    <Compile Include="Dashboards\Dashboard.cs" />
-    <Compile Include="Dashboards\DashboardDescription.cs" />
-    <Compile Include="Dashboards\GearboxAnimation.cs" />
-    <Compile Include="Race\PlayerRaceStats.cs" />
-    <Compile Include="PlayerUI.cs" />
-    <Compile Include="Game1.cs" />
-    <Compile Include="GameConfig.cs" />
-    <Compile Include="Parsers\OpenRoadTrackfamFile.cs" />
-    <Compile Include="Tracks\TrackAssembler.cs" />
-    <Compile Include="Parsers\TrackfamFile.cs" />
-    <Compile Include="Mesh.cs" />
-    <Compile Include="ObjectShadow.cs" />
-    <Compile Include="Parsers\Audio\BnkFile.cs" />
-    <Compile Include="Parsers\Audio\WavWriter.cs" />
-    <Compile Include="Parsers\BaseChunk.cs" />
-    <Compile Include="Parsers\BitmapChunk.cs" />
-    <Compile Include="Parsers\BitmapLoader.cs" />
-    <Compile Include="Parsers\CfmFile.cs" />
-    <Compile Include="Parsers\FshFile.cs" />
-    <Compile Include="Parsers\HeaderChunk.cs" />
-    <Compile Include="Parsers\MeshChunk.cs" />
-    <Compile Include="Polygon.cs" />
-    <Compile Include="Parsers\QfsFile.cs" />
-    <Compile Include="Parsers\TriFile.cs" />
-    <Compile Include="Physics\AutoGearbox.cs" />
-    <Compile Include="Physics\BaseGearbox.cs" />
-    <Compile Include="Physics\ManualGearbox.cs" />
-    <Compile Include="Physics\Motor.cs" />
-    <Compile Include="Physics\Spring.cs" />
-    <Compile Include="Physics\Vector3Helper.cs" />
-    <Compile Include="Physics\DrivableVehicle.cs" />
-    <Compile Include="Physics\VehicleFenceCollision.cs" />
-    <Compile Include="Physics\VehicleWheel.cs" />
-    <Compile Include="Program.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Race\Race.cs" />
-    <Compile Include="Tracks\SceneryObject.cs" />
-    <Compile Include="Tracks\TerrainRow.cs" />
-    <Compile Include="Tracks\TerrainSegment.cs" />
-    <Compile Include="Tracks\Track.cs" />
-    <Compile Include="Tracks\TrackBillboardModel.cs" />
-    <Compile Include="Tracks\TrackDescription.cs" />
-    <Compile Include="Tracks\TrackNode.cs" />
-    <Compile Include="Tracks\TrackObjectDescriptor.cs" />
-    <Compile Include="Tracks\TrackSkybox.cs" />
-    <Compile Include="UI\Screens\ChooseDataDownloadScreen.cs" />
-    <Compile Include="UI\Screens\DataDownloadScreen.cs" />
-    <Compile Include="UI\Screens\OpenNFS1SplashScreen.cs" />
-    <Compile Include="UI\Screens\RaceOptionsScreen.cs" />
-    <Compile Include="Vehicles\TyreSmokeParticleSystem.cs" />
-    <Compile Include="UIController.cs" />
-    <Compile Include="Race\RaceUI.cs" />
-    <Compile Include="UI\Screens\BaseUIScreen.cs" />
-    <Compile Include="UI\Screens\DoRaceScreen.cs" />
-    <Compile Include="UI\Screens\LoadRaceScreen.cs" />
-    <Compile Include="UI\Screens\HomeScreen.cs" />
-    <Compile Include="UI\Screens\RaceFinishedScreen.cs" />
-    <Compile Include="UI\Screens\RacePausedScreen.cs" />
-    <Compile Include="VehicleController.cs" />
-    <Compile Include="Vehicles\AI\AIDriver.cs" />
-    <Compile Include="Vehicles\AI\IDriver.cs" />
-    <Compile Include="Vehicles\PlayerDriver.cs" />
-    <Compile Include="Vehicles\AI\TrafficDriver.cs" />
-    <Compile Include="Vehicles\CarMesh.cs" />
-    <Compile Include="Vehicles\CarModelCache.cs" />
-    <Compile Include="Vehicles\Vehicle.cs" />
-    <Compile Include="Vehicles\Traffic\TrafficController.cs" />
-    <Compile Include="Vehicles\VehicleDescription.cs" />
-    <Compile Include="Views\BaseExternalView.cs" />
-    <Compile Include="Views\BumperView.cs" />
-    <Compile Include="Views\ChaseView.cs" />
-    <Compile Include="Views\DashboardView.cs" />
-    <Compile Include="Views\DebugView.cs" />
-    <Compile Include="Views\DropCameraView.cs" />
-    <Compile Include="Views\IView.cs" />
-    <Compile Include="Vehicles\WheelModel.cs" />
+    <ProjectReference Include="..\Engine\GameEngine.csproj" />
+    <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.5.1" />
+    <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.5.1" />
+    <MonoGameContentReference Include="Content\Content.mgcb" />
+    <None Update="gameconfig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="CD_Data\README.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
-  <ItemGroup>
-    <Reference Include="Ionic.Zip.Reduced">
-      <HintPath>..\lib\Ionic.Zip.Reduced.dll</HintPath>
-    </Reference>
-    <Reference Include="MonoGame.Framework, Version=3.1.2.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\lib\MonoGame.Framework.dll</HintPath>
-    </Reference>
-    <Reference Include="Newtonsoft.Json">
-      <HintPath>..\lib\Newtonsoft.Json.dll</HintPath>
-    </Reference>
-    <Reference Include="OpenTK, Version=1.1.0.0, Culture=neutral, PublicKeyToken=bad199fe84eb3df4, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\lib\OpenTK.dll</HintPath>
-    </Reference>
-    <Reference Include="System" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="..\lib\SDL.dll">
-      <Link>SDL.dll</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Content\smoke.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Content\splash-screen.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Icon.ico" />
-  </ItemGroup>
-  <ItemGroup />
-  <ItemGroup>
-    <None Include="gameconfig.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Engine\GameEngine.csproj">
-      <Project>{F66B2F9A-AF38-40F9-A094-522C823D04EE}</Project>
-      <Name>GameEngine</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Import Project="..\packages\MonoGame.Binaries.3.2.0\build\net40\MonoGame.Binaries.targets" Condition="Exists('..\packages\MonoGame.Binaries.3.2.0\build\net40\MonoGame.Binaries.targets')" />
-  <PropertyGroup>
-    <PreBuildEvent>
-    </PreBuildEvent>
-  </PropertyGroup>
-  <PropertyGroup>
-    <PostBuildEvent>copy /Y $(SolutionDir)PreBuilt_Content\*.xnb $(TargetDir)Content</PostBuildEvent>
-  </PropertyGroup>
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
 </Project>

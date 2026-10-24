@@ -258,6 +258,7 @@ namespace OpenNFS1.Physics
 			BodyPitch.Simulate(Engine.Instance.FrameTime * 2.5f);
 			BodyRoll.Simulate(Engine.Instance.FrameTime * 2.5f);
 
+			_audioProvider.Tick(Engine.Instance.FrameTime);
 			_audioProvider.UpdateEngine();
 
 			base.Update();

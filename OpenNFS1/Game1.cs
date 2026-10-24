@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using GameEngine;
@@ -16,16 +15,13 @@ namespace OpenNFS1
 		GraphicsDeviceManager _graphics;
 		RenderTarget2D _renderTarget;
 
-		[DllImport("user32.dll")]
-		private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndIntertAfter,
-			int X, int Y, int cx, int cy, int uFlags);
-		
+
 		public Game1()
 		{
 			_graphics = new GraphicsDeviceManager(this);
 			Content.RootDirectory = "Content";
 
-			GameConfig.Load();
+			GameConfig.Load(Environment.GetCommandLineArgs());
 
 			if (GameConfig.FullScreen)
 			{
@@ -39,7 +35,7 @@ namespace OpenNFS1
 			}
 			_graphics.PreferredDepthStencilFormat = DepthFormat.Depth24;
             _graphics.PreferMultiSampling = true;
-			_graphics.IsFullScreen = false;
+			_graphics.IsFullScreen = GameConfig.FullScreen;
 		}
 
 		/// <summary>
@@ -50,18 +46,8 @@ namespace OpenNFS1
 		/// </summary>
 		protected override void Initialize()
 		{
+			// MonoGame manages the game window; avoid accessing private OpenTK fields.
 			base.Initialize();
-
-			if (GameConfig.FullScreen)
-			{
-				// hack to move window to top-left..
-				Type type = typeof(OpenTKGameWindow);
-				System.Reflection.FieldInfo field = type.GetField("window", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-				OpenTK.GameWindow window = (OpenTK.GameWindow)field.GetValue(this.Window);
-				this.Window.IsBorderless = true;
-				window.X = 0;
-				window.Y = 0;
-			}
 		}
 
 
@@ -73,9 +59,9 @@ namespace OpenNFS1
 		{
 			Engine.Create(this, _graphics);
 
-			_renderTarget = new RenderTarget2D(Engine.Instance.Device, 640, 480, false, _graphics.GraphicsDevice.DisplayMode.Format, DepthFormat.Depth24, 1, RenderTargetUsage.DiscardContents);
+			_renderTarget = new RenderTarget2D(Engine.Instance.Device, 640, 480, false, _graphics.GraphicsDevice.PresentationParameters.BackBufferFormat, DepthFormat.Depth24, 1, RenderTargetUsage.DiscardContents);
 			Engine.Instance.Device.SetRenderTarget(_renderTarget);
-			Engine.Instance.ScreenSize = new Vector2(GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width, GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height);
+			Engine.Instance.ScreenSize = new Vector2(_graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight);
 
 			Engine.Instance.Screen = new OpenNFS1SplashScreen();
 		}

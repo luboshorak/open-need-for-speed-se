@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -18,7 +18,7 @@ namespace OpenNFS1.UI.Screens
 			_elapsedTime += Engine.Instance.FrameTime;
 			if (Engine.Instance.Input.WasPressed(Keys.Enter))
 			{
-				if (!Directory.Exists(GameConfig.CdDataPath) || Directory.GetDirectories(GameConfig.CdDataPath).Length == 0)
+				if (!GameConfig.HasOriginalGameData())
 					Engine.Instance.Screen = new ChooseDataDownloadScreen();
 				else
 				{

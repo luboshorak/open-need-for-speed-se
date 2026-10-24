@@ -1,31 +1,38 @@
-#region Using Statements
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-#endregion
 
 namespace OpenNFS1
 {
-    /// <summary>
-    /// The main class.
-    /// </summary>
     public static class Program
     {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
         [STAThread]
         static void Main()
         {
-			AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
-            using (var game = new Game1())
-                game.Run();
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+            try
+            {
+                using (var game = new Game1())
+                    game.Run();
+            }
+            catch (Exception ex)
+            {
+                WriteCrashLog(ex);
+                throw;
+            }
         }
 
-		static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
-		{
-			File.WriteAllText("exception.txt", e.ExceptionObject.ToString());
-		}
+        static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            WriteCrashLog(e.ExceptionObject);
+        }
+
+        private static void WriteCrashLog(object error)
+        {
+            try
+            {
+                File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "exception.txt"), error.ToString());
+            }
+            catch { /* never hide the original exception if the output folder is read-only */ }
+        }
     }
 }

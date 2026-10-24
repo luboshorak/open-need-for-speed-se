@@ -1,3 +1,13 @@
+// Updated platform shader profiles for MonoGame DesktopGL 3.8.x.
+#if OPENGL
+    #define SV_POSITION POSITION
+    #define VS_SHADERMODEL vs_3_0
+    #define PS_SHADERMODEL ps_3_0
+#else
+    #define VS_SHADERMODEL vs_4_0_level_9_1
+    #define PS_SHADERMODEL ps_4_0_level_9_1
+#endif
+
 //-----------------------------------------------------------------------------
 // ParticleEffect.fx
 //
@@ -65,9 +75,9 @@ struct VertexShaderInput
 // Vertex shader output structure specifies the position and color of the particle.
 struct VertexShaderOutput
 {
-	float4 Position : POSITION0;
+	float4 Position : SV_POSITION;
 	float4 Color : COLOR0;
-	float2 TextureCoordinate : COLOR1;
+	float2 TextureCoordinate : TEXCOORD0;
 };
 
 
@@ -197,7 +207,7 @@ technique Particles
 {
 	pass P0
 	{
-		VertexShader = compile vs_2_0 ParticleVertexShader();
-		PixelShader = compile ps_2_0 ParticlePixelShader();
+		VertexShader = compile VS_SHADERMODEL ParticleVertexShader();
+		PixelShader = compile PS_SHADERMODEL ParticlePixelShader();
 	}
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using Microsoft.Xna.Framework;
@@ -27,7 +27,7 @@ namespace OpenNFS1
 
         protected override void InitializeSettings(ParticleSettings settings)
         {
-            settings.Texture = Engine.Instance.ContentManager.Load<Texture2D>("Content/smoke");
+            settings.Texture = Engine.Instance.ContentManager.Load<Texture2D>("smoke");
 
             settings.MaxParticles = 800;
             

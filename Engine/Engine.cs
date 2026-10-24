@@ -49,11 +49,11 @@ namespace GameEngine
         {
             _graphics = graphics;
 
-            _contentManager = new ContentManager(base.Game.Services);
+            _contentManager = new ContentManager(base.Game.Services) { RootDirectory = "Content" };
 
             //Game bits
             _inputProvider = new InputProvider(base.Game);
-			var defaultFont = Engine.Instance.ContentManager.Load<SpriteFont>("Content\\ArialBlack");
+			var defaultFont = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack");
             _graphicsUtils = new GraphicsUtilities(defaultFont);
             _spriteBatch = new SpriteBatch(Device);
             base.Game.Components.Add(this);

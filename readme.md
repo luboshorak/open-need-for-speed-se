@@ -1,27 +1,16 @@
-## OpenNFS1
-OpenNFS1 is a ground-up remake of the original EA Need for Speed 1. The code is all written from scratch without reverse engineering executables, and it uses the original data files that were on the CD back in 1995! The format of the various binary data files was worked out by Ian Brown, Denis Auroux and myself.
+# OpenNFS1 — modernized source project
 
-## Main features
-  * Written in C# and XNA. (Now converted to Monogame)
-  * 16 tracks with scenery, animations, tunnels
-  * 9 drivable cars with animated dashboards
-  * Can drive tracks backwards (not allowed in the original)
-  * Can drive past the finish signs on open road stages to see the real end of the track (probably never seen by anyone except by the original developers!)
+OpenNFS1 is an independent C#/MonoGame reimplementation of the first Need for Speed, based on original data files. Created by Jeff H / 1am Studios, originally published in 2015.
 
-## Requires
-  * OpenAL
-  * Monogame >= 3.2.0
-  * .NET 4
+**Modernization (2026):** This package changes the build target to .NET 8 and MonoGame DesktopGL 3.8.5.1. See [README_MODERNIZACE_CZ.md](README_MODERNIZACE_CZ.md) for build commands and limitations. It has **not** been runtime-validated against an original CD.
 
-### Build from source
+The game needs legally obtained game data from The Need for Speed Special Edition. None is included. Copy the game files into `CD_Data` next to the executable or configure `cdDataPath` in `gameconfig.json`.
+
+```powershell
+dotnet tool restore
+dotnet restore OpenNFS1.sln
+dotnet build OpenNFS1.sln -c Debug
+dotnet run --project OpenNFS1/OpenNFS1.csproj
 ```
-git clone https://github.com/jeff-1amstudios/OpenNFS1.git
-```
-Open OpenNFS1.sln in Visual Studio
 
-### Installer
-You can also install the last stable binary from the [Releases page](https://github.com/jeff-1amstudios/OpenNFS1/releases)
-
-## Legal:
-Models, textures, tracks, cars by Pioneer Productions / EA Seattle (C) 1995.
-OpenNFS1 is not affiated in any way with EA or Pioneer Productions
+Original game models, textures, tracks and cars are copyright of Pioneer Productions / EA Seattle. OpenNFS1 is not affiliated with those companies.

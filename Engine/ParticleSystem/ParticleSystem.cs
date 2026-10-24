@@ -219,7 +219,7 @@ namespace GameEngine
 		/// </summary>
 		void LoadParticleEffect()
 		{
-			//Effect effect = Engine.Instance.ContentManager.Load<Effect>("Content/ParticleEffect");
+			//Effect effect = Engine.Instance.ContentManager.Load<Effect>("ParticleEffect");
 
 			// If we have several particle systems, the content manager will return
 			// a single shared effect instance to them all. But we want to preconfigure
@@ -228,7 +228,7 @@ namespace GameEngine
 			// from stomping over the parameter settings of another.
 
 			//particleEffect = new Effect(Engine.Instance.Device, File.ReadAllBytes("Content\\ParticleEffect.mgfx"));
-			particleEffect = Engine.Instance.ContentManager.Load<Effect>("Content/ParticleEffect");
+			particleEffect = Engine.Instance.ContentManager.Load<Effect>("ParticleEffect");
 
 			EffectParameterCollection parameters = particleEffect.Parameters;
 
