@@ -100,19 +100,22 @@ namespace OpenNFS1
 
 			Engine.Instance.Device.SetRenderTarget(null);
 
+			// Window.ClientBounds.X/Y are *desktop* coordinates on DesktopGL.
+			// Backbuffer coordinates start at (0,0); using ClientBounds directly
+			// shifted the entire 640x480 scene off the visible window.
+			int backWidth = GraphicsDevice.PresentationParameters.BackBufferWidth;
+			int backHeight = GraphicsDevice.PresentationParameters.BackBufferHeight;
+			float scale = Math.Min(backWidth / 640f, backHeight / 480f);
+			int scaledWidth = Math.Max(1, (int)Math.Round(640 * scale));
+			int scaledHeight = Math.Max(1, (int)Math.Round(480 * scale));
+			Rectangle destination = new Rectangle(
+				(backWidth - scaledWidth) / 2, (backHeight - scaledHeight) / 2,
+				scaledWidth, scaledHeight);
+			GraphicsDevice.Clear(Color.Black); // letterbox/pillarbox bars
 			using (SpriteBatch sprite = new SpriteBatch(Engine.Instance.Device))
 			{
-				Rectangle r = Window.ClientBounds;
-				if (GameConfig.FullScreen)
-				{
-					// retain original 4:3 aspect ratio
-					int originalWith = r.Width;
-					int w = (int)((4f / 3f) * r.Height);
-					r.Width = w;
-					r.X = originalWith / 2 - w / 2;
-				}
-				sprite.Begin();
-				sprite.Draw(_renderTarget, r, Color.White);
+				sprite.Begin(samplerState: SamplerState.LinearClamp);
+				sprite.Draw(_renderTarget, destination, Color.White);
 				sprite.End();
 			}
 		}
