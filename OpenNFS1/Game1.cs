@@ -14,6 +14,7 @@ namespace OpenNFS1
 	{
 		GraphicsDeviceManager _graphics;
 		RenderTarget2D _renderTarget;
+        private Effect _colorCorrection;
 
 
 		public Game1()
@@ -24,16 +25,13 @@ namespace OpenNFS1
 
 			GameConfig.Load(Environment.GetCommandLineArgs());
 
-			if (GameConfig.FullScreen)
-			{
-				_graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
-				_graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
-			}
-			else
-			{
-				_graphics.PreferredBackBufferWidth = 800;
-				_graphics.PreferredBackBufferHeight = 600;
-			}
+            var mode = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
+            _graphics.PreferredBackBufferWidth = GameConfig.FullScreen
+                ? mode.Width : GameConfig.WindowWidth;
+            _graphics.PreferredBackBufferHeight = GameConfig.FullScreen
+                ? mode.Height : GameConfig.WindowHeight;
+            _graphics.HardwareModeSwitch = false; // borderless native resolution fullscreen
+            DisplaySettings.IntegerScaling = GameConfig.ScalingMode == 2;
 			_graphics.PreferredDepthStencilFormat = DepthFormat.Depth24;
             _graphics.PreferMultiSampling = true;
 			_graphics.IsFullScreen = GameConfig.FullScreen;
@@ -59,6 +57,7 @@ namespace OpenNFS1
 		protected override void LoadContent()
 		{
 			Engine.Create(this, _graphics);
+            _colorCorrection = Engine.Instance.ContentManager.Load<Effect>("ColorCorrection");
 
 			_renderTarget = new RenderTarget2D(Engine.Instance.Device, 640, 480, false, _graphics.GraphicsDevice.PresentationParameters.BackBufferFormat, DepthFormat.Depth24, 1, RenderTargetUsage.DiscardContents);
 			Engine.Instance.Device.SetRenderTarget(_renderTarget);
@@ -66,6 +65,27 @@ namespace OpenNFS1
 
 			Engine.Instance.Screen = new OpenNFS1SplashScreen();
 		}
+
+        /// <summary>
+        /// Applies fullscreen and window-size changes without restarting the
+        /// game, changing original virtual UI positions or reallocating CD art.
+        /// </summary>
+        public void ApplyDisplaySettings()
+        {
+            var mode = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
+            _graphics.IsFullScreen = GameConfig.FullScreen;
+            _graphics.HardwareModeSwitch = false;
+            _graphics.PreferredBackBufferWidth = GameConfig.FullScreen
+                ? mode.Width : GameConfig.WindowWidth;
+            _graphics.PreferredBackBufferHeight = GameConfig.FullScreen
+                ? mode.Height : GameConfig.WindowHeight;
+            _graphics.ApplyChanges();
+            DisplaySettings.IntegerScaling = GameConfig.ScalingMode == 2;
+            if (Engine.Instance != null)
+                Engine.Instance.ScreenSize = new Vector2(
+                    GraphicsDevice.PresentationParameters.BackBufferWidth,
+                    GraphicsDevice.PresentationParameters.BackBufferHeight);
+        }
 
 		/// <summary>
 		/// UnloadContent will be called once per game and is the place to unload
@@ -111,24 +131,31 @@ namespace OpenNFS1
 
 			Engine.Instance.Device.SetRenderTarget(null);
 
-			// Window.ClientBounds.X/Y are *desktop* coordinates on DesktopGL.
-			// Backbuffer coordinates start at (0,0); using ClientBounds directly
-			// shifted the entire 640x480 scene off the visible window.
-			int backWidth = GraphicsDevice.PresentationParameters.BackBufferWidth;
-			int backHeight = GraphicsDevice.PresentationParameters.BackBufferHeight;
-			float scale = Math.Min(backWidth / 640f, backHeight / 480f);
-			int scaledWidth = Math.Max(1, (int)Math.Round(640 * scale));
-			int scaledHeight = Math.Max(1, (int)Math.Round(480 * scale));
-			Rectangle destination = new Rectangle(
-				(backWidth - scaledWidth) / 2, (backHeight - scaledHeight) / 2,
-				scaledWidth, scaledHeight);
-			GraphicsDevice.Clear(Color.Black); // letterbox/pillarbox bars
-			using (SpriteBatch sprite = new SpriteBatch(Engine.Instance.Device))
-			{
-				sprite.Begin(samplerState: SamplerState.LinearClamp);
-				sprite.Draw(_renderTarget, destination, Color.White);
-				sprite.End();
-			}
+            // Presentation and mouse picking use exactly the same virtual
+            // 640x480 → backbuffer mapping, including 4:3 pillarboxing.
+            int backWidth = GraphicsDevice.PresentationParameters.BackBufferWidth;
+            int backHeight = GraphicsDevice.PresentationParameters.BackBufferHeight;
+            Rectangle destination = PresentationLayout.Calculate(backWidth, backHeight,
+                GameConfig.ScalingMode == 2);
+            GraphicsDevice.Viewport = new Viewport(0, 0, backWidth, backHeight);
+            GraphicsDevice.Clear(Color.Black);
+
+            SamplerState sampling = GameConfig.ScalingMode == 0
+                ? SamplerState.LinearClamp : SamplerState.PointClamp;
+            _colorCorrection.Parameters["Texture"].SetValue(_renderTarget);
+            _colorCorrection.Parameters["Gamma"].SetValue(GameConfig.Gamma);
+            _colorCorrection.Parameters["Brightness"].SetValue(GameConfig.Brightness);
+            _colorCorrection.Parameters["Contrast"].SetValue(GameConfig.Contrast);
+
+            using (var sprite = new SpriteBatch(GraphicsDevice))
+            {
+                sprite.Begin(SpriteSortMode.Immediate, BlendState.Opaque, sampling,
+                    DepthStencilState.None, RasterizerState.CullNone,
+                    effect: _colorCorrection);
+                sprite.Draw(_renderTarget, destination, Color.White);
+                sprite.End();
+            }
+
 		}
 	}
 }
