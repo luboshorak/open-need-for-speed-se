@@ -58,6 +58,7 @@ namespace OpenNFS1.UI.Screens
         private readonly List<TrackUIControl> _tracks = new List<TrackUIControl>();
         private readonly SpriteFont _font;
         private int _currentVehicle = 2;
+        private int _currentOpponent = 0;
         private int _currentTrack = 4;
         private int _selectedControl = RaceButtonSelected;
 
@@ -84,6 +85,11 @@ namespace OpenNFS1.UI.Screens
             {
                 int index = _vehicles.FindIndex(a => a.Descriptor == GameConfig.SelectedVehicle);
                 if (index >= 0) _currentVehicle = index;
+            }
+            if (GameConfig.SelectedOpponent != null)
+            {
+                int index = _vehicles.FindIndex(a => a.Descriptor == GameConfig.SelectedOpponent);
+                if (index >= 0) _currentOpponent = index;
             }
             _currentVehicle = Math.Clamp(_currentVehicle, 0, _vehicles.Count - 1);
             _currentTrack = Math.Clamp(_currentTrack, 0, _tracks.Count - 1);
@@ -164,7 +170,7 @@ namespace OpenNFS1.UI.Screens
                     _currentVehicle = (_currentVehicle + direction + _vehicles.Count) % _vehicles.Count;
                     break;
                 case OpponentSelected:
-                    GameConfig.OpponentCount = Math.Clamp(GameConfig.OpponentCount + direction, 0, 10);
+                    _currentOpponent = (_currentOpponent + direction + _vehicles.Count) % _vehicles.Count;
                     break;
                 case RaceTypeSelected:
                     GameConfig.TimeTrial = !GameConfig.TimeTrial;
@@ -178,6 +184,7 @@ namespace OpenNFS1.UI.Screens
         private void OpenRaceOptions()
         {
             GameConfig.SelectedVehicle = _vehicles[_currentVehicle].Descriptor;
+            GameConfig.SelectedOpponent = _vehicles[_currentOpponent].Descriptor;
             GameConfig.SelectedTrackDescription = _tracks[_currentTrack].Descriptor;
             Engine.Instance.Screen = new RaceOptionsScreen();
         }
@@ -192,11 +199,19 @@ namespace OpenNFS1.UI.Screens
             sprite.Draw(_tracks[_currentTrack].Bitmap.Texture,
                 _tracks[_currentTrack].Bitmap.GetDisplayAt(), Color.White);
 
-            // Fill in the two originally blank menu controls with real settings.
-            DrawLabel("OPPONENTS", new Vector2(356, 119), Color.Black, 0.54f);
-            DrawLabel(GameConfig.TimeTrial ? "SOLO (TIME TRIAL)" :
-                "<   " + GameConfig.OpponentCount + " AI CARS   >",
-                new Vector2(354, 152), Color.Black, 0.49f);
+            // Reuse original car artwork from the selected opponent's QFS file,
+            // rather than leaving the original unfinished opponent panel blank.
+            if (!GameConfig.TimeTrial)
+            {
+                sprite.Draw(_vehicles[_currentOpponent].Bitmap.Texture,
+                    new Rectangle(349, 126, 262, 78), Color.White);
+            }
+            DrawLabel(GameConfig.TimeTrial ? "NO OPPONENT" :
+                "< " + _vehicles[_currentOpponent].Descriptor.Name + " >",
+                new Vector2(355, 108), Color.Black, 0.48f);
+            DrawLabel(GameConfig.TimeTrial ? "SOLO TIME TRIAL" :
+                GameConfig.OpponentCount + " AI OPPONENT(S)",
+                new Vector2(355, 207), Color.Black, 0.33f);
             DrawLabel(GameConfig.TimeTrial ? "TIME TRIAL" : "SINGLE RACE",
                 new Vector2(105, 337), Color.Black, 0.55f);
 
