@@ -68,9 +68,8 @@ namespace OpenNFS1.UI.Screens
             else if (x >= 25 && x <= 370 && y >= 256 && y <= 322)
             {
                 _selectedOption = 2;
-                if (!GameConfig.TimeTrial)
-                    GameConfig.OpponentCount = Math.Clamp(GameConfig.OpponentCount +
-                        (x < 160 ? -1 : 1), 0, 10);
+                // Opponent count is fixed by the chosen original mode.
+                // Change the rival or The Pack in Control Central instead.
             }
             else if (x >= 25 && x <= 370 && y > 322 && y <= 375)
             {
@@ -105,8 +104,7 @@ namespace OpenNFS1.UI.Screens
                         GameConfig.SelectedTrackDescription.AlternativeTimeOfDay != null ? 1 : 0;
                     break;
                 case 2:
-                    if (!GameConfig.TimeTrial)
-                        GameConfig.OpponentCount = Math.Clamp(GameConfig.OpponentCount + direction, 0, 10);
+                    // Original single-player mode determines opponent count.
                     break;
                 case 3:
                     if (!GameConfig.SelectedTrackDescription.IsOpenRoad)
@@ -119,6 +117,15 @@ namespace OpenNFS1.UI.Screens
         {
             GameConfig.ManualGearbox = _gearboxOption == 1;
             GameConfig.AlternativeTimeOfDay = _timeOfDayOption == 1;
+
+            if (GameConfig.CurrentRaceMode == RaceMode.Tournament &&
+                !RaceModeRules.IsVehicleAllowed(
+                    RaceMode.Tournament, GameConfig.SelectedTrackDescription, GameConfig.SelectedVehicle))
+            {
+                GameConfig.SelectedVehicle = OpenNFS1.Vehicles.VehicleDescription.Descriptions.Find(
+                    car => RaceModeRules.IsVehicleAllowed(
+                        RaceMode.Tournament, GameConfig.SelectedTrackDescription, car));
+            }
 
             // Begin a fresh local championship only when the player starts.
             // The next courses are selected by RaceFinishedScreen, not here.
@@ -151,9 +158,14 @@ namespace OpenNFS1.UI.Screens
                     _timeOfDayOption == 1, 0, 135, TextSize);
 
             WriteLine("Opponents", _selectedOption == 2, 45, 30, SectionSize);
-            WriteLine(GameConfig.TimeTrial ? "None (time trial)" :
-                "<  " + GameConfig.OpponentCount + " AI cars  >",
-                _selectedOption == 2, 35, 40, TextSize);
+            string opponents = GameConfig.CurrentRaceMode switch
+            {
+                RaceMode.TimeTrial => "None (solo)",
+                RaceMode.HeadToHead => "One selected rival",
+                RaceMode.Tournament => "7 rivals (class)",
+                _ => GameConfig.UseOpponentPack ? "7 cars - The Pack" : "7 cars - same model"
+            };
+            WriteLine(opponents, _selectedOption == 2, 35, 40, TextSize);
 
             WriteLine("Circuit laps", _selectedOption == 3, 36, 30, SectionSize);
             WriteLine(GameConfig.SelectedTrackDescription.IsOpenRoad ? "One stage" :
