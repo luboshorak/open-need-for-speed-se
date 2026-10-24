@@ -30,7 +30,25 @@ namespace OpenNFS1
         {
             int previousNode = _previous;
             _previous = currentNode;
-            if (currentNode <= previousNode)
+
+            // A closed circuit wraps from the final road nodes to node zero.
+            // At high speeds the frame can jump over the finish node AND the
+            // wrap; detect that crossing without treating ordinary reversing
+            // as a finish. Open roads never wrap.
+            if (!_openRoad && currentNode < previousNode)
+            {
+                int window = Math.Max(8, Math.Min(40, _finish / 20));
+                if (_passedHalfway &&
+                    previousNode >= _finish - window &&
+                    currentNode <= window)
+                {
+                    _passedHalfway = false;
+                    return true;
+                }
+                return false;
+            }
+
+            if (currentNode == previousNode)
                 return false;
 
             // Circuits must pass a halfway checkpoint before an actual lap
