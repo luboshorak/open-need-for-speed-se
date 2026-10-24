@@ -73,6 +73,7 @@ namespace OpenNFS1.UI.Screens
         private readonly BitmapEntry _headToHeadArt;
         private readonly BitmapEntry _noMercyArt;
         private readonly BitmapEntry _packArt;
+        private readonly BitmapEntry _timeTrialArt, _timeTrialOpponentArt;
         private readonly BitmapEntry[] _tournamentClassArt = new BitmapEntry[3];
         private readonly BitmapEntry _computerOpponentsArt;
         private readonly List<VehicleUIControl> _vehicles = new List<VehicleUIControl>();
@@ -103,6 +104,11 @@ namespace OpenNFS1.UI.Screens
             _noMercyArt = new QfsFile(@"FRONTEND\ART\CONTROL\NOMERCY.QFS")
                 .Content.Header.FindByName("0000");
             _packArt = new QfsFile(@"FRONTEND\ART\CONTROL\SLEW.QFS")
+                .Content.Header.FindByName("0000");
+            // The ORIGINAL Time Trial artwork uses the WATCH1/WATCH2 names.
+            _timeTrialArt = new QfsFile(@"FRONTEND\ART\CONTROL\WATCH1.QFS")
+                .Content.Header.FindByName("0000");
+            _timeTrialOpponentArt = new QfsFile(@"FRONTEND\ART\CONTROL\WATCH2.QFS")
                 .Content.Header.FindByName("0000");
             for (int i = 0; i < 3; i++)
                 _tournamentClassArt[i] =
@@ -365,9 +371,10 @@ namespace OpenNFS1.UI.Screens
                         sprite.Draw(original.Texture, original.GetDisplayAt(), Color.White);
                 }
             }
-            else
+            else if (_timeTrialOpponentArt?.Texture != null)
             {
-                DrawLabel("SOLO - NO OPPONENT", new Vector2(359, 166), Color.DarkRed, 0.38f);
+                sprite.Draw(_timeTrialOpponentArt.Texture,
+                    _timeTrialOpponentArt.GetDisplayAt(), Color.White);
             }
             if (GameConfig.CurrentRaceMode != RaceMode.TimeTrial && _computerOpponentsArt?.Texture != null)
                 sprite.Draw(_computerOpponentsArt.Texture, _computerOpponentsArt.GetDisplayAt(), Color.White);
@@ -377,16 +384,12 @@ namespace OpenNFS1.UI.Screens
                 RaceMode.SingleRace => _singleRaceArt,
                 RaceMode.Tournament => _tournamentArt,
                 RaceMode.HeadToHead => GameConfig.NoMercy ? _noMercyArt : _headToHeadArt,
+                RaceMode.TimeTrial => _timeTrialArt,
                 _ => null
             };
             if (raceTypeArt?.Texture != null)
                 sprite.Draw(raceTypeArt.Texture, raceTypeArt.GetDisplayAt(), Color.White);
-            else
-            {
-                // The provided CD has no TIME TRIAL bitmap in CONTROL.
-                // Use its native panel and typography without showing fake Single Race art.
-                DrawLabel("TIME TRIAL", new Vector2(139, 340), Color.Black, 0.61f);
-            }
+
             switch (_selectedControl)
             {
                 case VehicleSelected:
