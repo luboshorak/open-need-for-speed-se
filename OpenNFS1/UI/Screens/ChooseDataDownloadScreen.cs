@@ -33,7 +33,7 @@ namespace OpenNFS1.UI.Screens
                 }
                 else if (GameConfig.HasOriginalGameData())
                 {
-                    Engine.Instance.Screen = new HomeScreen();
+                    Engine.Instance.Screen = new GameModeScreen();
                 }
                 else
                 {
