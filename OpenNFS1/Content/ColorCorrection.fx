@@ -10,9 +10,8 @@ texture Texture;
 sampler2D TextureSampler : register(s0) = sampler_state
 {
     Texture = <Texture>;
-    MinFilter = Linear;
-    MagFilter = Linear;
-    MipFilter = Point;
+    // Sampler filtering is selected at runtime by SpriteBatch
+    // (Sharp/Nearest, Smooth/Linear, Integer), not forced here.
     AddressU = Clamp;
     AddressV = Clamp;
 };
