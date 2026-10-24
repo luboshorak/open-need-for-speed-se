@@ -17,6 +17,7 @@ namespace OpenNFS1.UI.Screens
     class RaceFinishedScreen : IGameScreen
     {
         private readonly Race _race;
+        private readonly TimeSpan _finishedTime;
         private readonly Track _raceTrack;
         private readonly BitmapChunk _menu;
         private readonly SpriteFont _font;
@@ -31,6 +32,7 @@ namespace OpenNFS1.UI.Screens
         public RaceFinishedScreen(Race race, Track raceTrack)
         {
             _race = race;
+            _finishedTime = race.RaceTime;
             _raceTrack = raceTrack;
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
             _menu = new QfsFile(@"FRONTEND\ART\CHECK\FINMENU.QFS").Content.Header;
@@ -45,10 +47,10 @@ namespace OpenNFS1.UI.Screens
                     : null;
                 if (nextRoad != null)
                     GameConfig.Tournament.RecordRoadSegment(
-                        GameConfig.SelectedTrackDescription, race.RaceTime);
+                        GameConfig.SelectedTrackDescription, _finishedTime);
                 else
                     GameConfig.Tournament.RecordResult(
-                        race.PlayerStats.Position, race.RaceTime);
+                        race.PlayerStats.Position, _finishedTime);
 
                 TrackDescription checkpoint = TournamentSaveManager.NextAfterResults();
                 if (checkpoint != null)
@@ -151,7 +153,7 @@ namespace OpenNFS1.UI.Screens
                     Engine.Instance.Screen = new OptionsScreen();
                     break;
                 case 4:
-                    Engine.Instance.Screen = new RaceStandingsScreen(_race, this);
+                    Engine.Instance.Screen = new RaceStandingsScreen(_race, _finishedTime, this);
                     break;
                 case 5:
                     _notice = "CHAT MODE IS NOT AVAILABLE IN SINGLE PLAYER.";
