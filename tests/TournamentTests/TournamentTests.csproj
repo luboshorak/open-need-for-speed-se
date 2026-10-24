@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\..\OpenNFS1\Race\TournamentSeries.cs" Link="TournamentSeries.cs" />
+    <Compile Include="..\..\OpenNFS1\Race\TournamentSaveData.cs" Link="TournamentSaveData.cs" />
     <Compile Include="..\..\OpenNFS1\Tracks\TrackDescription.cs" Link="TrackDescription.cs" />
   </ItemGroup>
 </Project>
