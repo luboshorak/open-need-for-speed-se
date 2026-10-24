@@ -36,6 +36,11 @@ namespace OpenNFS1.UI.Screens
             _raceTrack = raceTrack;
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
             _menu = new QfsFile(@"FRONTEND\ART\CHECK\FINMENU.QFS").Content.Header;
+            // Only the completed-race constructor writes a new personal
+            // leaderboard entry; reopening original standings never writes twice.
+            TrackRecords.Record(GameConfig.SelectedTrackDescription?.FileName,
+                GameConfig.SelectedVehicle?.Name, GameConfig.CurrentRaceMode,
+                _finishedTime, race.PeakPlayerSpeed);
 
             // Same checkpoint logic as the former results page. This constructor
             // is called only once; opening Game Standings must NOT score twice.
