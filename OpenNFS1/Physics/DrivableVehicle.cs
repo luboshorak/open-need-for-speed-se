@@ -115,7 +115,9 @@ namespace OpenNFS1.Physics
 			Wheels[0].Steer(_steeringWheel);
 			Wheels[1].Steer(_steeringWheel);
 
-			if (_isOnGround && BrakePedalInput > 0.5f && Math.Abs(Speed) > 10)
+			// Approximate ABS assist: avoid locking wheels under heavy braking.
+			if (_isOnGround && !GameConfig.AbsEnabled &&
+                BrakePedalInput > 0.5f && Math.Abs(Speed) > 10)
 			{
 				if (Speed < 80)
 				{
@@ -160,7 +162,11 @@ namespace OpenNFS1.Physics
 
 			if (_isOnGround)
 			{
-				float drag = BrakePower * BrakePedalInput;
+				// A simple anti-lock pulse limits maximum braking force; full
+                // per-wheel ABS needs the later tire physics rework.
+                float appliedBrake = GameConfig.AbsEnabled
+                    ? Math.Min(BrakePedalInput, 0.88f) : BrakePedalInput;
+				float drag = BrakePower * appliedBrake;
 				if (HandbrakeInput) drag += HandbrakePower;
 				
 				// as we're turning, add drag
@@ -200,6 +206,13 @@ namespace OpenNFS1.Physics
 			{
 				float tractionFactor = Math.Min(1, (_traction + Speed) / newAccelerationForce);
 				Motor.WheelsSpinning = tractionFactor < 1 || (Motor.Rpm > 0.7f && Speed < 10 && Motor.Throttle > 0);
+                // Prototype traction control cuts throttle torque when the
+                // car would spin its drive wheels on launch.
+                if (GameConfig.TractionControlEnabled && Motor.WheelsSpinning)
+                {
+                    newAccelerationForce *= 0.65f;
+                    Motor.WheelsSpinning = false;
+                }
 				if (Motor.WheelsSpinning)
 				{
 					_audioProvider.PlaySkid(true);
