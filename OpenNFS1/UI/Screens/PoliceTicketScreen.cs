@@ -48,6 +48,8 @@ namespace OpenNFS1.UI.Screens
                 input.WasPressed(Keys.Space) || input.WasLeftMouseClicked)
             {
                 _race.PoliceTicketed = false;
+                if (_return is DoRaceScreen driving)
+                    driving.Resume(); // restore engine audio after the citation
                 Engine.Instance.Screen = _return;
             }
         }
