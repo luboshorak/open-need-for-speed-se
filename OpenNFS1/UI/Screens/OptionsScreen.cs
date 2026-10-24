@@ -85,10 +85,7 @@ namespace OpenNFS1.UI.Screens
                 case 1: GameConfig.AbsEnabled = !GameConfig.AbsEnabled; break;
                 case 2: GameConfig.TractionControlEnabled = !GameConfig.TractionControlEnabled; break;
                 case 4:
-                    int[] distances = { 2500, 5000, 7500 };
-                    int index = Array.IndexOf(distances, GameConfig.DrawDistance);
-                    if (index < 0) index = 1;
-                    GameConfig.DrawDistance = distances[(index + direction + distances.Length) % distances.Length];
+                    Engine.Instance.Screen = new DisplayOptionsScreen(this);
                     break;
                 default: Activate(); break;
             }
@@ -108,7 +105,7 @@ namespace OpenNFS1.UI.Screens
                     Engine.Instance.Screen = new LoadSaveScreen(this);
                     break;
                 case 7:
-                    _message = "OpenNFS1 SE Reloaded - development: Lubos Horak. See CREDITS.md.";
+                    Engine.Instance.Screen = new CreditsScreen(this);
                     break;
                 case 8: Done(); break;
                 default: ChangeOnEnter(); break;
