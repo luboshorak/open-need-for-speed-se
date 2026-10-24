@@ -14,13 +14,23 @@ namespace OpenNFS1.UI.Screens
     class VehicleUIControl
     {
         public BitmapEntry Bitmap { get; private set; }
+        public BitmapEntry OpponentBitmap { get; private set; }
         public VehicleDescription Descriptor { get; private set; }
 
         public VehicleUIControl(VehicleDescription desc)
         {
             Descriptor = desc;
             QfsFile qfs = new QfsFile(@"Frontend\Art\Control\" + desc.UIImageFile);
-            Bitmap = qfs.Content.Header.Bitmaps.Find(a => a.Id == "0000");
+            Bitmap = qfs.Content.Header.FindByName("0000");
+
+            // The CD has TWO images per car: *1 is the large PLAYER image
+            // (309x166 at 21,114), *2 is the smaller OPPONENT image
+            // (284x117 at 341,99). Never scale the player image into this panel.
+            string source = desc.UIImageFile;
+            string opponentFile = source.EndsWith("1.qfs", StringComparison.OrdinalIgnoreCase)
+                ? source.Substring(0, source.Length - 5) + "2.qfs" : source;
+            OpponentBitmap = new QfsFile(@"Frontend\Art\Control\" + opponentFile)
+                .Content.Header.FindByName("0000");
         }
     }
 
@@ -56,7 +66,10 @@ namespace OpenNFS1.UI.Screens
         private static readonly Rectangle OptionsButtonArea = new Rectangle(158, 438, 143, 42);
         private static readonly Rectangle CancelButtonArea = new Rectangle(514, 437, 126, 43);
 
-        private readonly BitmapEntry _background, _vehicleSelection, _trackSelection, _raceButtonSelection;
+        private readonly BitmapEntry _background, _vehicleSelection, _opponentSelection,
+            _raceTypeSelection, _trackSelection, _raceButtonSelection;
+        private readonly BitmapEntry _singleRaceArt;
+        private readonly BitmapEntry _computerOpponentsArt;
         private readonly List<VehicleUIControl> _vehicles = new List<VehicleUIControl>();
         private readonly List<TrackUIControl> _tracks = new List<TrackUIControl>();
         private readonly SpriteFont _font;
@@ -70,8 +83,15 @@ namespace OpenNFS1.UI.Screens
             QfsFile qfs = new QfsFile(@"FRONTEND\ART\control\central.qfs");
             _background = qfs.Content.Header.FindByName("bgnd");
             _vehicleSelection = qfs.Content.Header.FindByName("Tlb1");
+            _opponentSelection = qfs.Content.Header.FindByName("Trb3");
+            _raceTypeSelection = qfs.Content.Header.FindByName("Blb2");
             _trackSelection = qfs.Content.Header.FindByName("Brb4");
             _raceButtonSelection = qfs.Content.Header.FindByName("Ra1l");
+            // Original SINGLE.QFS is 238x66 at (92,316), exactly the
+            // race type placeholder in CENTRAL.QFS.
+            _singleRaceArt = new QfsFile(@"FRONTEND\ART\CONTROL\SINGLE.QFS")
+                .Content.Header.FindByName("0000");
+            _computerOpponentsArt = qfs.Content.Header.FindByName("Coml");
             WriteArtInventory(qfs);
 
             foreach (var vehicle in VehicleDescription.Descriptions)
@@ -239,31 +259,31 @@ namespace OpenNFS1.UI.Screens
             sprite.Draw(_tracks[_currentTrack].Bitmap.Texture,
                 _tracks[_currentTrack].Bitmap.GetDisplayAt(), Color.White);
 
-            // Reuse original car artwork from the selected opponent's QFS file,
-            // rather than leaving the original unfinished opponent panel blank.
+            // Restore the original opponent panel from the *2 car asset,
+            // using the image's own position and original pixel dimensions.
             if (!GameConfig.TimeTrial)
             {
-                Texture2D preview = _vehicles[_currentOpponent].Bitmap.Texture;
-                // Keep the original QFS illustration's proportions intact.
-                if (preview != null && preview.Width > 0 && preview.Height > 0)
-                {
-                    float ratio = Math.Min(264f / preview.Width, 78f / preview.Height);
-                    int width = Math.Max(1, (int)(preview.Width * ratio));
-                    int height = Math.Max(1, (int)(preview.Height * ratio));
-                    sprite.Draw(preview, new Rectangle(
-                        349 + (264 - width) / 2, 126 + (78 - height) / 2,
-                        width, height), Color.White);
-                }
+                BitmapEntry opponent = _vehicles[_currentOpponent].OpponentBitmap;
+                if (opponent?.Texture != null)
+                    sprite.Draw(opponent.Texture, opponent.GetDisplayAt(), Color.White);
             }
-            DrawLabel(GameConfig.TimeTrial ? "NO OPPONENT" :
-                "< " + _vehicles[_currentOpponent].Descriptor.Name + " >",
-                new Vector2(355, 108), Color.Black, 0.48f);
-            DrawLabel(GameConfig.TimeTrial ? "SOLO TIME TRIAL" :
-                GameConfig.OpponentCount + " AI OPPONENT(S)",
-                new Vector2(355, 207), Color.Black, 0.33f);
-            DrawLabel(GameConfig.TimeTrial ? "TIME TRIAL" : "SINGLE RACE",
-                new Vector2(105, 337), Color.Black, 0.55f);
 
+            if (!GameConfig.TimeTrial && _computerOpponentsArt?.Texture != null)
+                sprite.Draw(_computerOpponentsArt.Texture,
+                    _computerOpponentsArt.GetDisplayAt(), Color.White);
+
+            // Single Race is a genuine original game graphic. Time Trial is a
+            // modern extension without an original matching asset, so label it clearly.
+            if (!GameConfig.TimeTrial)
+            {
+                if (_singleRaceArt?.Texture != null)
+                    sprite.Draw(_singleRaceArt.Texture, _singleRaceArt.GetDisplayAt(), Color.White);
+            }
+            else
+            {
+                DrawLabel("TIME TRIAL", new Vector2(111, 335), Color.DarkRed, 0.55f);
+                DrawLabel("NO OPPONENT", new Vector2(368, 148), Color.DarkRed, 0.38f);
+            }
             switch (_selectedControl)
             {
                 case VehicleSelected:
@@ -273,10 +293,10 @@ namespace OpenNFS1.UI.Screens
                     sprite.Draw(_trackSelection.Texture, _trackSelection.GetDisplayAt(), Color.White);
                     break;
                 case OpponentSelected:
-                    DrawLabel("SELECTED: OPPONENTS", new Vector2(347, 194), Color.DarkRed, 0.31f);
+                    sprite.Draw(_opponentSelection.Texture, _opponentSelection.GetDisplayAt(), Color.White);
                     break;
                 case RaceTypeSelected:
-                    DrawLabel("SELECTED", new Vector2(103, 365), Color.DarkRed, 0.30f);
+                    sprite.Draw(_raceTypeSelection.Texture, _raceTypeSelection.GetDisplayAt(), Color.White);
                     break;
                 case RaceButtonSelected:
                     sprite.Draw(_raceButtonSelection.Texture, _raceButtonSelection.GetDisplayAt(), Color.White);

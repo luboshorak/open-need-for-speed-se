@@ -14,7 +14,7 @@ namespace OpenNFS1.UI.Screens
 
         public RaceOptionsScreen()
         {
-            _selectedOption = 3;
+            _selectedOption = 4;
             _gearboxOption = GameConfig.ManualGearbox ? 1 : 0;
             _timeOfDayOption = GameConfig.AlternativeTimeOfDay ? 1 : 0;
         }
@@ -35,16 +35,16 @@ namespace OpenNFS1.UI.Screens
                 return;
             }
             if (input.WasPressed(Keys.Down) || input.WasPressed(Keys.Tab))
-                _selectedOption = (_selectedOption + 1) % 4;
+                _selectedOption = (_selectedOption + 1) % 5;
             else if (input.WasPressed(Keys.Up))
-                _selectedOption = (_selectedOption + 3) % 4;
+                _selectedOption = (_selectedOption + 4) % 5;
             else if (input.WasPressed(Keys.Left))
                 ChangeValue(-1);
             else if (input.WasPressed(Keys.Right))
                 ChangeValue(1);
             else if (input.WasPressed(Keys.Enter))
             {
-                if (_selectedOption == 3)
+                if (_selectedOption == 4)
                     StartRace();
                 else
                     ChangeValue(1);
@@ -72,12 +72,19 @@ namespace OpenNFS1.UI.Screens
                     GameConfig.OpponentCount = Math.Clamp(GameConfig.OpponentCount +
                         (x < 160 ? -1 : 1), 0, 10);
             }
-            else if (x >= 25 && x <= 255 && y >= 325 && y <= 376)
+            else if (x >= 25 && x <= 370 && y > 322 && y <= 375)
             {
                 _selectedOption = 3;
+                if (!GameConfig.SelectedTrackDescription.IsOpenRoad)
+                    GameConfig.CircuitLaps = Math.Clamp(GameConfig.CircuitLaps +
+                        (x < 160 ? -1 : 1), 1, 5);
+            }
+            else if (x >= 25 && x <= 255 && y > 375 && y <= 422)
+            {
+                _selectedOption = 4;
                 StartRace();
             }
-            else if (x >= 25 && x <= 255 && y >= 379 && y <= 431)
+            else if (x >= 25 && x <= 255 && y > 422 && y <= 480)
             {
                 Engine.Instance.Screen = new HomeScreen();
             }
@@ -100,6 +107,10 @@ namespace OpenNFS1.UI.Screens
                 case 2:
                     if (!GameConfig.TimeTrial)
                         GameConfig.OpponentCount = Math.Clamp(GameConfig.OpponentCount + direction, 0, 10);
+                    break;
+                case 3:
+                    if (!GameConfig.SelectedTrackDescription.IsOpenRoad)
+                        GameConfig.CircuitLaps = Math.Clamp(GameConfig.CircuitLaps + direction, 1, 5);
                     break;
             }
         }
@@ -130,8 +141,11 @@ namespace OpenNFS1.UI.Screens
                 "<  " + GameConfig.OpponentCount + " AI cars  >",
                 _selectedOption == 2, 35, 40, TextSize);
 
-            WriteLine("GO!", _selectedOption == 3, 55, 30, SectionSize);
-            WriteLine("Back: Esc / click here", Color.LightGray, 45, 30, TextSize);
+            WriteLine("Circuit laps", _selectedOption == 3, 36, 30, SectionSize);
+            WriteLine(GameConfig.SelectedTrackDescription.IsOpenRoad ? "One stage" :
+                "<  " + GameConfig.CircuitLaps + " lap(s)  >", _selectedOption == 3, 30, 40, TextSize);
+            WriteLine("GO!", _selectedOption == 4, 38, 30, SectionSize);
+            WriteLine("Back: Esc / click here", Color.LightGray, 40, 30, TextSize);
             Engine.Instance.SpriteBatch.End();
         }
     }

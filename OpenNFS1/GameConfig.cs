@@ -23,6 +23,7 @@ namespace OpenNFS1
         public static bool ManualGearbox { get; set; }
         public static bool AlternativeTimeOfDay { get; set; }
         public static int OpponentCount { get; set; } = 10;
+        public static int CircuitLaps { get; set; } = 3;
         public static bool TimeTrial { get; set; }
 
         public static bool FullScreen { get; set; }
