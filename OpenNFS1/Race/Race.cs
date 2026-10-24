@@ -103,6 +103,10 @@ namespace OpenNFS1
 			foreach (var driver in Drivers)
 				driver.Update(Drivers);
 
+            // Resolve contacts after every vehicle has moved this frame.
+            // Previously cars could drive straight through one another.
+            VehicleCollisionResolver.Resolve(Drivers);
+
 			Track.Update();
 
 			// Gate detection must handle jumping across several nodes in one update.

@@ -29,6 +29,22 @@ namespace OpenNFS1.Vehicles
 		public float Speed { get; set; }
 		public TrackNode CurrentNode { get; private set; }
 		public float TrackPosition { get; set; }
+        /// <summary>Planar physical footprint from the original scaled CFM geometry.</summary>
+        public float CollisionWidth
+        {
+            get { return MathHelper.Clamp(_model.BoundingBox.Max.X - _model.BoundingBox.Min.X, 2.0f, 12.0f); }
+        }
+
+        public float CollisionLength
+        {
+            get { return MathHelper.Clamp(_model.BoundingBox.Max.Z - _model.BoundingBox.Min.Z, 4.0f, 24.0f); }
+        }
+
+        public float CollisionHeight
+        {
+            get { return MathHelper.Clamp(_model.BoundingBox.Max.Y - _model.BoundingBox.Min.Y, 2.0f, 12.0f); }
+        }
+
 		
 
 		protected CarMesh _model;

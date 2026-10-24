@@ -90,7 +90,8 @@ namespace OpenNFS1.Vehicles.AI
 				//if (!(otherDriver is AIDriver)) continue;
 				// if I am not in the same lane, ignore
 				if (otherDriver is AIDriver && ((AIDriver)otherDriver).VirtualLane != VirtualLane) continue;
-				if (otherDriver is PlayerDriver) continue;  //ignore player for now
+				// Treat the player's vehicle as real traffic as well. The old
+				// code explicitly ignored it and let AI drive into the player.
 				
 				// if I am going slower than the other driver, ignore
 				if (Vehicle.Speed < otherDriver.Vehicle.Speed) continue;
