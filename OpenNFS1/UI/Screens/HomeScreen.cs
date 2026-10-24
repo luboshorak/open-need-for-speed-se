@@ -73,6 +73,7 @@ namespace OpenNFS1.UI.Screens
         private readonly BitmapEntry _headToHeadArt;
         private readonly BitmapEntry _noMercyArt;
         private readonly BitmapEntry _packArt;
+        private readonly BitmapEntry[] _tournamentClassArt = new BitmapEntry[3];
         private readonly BitmapEntry _computerOpponentsArt;
         private readonly List<VehicleUIControl> _vehicles = new List<VehicleUIControl>();
         private readonly List<TrackUIControl> _tracks = new List<TrackUIControl>();
@@ -103,6 +104,10 @@ namespace OpenNFS1.UI.Screens
                 .Content.Header.FindByName("0000");
             _packArt = new QfsFile(@"FRONTEND\ART\CONTROL\SLEW.QFS")
                 .Content.Header.FindByName("0000");
+            for (int i = 0; i < 3; i++)
+                _tournamentClassArt[i] =
+                    new QfsFile(@"FRONTEND\ART\CONTROL\TOURNY" + (i + 1) + ".QFS")
+                    .Content.Header.FindByName("0000");
             _computerOpponentsArt = qfs.Content.Header.FindByName("Coml");
             WriteArtInventory(qfs);
 
@@ -352,8 +357,13 @@ namespace OpenNFS1.UI.Screens
             else if (GameConfig.CurrentRaceMode == RaceMode.Tournament)
             {
                 int carClass = RaceModeRules.TournamentClass(_tracks[_currentTrack].Descriptor);
-                DrawLabel("CLASS " + (carClass == 1 ? "A" : carClass == 2 ? "B" : "C") +
-                    " - 7 OPPONENTS", new Vector2(356, 164), Color.DarkRed, 0.34f);
+                // Original EA artwork: TOURNY1=A, TOURNY2=B, TOURNY3=C.
+                if (carClass >= 1 && carClass <= 3)
+                {
+                    BitmapEntry original = _tournamentClassArt[carClass - 1];
+                    if (original?.Texture != null)
+                        sprite.Draw(original.Texture, original.GetDisplayAt(), Color.White);
+                }
             }
             else
             {
