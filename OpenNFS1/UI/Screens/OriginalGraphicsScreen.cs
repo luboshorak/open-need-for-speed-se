@@ -18,6 +18,8 @@ namespace OpenNFS1.UI.Screens
         private readonly BitmapChunk _art;
         private readonly SpriteFont _font;
         private int _selected;
+        private bool _originalFullScreen;
+        private int _originalDrawDistance;
         private string _notice = "F2: MODERN DISPLAY / GAMMA / UPSCALING";
 
         private static readonly string[] Labels =
@@ -31,6 +33,7 @@ namespace OpenNFS1.UI.Screens
             _back = back;
             _art = new QfsFile(@"FRONTEND\ART\OPTION\GRAPHICS.QFS").Content.Header;
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
+            AcceptChanges();
         }
 
         private void Art(string id)
@@ -40,9 +43,29 @@ namespace OpenNFS1.UI.Screens
                 Engine.Instance.SpriteBatch.Draw(e.Texture, e.GetDisplayAt(), Color.White);
         }
 
+        internal void AcceptChanges()
+        {
+            _originalFullScreen = GameConfig.FullScreen;
+            _originalDrawDistance = GameConfig.DrawDistance;
+        }
+
+        private void Cancel()
+        {
+            bool changed = GameConfig.FullScreen != _originalFullScreen;
+            GameConfig.FullScreen = _originalFullScreen;
+            GameConfig.DrawDistance = _originalDrawDistance;
+            if (changed)
+            {
+                try { ((Game1)Engine.Instance.Game).ApplyDisplaySettings(); }
+                catch (Exception ex) { _notice = ex.Message; }
+            }
+            Engine.Instance.Screen = _back ?? new OptionsScreen();
+        }
+
         private void Done()
         {
             GameConfig.SaveUserSettings();
+            AcceptChanges();
             Engine.Instance.Screen = _back ?? new OptionsScreen();
         }
 
@@ -84,7 +107,7 @@ namespace OpenNFS1.UI.Screens
             var input = Engine.Instance.Input;
             if (input.WasPressed(Keys.Escape))
             {
-                Engine.Instance.Screen = _back ?? new OptionsScreen();
+                Cancel();
                 return;
             }
             if (input.WasPressed(Keys.F2))
@@ -108,7 +131,7 @@ namespace OpenNFS1.UI.Screens
             {
                 if (p.X < 140) Done();
                 else if (p.X > 490)
-                    Engine.Instance.Screen = _back ?? new OptionsScreen();
+                    Cancel();
                 return;
             }
             if (p.Y >= 397 && p.Y < 434)
