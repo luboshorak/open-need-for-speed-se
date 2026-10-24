@@ -22,7 +22,7 @@ namespace OpenNFS1.UI.Screens
 					Engine.Instance.Screen = new ChooseDataDownloadScreen();
 				else
 				{
-					Engine.Instance.Screen = new HomeScreen();
+					Engine.Instance.Screen = new GameModeScreen();
 				}
 			}
 		}
