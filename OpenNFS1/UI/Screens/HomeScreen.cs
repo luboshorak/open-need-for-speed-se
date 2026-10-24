@@ -386,11 +386,9 @@ namespace OpenNFS1.UI.Screens
             // Do not overwrite that stage when the user presses RACE.
             TrackDescription selected = _tracks[_currentTrack].Descriptor;
             TrackDescription detailed = GameConfig.SelectedTrackDescription;
-            string selectedPrefix = selected.FileName.Replace('\\','/');
-            string detailedPrefix = detailed?.FileName.Replace('\\','/');
-            if (detailed == null || !selected.IsOpenRoad || !detailed.IsOpenRoad ||
-                selectedPrefix.Substring(selectedPrefix.LastIndexOf('/') + 1, 2) !=
-                detailedPrefix.Substring(detailedPrefix.LastIndexOf('/') + 1, 2))
+            if (detailed == null || !OpenRoadStageSelector.SameFamily(
+                selected.FileName, selected.IsOpenRoad,
+                detailed.FileName, detailed.IsOpenRoad))
                 GameConfig.SelectedTrackDescription = selected;
             RaceLauncher.Start();
         }
