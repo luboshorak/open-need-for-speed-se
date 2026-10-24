@@ -28,6 +28,8 @@ jobs:
         run: dotnet run --project tests/VehicleCollisionTests/VehicleCollisionTests.csproj --configuration Release
       - name: Original NFS SE race mode tests
         run: dotnet run --project tests/RaceModeTests/RaceModeTests.csproj --configuration Release
+      - name: Showroom navigation regression tests
+        run: dotnet run --project tests/ShowroomNavigationTests/ShowroomNavigationTests.csproj --configuration Release
       - name: Publish Windows x64
         run: dotnet publish OpenNFS1/OpenNFS1.csproj --configuration Release --runtime win-x64 --self-contained false -p:PublishSingleFile=false --output publish
       - uses: actions/upload-artifact@v4

@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("OpenNFS1")]
-[assembly: AssemblyProduct("OpenNFS1")]
+[assembly: AssemblyTitle("OpenNFS1 SE Reloaded")]
+[assembly: AssemblyProduct("OpenNFS1 SE Reloaded")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyDescription("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyCopyright("Copyright ©  2013")]
+[assembly: AssemblyDescription("Modern NFS SE redevelopment; based on OpenNFS1 by Jeff Harris")]
+[assembly: AssemblyCompany("OpenNFS1 SE Reloaded - Lubos Horak")]
+[assembly: AssemblyCopyright("Original OpenNFS1 (c) 2013; redevelopment contributions (c) 2026")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -32,5 +32,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.2.1.0")]
-[assembly: AssemblyFileVersion("1.2.1.0")]
+[assembly: AssemblyVersion("1.6.1.0")]
+[assembly: AssemblyFileVersion("1.6.1.0")]
