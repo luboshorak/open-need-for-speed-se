@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,6 +20,7 @@ namespace OpenNFS1
 		int _nbrLaps;
 		DateTime _countdownStartTime, _raceStartTime;
 		bool _started;
+		private readonly RaceGateTracker _finishGate;
 		public bool Finished { get; private set; }
 		public PlayerDriver Player { get; private set; }
 		TrafficController _trafficController;
@@ -35,6 +36,11 @@ namespace OpenNFS1
 			PlayerStats = new PlayerRaceStats();
 			Drivers = new List<IDriver>();
 			AddDriver(player);
+			int checkpoint = track.CheckpointNode > 1
+				? Math.Min(track.CheckpointNode, track.RoadNodes.Count - 2)
+				: track.RoadNodes.Count - 2;
+			_finishGate = new RaceGateTracker(
+				player.Vehicle.CurrentNode.Number, checkpoint, track.IsOpenRoad);
 			if (track.Description.IsOpenRoad)
 			{
 				_trafficController = new TrafficController(this);
@@ -99,16 +105,18 @@ namespace OpenNFS1
 
 			Track.Update();
 
-			/* so you cant reverse over the line  and get 0.1sec laps */
-			var node = Player.Vehicle.CurrentNode;
-			if (node.Number == Track.CheckpointNode && PlayerStats.HasPassedLapHalfwayPoint)
+			// Gate detection must handle jumping across several nodes in one update.
+			// Do not count start-grid movement before the countdown completes.
+			if (_started && !Finished &&
+				_finishGate.Update(Player.Vehicle.CurrentNode.Number))
 			{
-				PlayerStats.OnLapStarted();
-			}
-
-			if (node.Number == 100)  //just pick some arbitrary node thats farish away from the start
-			{
-				PlayerStats.HasPassedLapHalfwayPoint = true;
+				PlayerStats.OnLapStarted(); // records the just-finished lap or road stage
+				if (PlayerStats.CurrentLap > _nbrLaps)
+				{
+					// Waiting for exact Speed == 0 left some races unfinished forever.
+					Finished = true;
+					VehicleController.ForceBrake = true;
+				}
 			}
 
 			var racingDrivers = new List<IDriver>(Drivers.Where(a => a is RacingAIDriver || a is PlayerDriver));
@@ -126,15 +134,7 @@ namespace OpenNFS1
 				_started = true;
 			}
 
-			if (PlayerStats.CurrentLap > _nbrLaps)
-			{
-				if (Player.Vehicle.Speed > 0)
-				{
-					VehicleController.ForceBrake = true;
-				}
-				else
-					Finished = true;
-			}
+
 			if (_trafficController != null) _trafficController.Update();
 		}
 
