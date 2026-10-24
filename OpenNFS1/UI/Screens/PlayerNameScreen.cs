@@ -1,4 +1,7 @@
 using System;
+using System.Linq;
+using System.Diagnostics;
+using System.IO;
 using GameEngine;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -18,8 +21,30 @@ namespace OpenNFS1.UI.Screens
 
         public PlayerNameScreen()
         {
-            _background = new QfsFile(@"FRONTEND\ART\CONTROL\GAMEMODE.QFS")
+            // Load the genuine NFS SE title artwork, not our generic
+            // GAMEMODE.QFS with a large improvised black card. Different
+            // retail releases may store the title image under a different ID.
+            Texture2D artwork = null;
+            try
+            {
+                var title = new QfsFile(@"FRONTEND\ART\TITLE.QFS").Content.Header;
+                artwork = title.FindByName("bgnd")?.Texture ??
+                    title.FindByName("0000")?.Texture ??
+                    title.Bitmaps.Where(b => b.Texture != null)
+                        .OrderByDescending(b => b.Texture.Width * b.Texture.Height)
+                        .Select(b => b.Texture).FirstOrDefault();
+            }
+            catch (Exception error) when (error is IOException ||
+                error is InvalidDataException ||
+                error is InvalidOperationException ||
+                error is IndexOutOfRangeException)
+            {
+                Trace.WriteLine("Original name-entry title art: " + error);
+            }
+            _background = artwork ?? new QfsFile(
+                @"FRONTEND\ART\CONTROL\GAMEMODE.QFS")
                 .Content.Header.FindByName("bgnd").Texture;
+            _name = PlayerProfile.Name ?? "";
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
             _pixel = new Texture2D(Engine.Instance.Device, 1, 1);
             _pixel.SetData(new[] { Color.White });
@@ -78,12 +103,15 @@ namespace OpenNFS1.UI.Screens
             sprite.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied,
                 SamplerState.PointClamp);
             sprite.Draw(_background, new Rectangle(0, 0, 640, 480), Color.White);
-            sprite.Draw(_pixel, new Rectangle(44, 154, 552, 178), Color.Black * 0.88f);
-            Text(sprite, "ENTER PLAYER NAME", 66, 173, .65f, Color.Yellow);
+            // Preserve original full-screen EA title artwork; use a smaller
+            // name-entry band instead of obscuring most of the screen.
+            sprite.Draw(_pixel, new Rectangle(40, 269, 560, 138),
+                Color.Black * 0.72f);
+            Text(sprite, "ENTER YOUR NAME", 65, 285, .56f, Color.Yellow);
             Text(sprite, _name.Length == 0 ? "_" : _name + "_",
-                70, 226, .83f, Color.White);
+                70, 319, .70f, Color.White);
             Text(sprite, "UP TO 16 CHARACTERS  /  ENTER TO CONFIRM",
-                69, 289, .32f, Color.Yellow);
+                65, 373, .32f, Color.Yellow);
             sprite.End();
         }
 
