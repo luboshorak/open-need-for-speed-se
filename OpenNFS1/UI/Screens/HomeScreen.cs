@@ -243,8 +243,17 @@ namespace OpenNFS1.UI.Screens
             // rather than leaving the original unfinished opponent panel blank.
             if (!GameConfig.TimeTrial)
             {
-                sprite.Draw(_vehicles[_currentOpponent].Bitmap.Texture,
-                    new Rectangle(349, 126, 262, 78), Color.White);
+                Texture2D preview = _vehicles[_currentOpponent].Bitmap.Texture;
+                // Keep the original QFS illustration's proportions intact.
+                if (preview != null && preview.Width > 0 && preview.Height > 0)
+                {
+                    float ratio = Math.Min(264f / preview.Width, 78f / preview.Height);
+                    int width = Math.Max(1, (int)(preview.Width * ratio));
+                    int height = Math.Max(1, (int)(preview.Height * ratio));
+                    sprite.Draw(preview, new Rectangle(
+                        349 + (264 - width) / 2, 126 + (78 - height) / 2,
+                        width, height), Color.White);
+                }
             }
             DrawLabel(GameConfig.TimeTrial ? "NO OPPONENT" :
                 "< " + _vehicles[_currentOpponent].Descriptor.Name + " >",
