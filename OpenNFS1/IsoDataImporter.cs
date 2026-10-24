@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using DiscUtils;
 using DiscUtils.Iso9660;
 
 namespace OpenNFS1
@@ -19,7 +20,7 @@ namespace OpenNFS1
 
         private sealed class ImageEntry
         {
-            public string IsoPath;
+            public DiscFileInfo Source;
             public string RelativePath;
         }
 
@@ -58,15 +59,13 @@ namespace OpenNFS1
                 using (FileStream isoFile = File.Open(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 using (CDReader cd = new CDReader(isoFile, true))
                 {
-                    string[] sourceFiles = cd.GetFiles(@"\", "*", SearchOption.AllDirectories);
-                    if (sourceFiles.Length == 0)
+                    // DiscUtils.GetFiles(root, wildcard, recursive) can return an empty
+                    // sequence for ISO directories on Windows. Walk the directory tree
+                    // explicitly instead, keeping DiscFileInfo for reliable OpenRead().
+                    var entries = new List<ImageEntry>();
+                    CollectFiles(cd.Root, entries);
+                    if (entries.Count == 0)
                         throw new InvalidDataException("The ISO image contains no readable files.");
-
-                    var entries = sourceFiles.Select(path => new ImageEntry
-                    {
-                        IsoPath = path,
-                        RelativePath = NormalizeIsoPath(path)
-                    }).Where(x => x.RelativePath.Length > 0).ToList();
 
                     // CDs are sometimes mastered with an additional top-level directory (e.g. NFSSE/).
                     // Find the shortest prefix that contains BOTH required files.
@@ -103,7 +102,7 @@ namespace OpenNFS1
                         string safePath = GetSafeDestination(staging, relativePath);
                         Directory.CreateDirectory(Path.GetDirectoryName(safePath));
 
-                        using (Stream input = cd.OpenFile(entry.IsoPath, FileMode.Open))
+                        using (Stream input = entry.Source.OpenRead())
                         using (FileStream output = File.Create(safePath))
                             input.CopyTo(output);
 
@@ -140,6 +139,18 @@ namespace OpenNFS1
                     catch (UnauthorizedAccessException) { /* preserve original import error */ }
                 }
             }
+        }
+
+        private static void CollectFiles(DiscDirectoryInfo folder, List<ImageEntry> entries)
+        {
+            foreach (DiscFileInfo file in folder.GetFiles())
+            {
+                string relativePath = NormalizeIsoPath(file.FullName);
+                if (!string.IsNullOrEmpty(relativePath))
+                    entries.Add(new ImageEntry { Source = file, RelativePath = relativePath });
+            }
+            foreach (DiscDirectoryInfo directory in folder.GetDirectories())
+                CollectFiles(directory, entries);
         }
 
         private static string NormalizeIsoPath(string source)
