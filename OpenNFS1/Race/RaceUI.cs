@@ -96,7 +96,7 @@ namespace OpenNFS1.UI
                 int gear = car.Motor.Gearbox.CurrentGear;
                 DrawGlyph(sprite, gear < 0 ? _yellowReverse :
                     gear == 0 ? _yellowNeutral : _yellowDigits[Math.Clamp(gear, 0, 9)],
-                    new Rectangle(377, 7, 15, 16));
+                    HudGeometry.Gear);
             }
 
             if (_race.Track.IsOpenRoad)
@@ -123,11 +123,6 @@ namespace OpenNFS1.UI
             sprite.End();
         }
 
-        private static readonly int[] FirstClockDigits =
-            { 30, 42, 64, 76, 99 };
-        private static readonly int[] SecondClockDigits =
-            { 149, 161, 192, 204, 235 };
-
         private void DrawClock(SpriteBatch sprite, TimeSpan time, int clock)
         {
             if (time < TimeSpan.Zero) time = TimeSpan.Zero;
@@ -135,10 +130,9 @@ namespace OpenNFS1.UI
             int seconds = time.Seconds;
             int[] values = { minutes / 10, minutes % 10,
                 seconds / 10, seconds % 10, time.Milliseconds / 100 };
-            var xs = clock == 0 ? FirstClockDigits : SecondClockDigits;
             for (int i = 0; i < values.Length; i++)
                 DrawGlyph(sprite, _yellowDigits[values[i]],
-                    new Rectangle(xs[i], 8, 11, 13));
+                    HudGeometry.ClockDigit(clock, i));
         }
 
         private void DrawSpeed(SpriteBatch sprite, int speed)
@@ -146,26 +140,18 @@ namespace OpenNFS1.UI
             string value = speed.ToString();
             // Source speed digits are 28x27. Their original source slot is
             // x=266..346, ending BEFORE the H/gear icon at x=349.
-            int x = 266 + (3 - value.Length) * 26;
-            foreach (char digit in value)
-            {
-                DrawGlyph(sprite, _speedDigits[digit - '0'],
-                    new Rectangle(x, 2, 28, 27));
-                x += 26;
-            }
+            for (int i = 0; i < value.Length; i++)
+                DrawGlyph(sprite, _speedDigits[value[i] - '0'],
+                    HudGeometry.SpeedDigit(value.Length, i));
         }
 
         private void DrawNumber(SpriteBatch sprite, int value,
             int rightEdge, int y, int digitWidth, int height)
         {
             string text = Math.Clamp(value, 0, 99).ToString();
-            int x = rightEdge - text.Length * digitWidth;
-            foreach (char digit in text)
-            {
-                DrawGlyph(sprite, _yellowDigits[digit - '0'],
-                    new Rectangle(x, y, digitWidth, height));
-                x += digitWidth;
-            }
+            for (int i = 0; i < text.Length; i++)
+                DrawGlyph(sprite, _yellowDigits[text[i] - '0'],
+                    HudGeometry.ValueDigit(value, i, rightEdge, y, digitWidth, height));
         }
 
         private static void DrawArt(SpriteBatch sprite, BitmapEntry entry)
