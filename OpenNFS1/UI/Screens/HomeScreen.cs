@@ -168,7 +168,7 @@ namespace OpenNFS1.UI.Screens
 
             if (input.WasPressed(Keys.Escape))
             {
-                Engine.Instance.Game.Exit();
+                Engine.Instance.Screen = new GameModeScreen();
                 return;
             }
             if (input.WasPressed(Keys.Down) || input.WasPressed(Keys.Tab))
@@ -216,7 +216,7 @@ namespace OpenNFS1.UI.Screens
                 OpenRaceOptions();
             }
             else if (CancelButtonArea.Contains(x, y))
-                Engine.Instance.Game.Exit();
+                Engine.Instance.Screen = new GameModeScreen();
             else
                 return false;
             return true;
