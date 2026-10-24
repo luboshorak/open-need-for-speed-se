@@ -24,7 +24,9 @@ namespace OpenNFS1
         public static bool AlternativeTimeOfDay { get; set; }
         public static int OpponentCount { get; set; } = 10;
         public static int CircuitLaps { get; set; } = 3;
-        public static bool TimeTrial { get; set; }
+        public static RaceMode CurrentRaceMode { get; set; } = RaceMode.SingleRace;
+        public static bool TimeTrial { get { return CurrentRaceMode == RaceMode.TimeTrial; } }
+        public static TournamentSeries Tournament { get; set; }
 
         public static bool FullScreen { get; set; }
         public static string CdDataPath { get; set; } = Path.Combine(AppContext.BaseDirectory, "CD_Data");

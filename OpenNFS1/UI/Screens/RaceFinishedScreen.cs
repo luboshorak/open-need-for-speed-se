@@ -22,6 +22,12 @@ namespace OpenNFS1.UI.Screens
             _race = race;
             _raceTrack = raceTrack;
             _background = ScreenEffects.TakeScreenshot();
+
+            // A results screen is created once after each race. Save points
+            // here (not on keyboard input) so retries/clicks cannot score twice.
+            if (GameConfig.CurrentRaceMode == RaceMode.Tournament && GameConfig.Tournament != null)
+                GameConfig.Tournament.RecordResult(race.PlayerStats.Position, race.RaceTime);
+
             GC.Collect(); //force some memory freeness here.
         }
 
@@ -49,7 +55,7 @@ namespace OpenNFS1.UI.Screens
 
             if (UIController.Back)
             {
-                Engine.Instance.Screen = new HomeScreen();
+                ReturnToMenu();
                 return;
             }
 
@@ -62,11 +68,32 @@ namespace OpenNFS1.UI.Screens
                 ActivateSelection();
         }
 
+        private void ReturnToMenu()
+        {
+            GameConfig.Tournament = null;
+            Engine.Instance.Screen = new HomeScreen();
+        }
+
         private void ActivateSelection()
         {
             if (_selectedOption == 1)
             {
-                Engine.Instance.Screen = new HomeScreen();
+                ReturnToMenu();
+                return;
+            }
+
+            if (GameConfig.CurrentRaceMode == RaceMode.Tournament &&
+                GameConfig.Tournament != null)
+            {
+                if (GameConfig.Tournament.TryAdvance())
+                {
+                    GameConfig.SelectedTrackDescription = GameConfig.Tournament.CurrentCourse;
+                    Engine.Instance.Screen = new LoadRaceScreen();
+                }
+                else
+                {
+                    ReturnToMenu();
+                }
                 return;
             }
 
@@ -110,7 +137,21 @@ namespace OpenNFS1.UI.Screens
 
 			WriteLine("Total time: " + TimeSpan.FromSeconds(totalSeconds));
 			
-            DrawMenuActions("Race again");
+            if (GameConfig.CurrentRaceMode == RaceMode.Tournament &&
+                GameConfig.Tournament != null)
+            {
+                var series = GameConfig.Tournament;
+                Engine.Instance.SpriteBatch.DrawString(Font,
+                    "TOURNAMENT " + series.CompletedStages + "/" + series.StageCount +
+                    "   SCORE " + series.Points,
+                    new Vector2(30, 311), Color.Yellow,
+                    0f, Vector2.Zero, 0.52f, SpriteEffects.None, 0);
+                DrawMenuActions(series.IsComplete ? "Finish tournament" : "Next tournament race");
+            }
+            else
+            {
+                DrawMenuActions("Race again");
+            }
         }
 
         private void DrawOpenRoadResult()
