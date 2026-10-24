@@ -29,7 +29,7 @@ namespace OpenNFS1
 			_car = new DrivableVehicle(GameConfig.SelectedVehicle);
 
 			_playerDriver = new PlayerDriver(_car);
-			_car.AudioEnabled = true;
+			_car.AudioEnabled = GameConfig.SoundEffectsEnabled;
 
 			_race = new Race(_track.IsOpenRoad ? 1 : Math.Clamp(GameConfig.CircuitLaps, 1, 5), _track, _playerDriver);
             // Mode rules are explicit: 1 (Head to Head), 7 (Single/Tournament),
@@ -103,7 +103,7 @@ namespace OpenNFS1
 
 		public void Resume()
 		{
-			_car.AudioEnabled = true;
+			_car.AudioEnabled = GameConfig.SoundEffectsEnabled;
 		}
 
 		public void Draw()
