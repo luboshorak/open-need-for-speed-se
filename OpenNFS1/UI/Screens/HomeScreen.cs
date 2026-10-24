@@ -70,6 +70,8 @@ namespace OpenNFS1.UI.Screens
             _raceTypeSelection, _trackSelection, _raceButtonSelection;
         private readonly BitmapEntry _singleRaceArt;
         private readonly BitmapEntry _tournamentArt;
+        private readonly BitmapEntry _headToHeadArt;
+        private readonly BitmapEntry _noMercyArt;
         private readonly BitmapEntry _computerOpponentsArt;
         private readonly List<VehicleUIControl> _vehicles = new List<VehicleUIControl>();
         private readonly List<TrackUIControl> _tracks = new List<TrackUIControl>();
@@ -93,6 +95,10 @@ namespace OpenNFS1.UI.Screens
             _singleRaceArt = new QfsFile(@"FRONTEND\ART\CONTROL\SINGLE.QFS")
                 .Content.Header.FindByName("0000");
             _tournamentArt = new QfsFile(@"FRONTEND\ART\CONTROL\TOURNY.QFS")
+                .Content.Header.FindByName("0000");
+            _headToHeadArt = new QfsFile(@"FRONTEND\ART\CONTROL\HEADHEAD.QFS")
+                .Content.Header.FindByName("0000");
+            _noMercyArt = new QfsFile(@"FRONTEND\ART\CONTROL\NOMERCY.QFS")
                 .Content.Header.FindByName("0000");
             _computerOpponentsArt = qfs.Content.Header.FindByName("Coml");
             WriteArtInventory(qfs);
@@ -213,11 +219,13 @@ namespace OpenNFS1.UI.Screens
                 _selectedControl = TrackSelected;
                 ChangeSelected(x < TrackArea.Center.X ? -1 : 1);
             }
-            else if (RaceButtonArea.Contains(x, y) || OptionsButtonArea.Contains(x, y))
+            else if (RaceButtonArea.Contains(x, y))
             {
                 _selectedControl = RaceButtonSelected;
                 OpenRaceOptions();
             }
+            else if (OptionsButtonArea.Contains(x, y))
+                Engine.Instance.Screen = new OptionsScreen();
             else if (CancelButtonArea.Contains(x, y))
                 Engine.Instance.Screen = new GameModeScreen();
             else
@@ -233,11 +241,22 @@ namespace OpenNFS1.UI.Screens
                     _currentVehicle = (_currentVehicle + direction + _vehicles.Count) % _vehicles.Count;
                     break;
                 case OpponentSelected:
-                    _currentOpponent = (_currentOpponent + direction + _vehicles.Count) % _vehicles.Count;
+                    if (GameConfig.CurrentRaceMode == RaceMode.HeadToHead)
+                        _currentOpponent = (_currentOpponent + direction + _vehicles.Count) % _vehicles.Count;
+                    else if (GameConfig.CurrentRaceMode == RaceMode.SingleRace)
+                    {
+                        // The Pack is one option, followed by each car model.
+                        int current = GameConfig.UseOpponentPack ? -1 : _currentOpponent;
+                        current = (current + direction + _vehicles.Count + 1) % (_vehicles.Count + 1) - 1;
+                        GameConfig.UseOpponentPack = current < 0;
+                        if (current >= 0) _currentOpponent = current;
+                    }
                     break;
                 case RaceTypeSelected:
                     GameConfig.CurrentRaceMode = (RaceMode)(
-                        ((int)GameConfig.CurrentRaceMode + direction + 3) % 3);
+                        ((int)GameConfig.CurrentRaceMode + direction + 4) % 4);
+                    GameConfig.NoMercy = GameConfig.CurrentRaceMode == RaceMode.HeadToHead &&
+                        Engine.Instance.Input.IsKeyDown(Keys.End);
                     // Tournament only has supported circuit races, no open-road stages.
                     if (GameConfig.CurrentRaceMode == RaceMode.Tournament)
                         _currentTrack = FindTournamentCircuit(_currentTrack, 1);
@@ -281,31 +300,54 @@ namespace OpenNFS1.UI.Screens
             sprite.Draw(_tracks[_currentTrack].Bitmap.Texture,
                 _tracks[_currentTrack].Bitmap.GetDisplayAt(), Color.White);
 
-            // Restore the original opponent panel from the *2 car asset,
-            // using the image's own position and original pixel dimensions.
-            if (!GameConfig.TimeTrial)
+            // The opponent panel is mode-dependent. The original *2.QFS
+            // image stays at its native 284x117 position without rescaling.
+            if (GameConfig.CurrentRaceMode == RaceMode.HeadToHead ||
+                (GameConfig.CurrentRaceMode == RaceMode.SingleRace && !GameConfig.UseOpponentPack))
             {
                 BitmapEntry opponent = _vehicles[_currentOpponent].OpponentBitmap;
                 if (opponent?.Texture != null)
                     sprite.Draw(opponent.Texture, opponent.GetDisplayAt(), Color.White);
             }
-
-            if (!GameConfig.TimeTrial && _computerOpponentsArt?.Texture != null)
-                sprite.Draw(_computerOpponentsArt.Texture,
-                    _computerOpponentsArt.GetDisplayAt(), Color.White);
-
-            // Restore the real 1996 race type art where it exists.
-            BitmapEntry raceTypeArt = GameConfig.CurrentRaceMode == RaceMode.Tournament
-                ? _tournamentArt : _singleRaceArt;
-            if (GameConfig.CurrentRaceMode != RaceMode.TimeTrial)
+            else if (GameConfig.CurrentRaceMode == RaceMode.SingleRace && GameConfig.UseOpponentPack)
             {
-                if (raceTypeArt?.Texture != null)
-                    sprite.Draw(raceTypeArt.Texture, raceTypeArt.GetDisplayAt(), Color.White);
+                // The Pack: use artwork from several genuine opponent photos.
+                for (int i = 0; i < 3; i++)
+                {
+                    BitmapEntry opponent = _vehicles[i].OpponentBitmap;
+                    if (opponent?.Texture == null) continue;
+                    int srcWidth = opponent.Texture.Width;
+                    int srcHeight = opponent.Texture.Height;
+                    sprite.Draw(opponent.Texture, new Rectangle(350 + i * 88, 132, 86, 61),
+                        new Rectangle(0, 0, srcWidth, srcHeight), Color.White);
+                }
+                DrawLabel("THE PACK", new Vector2(420, 198), Color.DarkRed, 0.34f);
+            }
+            else if (GameConfig.CurrentRaceMode == RaceMode.Tournament)
+            {
+                DrawLabel("CLASS A / B / C", new Vector2(370, 164), Color.DarkRed, 0.46f);
             }
             else
             {
-                DrawLabel("TIME TRIAL", new Vector2(111, 335), Color.DarkRed, 0.55f);
-                DrawLabel("NO OPPONENT", new Vector2(368, 148), Color.DarkRed, 0.38f);
+                DrawLabel("SOLO - NO OPPONENT", new Vector2(359, 166), Color.DarkRed, 0.38f);
+            }
+            if (GameConfig.CurrentRaceMode != RaceMode.TimeTrial && _computerOpponentsArt?.Texture != null)
+                sprite.Draw(_computerOpponentsArt.Texture, _computerOpponentsArt.GetDisplayAt(), Color.White);
+
+            BitmapEntry raceTypeArt = GameConfig.CurrentRaceMode switch
+            {
+                RaceMode.SingleRace => _singleRaceArt,
+                RaceMode.Tournament => _tournamentArt,
+                RaceMode.HeadToHead => GameConfig.NoMercy ? _noMercyArt : _headToHeadArt,
+                _ => null
+            };
+            if (raceTypeArt?.Texture != null)
+                sprite.Draw(raceTypeArt.Texture, raceTypeArt.GetDisplayAt(), Color.White);
+            else
+            {
+                // The provided CD has no TIME TRIAL bitmap in CONTROL.
+                // Use its native panel and typography without showing fake Single Race art.
+                DrawLabel("TIME TRIAL", new Vector2(139, 340), Color.Black, 0.61f);
             }
             switch (_selectedControl)
             {
