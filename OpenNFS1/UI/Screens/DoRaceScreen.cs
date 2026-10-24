@@ -114,8 +114,10 @@ namespace OpenNFS1
 			TyreSmokeParticleSystem.Instance.Render();
 
 			Engine.Instance.Device.Viewport = _uiViewport;
-			_raceUI.Render();
+            // Chase-camera gauge and the tiled bottom panel are below the
+            // original HUD. Drawing the map first hid its lower 45 pixels.
 			_playerUI.Render();
+			_raceUI.Render();
 
 			Engine.Instance.Device.Viewport = _raceViewport;
 		}
