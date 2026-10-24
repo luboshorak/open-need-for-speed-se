@@ -246,8 +246,9 @@ namespace OpenNFS1.UI.Screens
                     else if (GameConfig.CurrentRaceMode == RaceMode.SingleRace)
                     {
                         // The Pack is one option, followed by each car model.
-                        int current = GameConfig.UseOpponentPack ? -1 : _currentOpponent;
-                        current = (current + direction + _vehicles.Count + 1) % (_vehicles.Count + 1) - 1;
+                        int currentIndex = GameConfig.UseOpponentPack ? 0 : _currentOpponent + 1;
+                        int nextIndex = (currentIndex + direction + _vehicles.Count + 1) % (_vehicles.Count + 1);
+                        int current = nextIndex - 1;
                         GameConfig.UseOpponentPack = current < 0;
                         if (current >= 0) _currentOpponent = current;
                     }
