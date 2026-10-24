@@ -27,10 +27,12 @@ namespace OpenNFS1
 			GameConfig.Load(Environment.GetCommandLineArgs());
 
             var mode = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
+            var fittedWindow = PresentationLayout.FitWindow(
+                GameConfig.WindowWidth, GameConfig.WindowHeight, mode.Width, mode.Height);
             _graphics.PreferredBackBufferWidth = GameConfig.FullScreen
-                ? mode.Width : GameConfig.WindowWidth;
+                ? mode.Width : fittedWindow.X;
             _graphics.PreferredBackBufferHeight = GameConfig.FullScreen
-                ? mode.Height : GameConfig.WindowHeight;
+                ? mode.Height : fittedWindow.Y;
             _graphics.HardwareModeSwitch = false; // borderless native resolution fullscreen
             DisplaySettings.IntegerScaling = GameConfig.ScalingMode == 2;
 			_graphics.PreferredDepthStencilFormat = DepthFormat.Depth24;
@@ -76,11 +78,22 @@ namespace OpenNFS1
             var mode = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
             _graphics.IsFullScreen = GameConfig.FullScreen;
             _graphics.HardwareModeSwitch = false;
+            var fittedWindow = PresentationLayout.FitWindow(
+                GameConfig.WindowWidth, GameConfig.WindowHeight, mode.Width, mode.Height);
             _graphics.PreferredBackBufferWidth = GameConfig.FullScreen
-                ? mode.Width : GameConfig.WindowWidth;
+                ? mode.Width : fittedWindow.X;
             _graphics.PreferredBackBufferHeight = GameConfig.FullScreen
-                ? mode.Height : GameConfig.WindowHeight;
+                ? mode.Height : fittedWindow.Y;
             _graphics.ApplyChanges();
+
+            // The chosen window size may be larger than the monitor or the
+            // existing window may have been partly off-screen. Recenter.
+            if (!GameConfig.FullScreen)
+            {
+                Window.Position = new Point(
+                    Math.Max(0, (mode.Width - _graphics.PreferredBackBufferWidth) / 2),
+                    Math.Max(0, (mode.Height - _graphics.PreferredBackBufferHeight) / 2 - 24));
+            }
             DisplaySettings.IntegerScaling = GameConfig.ScalingMode == 2;
             if (Engine.Instance != null)
                 Engine.Instance.ScreenSize = new Vector2(
@@ -107,7 +120,19 @@ namespace OpenNFS1
 		protected override void Update(GameTime gameTime)
 		{
 			base.Update(gameTime);
-            if (Engine.Instance.Input.WasPressed(Keys.F11))
+            // Panic key: always restore a usable 800x600 window, even if the
+            // graphics menu itself is inaccessible. Available from any screen.
+            if (Engine.Instance.Input.WasPressed(Keys.F10))
+            {
+                GameConfig.FullScreen = false;
+                GameConfig.WindowWidth = 800;
+                GameConfig.WindowHeight = 600;
+                ApplyDisplaySettings();
+                GameConfig.SaveUserSettings();
+                if (Engine.Instance.Screen is DisplayOptionsScreen)
+                    Engine.Instance.Screen = new OptionsScreen();
+            }
+            else if (Engine.Instance.Input.WasPressed(Keys.F11))
             {
                 GameConfig.FullScreen = !GameConfig.FullScreen;
                 ApplyDisplaySettings();
