@@ -26,7 +26,15 @@ namespace OpenNFS1.UI.Screens
             // A results screen is created once after each race. Save points
             // here (not on keyboard input) so retries/clicks cannot score twice.
             if (GameConfig.CurrentRaceMode == RaceMode.Tournament && GameConfig.Tournament != null)
-                GameConfig.Tournament.RecordResult(race.PlayerStats.Position, race.RaceTime);
+            {
+                TrackDescription nextRoadStage = GameConfig.SelectedTrackDescription.IsOpenRoad
+                    ? TrackDescription.GetNextOpenRoadStage(GameConfig.SelectedTrackDescription)
+                    : null;
+                if (nextRoadStage != null)
+                    GameConfig.Tournament.RecordRoadSegment(GameConfig.SelectedTrackDescription, race.RaceTime);
+                else
+                    GameConfig.Tournament.RecordResult(race.PlayerStats.Position, race.RaceTime);
+            }
 
             GC.Collect(); //force some memory freeness here.
         }
@@ -85,6 +93,20 @@ namespace OpenNFS1.UI.Screens
             if (GameConfig.CurrentRaceMode == RaceMode.Tournament &&
                 GameConfig.Tournament != null)
             {
+                // Complete all three segments of an open-road venue before
+                // awarding points and advancing to the next championship venue.
+                if (GameConfig.SelectedTrackDescription.IsOpenRoad)
+                {
+                    TrackDescription next = TrackDescription.GetNextOpenRoadStage(
+                        GameConfig.SelectedTrackDescription);
+                    if (next != null)
+                    {
+                        GameConfig.SelectedTrackDescription = next;
+                        Engine.Instance.Screen = new LoadRaceScreen();
+                        return;
+                    }
+                }
+
                 if (GameConfig.Tournament.TryAdvance())
                 {
                     GameConfig.SelectedTrackDescription = GameConfig.Tournament.CurrentCourse;
@@ -160,9 +182,20 @@ namespace OpenNFS1.UI.Screens
             
 			WriteLine("Time: " + TimeSpan.FromSeconds(_race.PlayerStats.LapTimes[0]));
 
-            DrawMenuActions(
-                TrackDescription.GetNextOpenRoadStage(GameConfig.SelectedTrackDescription) != null
-                    ? "Continue to next stage" : "Main menu");
+            TrackDescription nextRoad = TrackDescription.GetNextOpenRoadStage(GameConfig.SelectedTrackDescription);
+            if (GameConfig.CurrentRaceMode == RaceMode.Tournament && GameConfig.Tournament != null)
+            {
+                var series = GameConfig.Tournament;
+                Engine.Instance.SpriteBatch.DrawString(Font,
+                    "TOURNAMENT " + series.CompletedStages + "/" + series.StageCount +
+                    "  SCORE " + series.Points,
+                    new Vector2(30, 308), Color.Yellow,
+                    0f, Vector2.Zero, 0.52f, SpriteEffects.None, 0);
+                DrawMenuActions(nextRoad != null ? "Continue to next stage" :
+                    series.IsComplete ? "Finish tournament" : "Next tournament race");
+            }
+            else
+                DrawMenuActions(nextRoad != null ? "Continue to next stage" : "Main menu");
         }
 
         private void DrawMenuActions(string firstAction)

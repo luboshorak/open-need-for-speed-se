@@ -55,7 +55,9 @@ namespace OpenNFS1.UI.Screens
         private const int RaceTypeSelected = 2;
         private const int TrackSelected = 3;
         private const int RaceButtonSelected = 4;
-        private const int SelectionCount = 5;
+        private const int OptionsButtonSelected = 5;
+        private const int CancelButtonSelected = 6;
+        private const int SelectionCount = 7;
 
         // Original 640x480 coordinate space, not physical window pixels.
         private static readonly Rectangle VehicleArea = new Rectangle(20, 112, 310, 177);
@@ -70,7 +72,13 @@ namespace OpenNFS1.UI.Screens
             _raceTypeSelection, _trackSelection, _raceButtonSelection;
         private readonly BitmapEntry _singleRaceArt;
         private readonly BitmapEntry _tournamentArt;
+        private readonly BitmapEntry _headToHeadArt;
+        private readonly BitmapEntry _noMercyArt;
+        private readonly BitmapEntry _packArt;
+        private readonly BitmapEntry _timeTrialArt, _timeTrialOpponentArt;
+        private readonly BitmapEntry[] _tournamentClassArt = new BitmapEntry[3];
         private readonly BitmapEntry _computerOpponentsArt;
+        private readonly BitmapEntry _optionsSelection, _cancelSelection;
         private readonly List<VehicleUIControl> _vehicles = new List<VehicleUIControl>();
         private readonly List<TrackUIControl> _tracks = new List<TrackUIControl>();
         private readonly SpriteFont _font;
@@ -88,12 +96,29 @@ namespace OpenNFS1.UI.Screens
             _raceTypeSelection = qfs.Content.Header.FindByName("Blb2");
             _trackSelection = qfs.Content.Header.FindByName("Brb4");
             _raceButtonSelection = qfs.Content.Header.FindByName("Ra1l");
+            _optionsSelection = qfs.Content.Header.FindByName("optl");
+            _cancelSelection = qfs.Content.Header.FindByName("canl");
             // Original SINGLE.QFS is 238x66 at (92,316), exactly the
             // race type placeholder in CENTRAL.QFS.
             _singleRaceArt = new QfsFile(@"FRONTEND\ART\CONTROL\SINGLE.QFS")
                 .Content.Header.FindByName("0000");
             _tournamentArt = new QfsFile(@"FRONTEND\ART\CONTROL\TOURNY.QFS")
                 .Content.Header.FindByName("0000");
+            _headToHeadArt = new QfsFile(@"FRONTEND\ART\CONTROL\HEADHEAD.QFS")
+                .Content.Header.FindByName("0000");
+            _noMercyArt = new QfsFile(@"FRONTEND\ART\CONTROL\NOMERCY.QFS")
+                .Content.Header.FindByName("0000");
+            _packArt = new QfsFile(@"FRONTEND\ART\CONTROL\SLEW.QFS")
+                .Content.Header.FindByName("0000");
+            // The ORIGINAL Time Trial artwork uses the WATCH1/WATCH2 names.
+            _timeTrialArt = new QfsFile(@"FRONTEND\ART\CONTROL\WATCH1.QFS")
+                .Content.Header.FindByName("0000");
+            _timeTrialOpponentArt = new QfsFile(@"FRONTEND\ART\CONTROL\WATCH2.QFS")
+                .Content.Header.FindByName("0000");
+            for (int i = 0; i < 3; i++)
+                _tournamentClassArt[i] =
+                    new QfsFile(@"FRONTEND\ART\CONTROL\TOURNY" + (i + 1) + ".QFS")
+                    .Content.Header.FindByName("0000");
             _computerOpponentsArt = qfs.Content.Header.FindByName("Coml");
             WriteArtInventory(qfs);
 
@@ -121,6 +146,11 @@ namespace OpenNFS1.UI.Screens
             _currentVehicle = Math.Clamp(_currentVehicle, 0, _vehicles.Count - 1);
             _currentTrack = Math.Clamp(_currentTrack, 0, _tracks.Count - 1);
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
+            if (GameConfig.CurrentRaceMode == RaceMode.Tournament)
+            {
+                _currentTrack = FindTournamentVenue(_currentTrack, 1);
+                EnsureTournamentVehicle(1);
+            }
         }
 
         /// <summary>
@@ -184,10 +214,12 @@ namespace OpenNFS1.UI.Screens
                 ChangeSelected(1);
             else if (input.WasPressed(Keys.Enter))
             {
-                if (_selectedControl == RaceButtonSelected)
-                    OpenRaceOptions();
-                else
-                    ChangeSelected(1);
+                if (_selectedControl == RaceButtonSelected) OpenRaceOptions();
+                else if (_selectedControl == OptionsButtonSelected)
+                    Engine.Instance.Screen = new OptionsScreen();
+                else if (_selectedControl == CancelButtonSelected)
+                    Engine.Instance.Screen = new GameModeScreen();
+                else ChangeSelected(1);
             }
         }
 
@@ -213,13 +245,21 @@ namespace OpenNFS1.UI.Screens
                 _selectedControl = TrackSelected;
                 ChangeSelected(x < TrackArea.Center.X ? -1 : 1);
             }
-            else if (RaceButtonArea.Contains(x, y) || OptionsButtonArea.Contains(x, y))
+            else if (RaceButtonArea.Contains(x, y))
             {
                 _selectedControl = RaceButtonSelected;
                 OpenRaceOptions();
             }
+            else if (OptionsButtonArea.Contains(x, y))
+            {
+                _selectedControl = OptionsButtonSelected;
+                Engine.Instance.Screen = new OptionsScreen();
+            }
             else if (CancelButtonArea.Contains(x, y))
+            {
+                _selectedControl = CancelButtonSelected;
                 Engine.Instance.Screen = new GameModeScreen();
+            }
             else
                 return false;
             return true;
@@ -231,36 +271,72 @@ namespace OpenNFS1.UI.Screens
             {
                 case VehicleSelected:
                     _currentVehicle = (_currentVehicle + direction + _vehicles.Count) % _vehicles.Count;
+                    EnsureTournamentVehicle(direction);
                     break;
                 case OpponentSelected:
-                    _currentOpponent = (_currentOpponent + direction + _vehicles.Count) % _vehicles.Count;
+                    if (GameConfig.CurrentRaceMode == RaceMode.HeadToHead)
+                        _currentOpponent = (_currentOpponent + direction + _vehicles.Count) % _vehicles.Count;
+                    else if (GameConfig.CurrentRaceMode == RaceMode.SingleRace)
+                    {
+                        // The Pack is one option, followed by each car model.
+                        int currentIndex = GameConfig.UseOpponentPack ? 0 : _currentOpponent + 1;
+                        int nextIndex = (currentIndex + direction + _vehicles.Count + 1) % (_vehicles.Count + 1);
+                        int current = nextIndex - 1;
+                        GameConfig.UseOpponentPack = current < 0;
+                        if (current >= 0) _currentOpponent = current;
+                    }
                     break;
                 case RaceTypeSelected:
                     GameConfig.CurrentRaceMode = (RaceMode)(
-                        ((int)GameConfig.CurrentRaceMode + direction + 3) % 3);
-                    // Tournament only has supported circuit races, no open-road stages.
+                        ((int)GameConfig.CurrentRaceMode + direction + 4) % 4);
+                    GameConfig.NoMercy = GameConfig.CurrentRaceMode == RaceMode.HeadToHead &&
+                        Engine.Instance.Input.IsKeyDown(Keys.End);
+                    // Six original A/B/C venues, including open-road courses.
                     if (GameConfig.CurrentRaceMode == RaceMode.Tournament)
-                        _currentTrack = FindTournamentCircuit(_currentTrack, 1);
+                    {
+                        _currentTrack = FindTournamentVenue(_currentTrack, 1);
+                        EnsureTournamentVehicle(1);
+                    }
                     break;
                 case TrackSelected:
                     _currentTrack = (_currentTrack + direction + _tracks.Count) % _tracks.Count;
                     if (GameConfig.CurrentRaceMode == RaceMode.Tournament)
-                        _currentTrack = FindTournamentCircuit(_currentTrack, direction);
+                    {
+                        _currentTrack = FindTournamentVenue(_currentTrack, direction);
+                        EnsureTournamentVehicle(1);
+                    }
                     break;
             }
         }
 
-        private int FindTournamentCircuit(int start, int direction)
+        private int FindTournamentVenue(int start, int direction)
         {
             for (int offset = 0; offset < _tracks.Count; offset++)
             {
                 int index = (start + offset * direction + _tracks.Count * 2) % _tracks.Count;
-                TrackDescription track = _tracks[index].Descriptor;
-                if (!track.IsOpenRoad && !track.HideFromMenu &&
-                    track.Name.IndexOf("hidden track", StringComparison.OrdinalIgnoreCase) < 0)
+                if (RaceModeRules.TournamentClass(_tracks[index].Descriptor) > 0)
                     return index;
             }
             return start;
+        }
+
+        private void EnsureTournamentVehicle(int direction)
+        {
+            if (GameConfig.CurrentRaceMode != RaceMode.Tournament) return;
+            TrackDescription track = _tracks[_currentTrack].Descriptor;
+            if (RaceModeRules.IsVehicleAllowed(RaceMode.Tournament, track,
+                _vehicles[_currentVehicle].Descriptor)) return;
+
+            for (int n = 1; n <= _vehicles.Count; n++)
+            {
+                int index = (_currentVehicle + n * direction + _vehicles.Count * 2) % _vehicles.Count;
+                if (RaceModeRules.IsVehicleAllowed(RaceMode.Tournament, track,
+                    _vehicles[index].Descriptor))
+                {
+                    _currentVehicle = index;
+                    return;
+                }
+            }
         }
 
         private void OpenRaceOptions()
@@ -281,32 +357,52 @@ namespace OpenNFS1.UI.Screens
             sprite.Draw(_tracks[_currentTrack].Bitmap.Texture,
                 _tracks[_currentTrack].Bitmap.GetDisplayAt(), Color.White);
 
-            // Restore the original opponent panel from the *2 car asset,
-            // using the image's own position and original pixel dimensions.
-            if (!GameConfig.TimeTrial)
+            // The opponent panel is mode-dependent. The original *2.QFS
+            // image stays at its native 284x117 position without rescaling.
+            if (GameConfig.CurrentRaceMode == RaceMode.HeadToHead ||
+                (GameConfig.CurrentRaceMode == RaceMode.SingleRace && !GameConfig.UseOpponentPack))
             {
                 BitmapEntry opponent = _vehicles[_currentOpponent].OpponentBitmap;
                 if (opponent?.Texture != null)
                     sprite.Draw(opponent.Texture, opponent.GetDisplayAt(), Color.White);
             }
-
-            if (!GameConfig.TimeTrial && _computerOpponentsArt?.Texture != null)
-                sprite.Draw(_computerOpponentsArt.Texture,
-                    _computerOpponentsArt.GetDisplayAt(), Color.White);
-
-            // Restore the real 1996 race type art where it exists.
-            BitmapEntry raceTypeArt = GameConfig.CurrentRaceMode == RaceMode.Tournament
-                ? _tournamentArt : _singleRaceArt;
-            if (GameConfig.CurrentRaceMode != RaceMode.TimeTrial)
+            else if (GameConfig.CurrentRaceMode == RaceMode.SingleRace && GameConfig.UseOpponentPack)
             {
-                if (raceTypeArt?.Texture != null)
-                    sprite.Draw(raceTypeArt.Texture, raceTypeArt.GetDisplayAt(), Color.White);
+                // SLEW.QFS is EA's ORIGINAL 284x117 "THE PACK" opponent
+                // photograph, including its caption and native coordinates.
+                if (_packArt?.Texture != null)
+                    sprite.Draw(_packArt.Texture, _packArt.GetDisplayAt(), Color.White);
             }
-            else
+            else if (GameConfig.CurrentRaceMode == RaceMode.Tournament)
             {
-                DrawLabel("TIME TRIAL", new Vector2(111, 335), Color.DarkRed, 0.55f);
-                DrawLabel("NO OPPONENT", new Vector2(368, 148), Color.DarkRed, 0.38f);
+                int carClass = RaceModeRules.TournamentClass(_tracks[_currentTrack].Descriptor);
+                // Original EA artwork: TOURNY1=A, TOURNY2=B, TOURNY3=C.
+                if (carClass >= 1 && carClass <= 3)
+                {
+                    BitmapEntry original = _tournamentClassArt[carClass - 1];
+                    if (original?.Texture != null)
+                        sprite.Draw(original.Texture, original.GetDisplayAt(), Color.White);
+                }
             }
+            else if (_timeTrialOpponentArt?.Texture != null)
+            {
+                sprite.Draw(_timeTrialOpponentArt.Texture,
+                    _timeTrialOpponentArt.GetDisplayAt(), Color.White);
+            }
+            if (GameConfig.CurrentRaceMode != RaceMode.TimeTrial && _computerOpponentsArt?.Texture != null)
+                sprite.Draw(_computerOpponentsArt.Texture, _computerOpponentsArt.GetDisplayAt(), Color.White);
+
+            BitmapEntry raceTypeArt = GameConfig.CurrentRaceMode switch
+            {
+                RaceMode.SingleRace => _singleRaceArt,
+                RaceMode.Tournament => _tournamentArt,
+                RaceMode.HeadToHead => GameConfig.NoMercy ? _noMercyArt : _headToHeadArt,
+                RaceMode.TimeTrial => _timeTrialArt,
+                _ => null
+            };
+            if (raceTypeArt?.Texture != null)
+                sprite.Draw(raceTypeArt.Texture, raceTypeArt.GetDisplayAt(), Color.White);
+
             switch (_selectedControl)
             {
                 case VehicleSelected:
@@ -323,6 +419,14 @@ namespace OpenNFS1.UI.Screens
                     break;
                 case RaceButtonSelected:
                     sprite.Draw(_raceButtonSelection.Texture, _raceButtonSelection.GetDisplayAt(), Color.White);
+                    break;
+                case OptionsButtonSelected:
+                    if (_optionsSelection?.Texture != null)
+                        sprite.Draw(_optionsSelection.Texture, _optionsSelection.GetDisplayAt(), Color.White);
+                    break;
+                case CancelButtonSelected:
+                    if (_cancelSelection?.Texture != null)
+                        sprite.Draw(_cancelSelection.Texture, _cancelSelection.GetDisplayAt(), Color.White);
                     break;
             }
             sprite.End();

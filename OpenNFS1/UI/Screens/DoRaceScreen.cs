@@ -29,45 +29,20 @@ namespace OpenNFS1
 			_car = new DrivableVehicle(GameConfig.SelectedVehicle);
 
 			_playerDriver = new PlayerDriver(_car);
-			_car.AudioEnabled = true;
+			_car.AudioEnabled = GameConfig.SoundEffectsEnabled;
 
 			_race = new Race(_track.IsOpenRoad ? 1 : Math.Clamp(GameConfig.CircuitLaps, 1, 5), _track, _playerDriver);
-			// Time trial is solo; standard races use the opponent count chosen in the menu.
-			int opponentCount = GameConfig.TimeTrial ? 0 : Math.Clamp(GameConfig.OpponentCount, 0, 10);
-			for (int i = 0; i < opponentCount; i++)
-			{
-				// The first AI racer uses the vehicle chosen in Control Central.
-				// The other AI drivers keep the classic randomized selection.
-				VehicleDescription opponent = i == 0 && GameConfig.SelectedOpponent != null
-					? GameConfig.SelectedOpponent
-					: VehicleDescription.Descriptions[Engine.Instance.Random.Next(VehicleDescription.Descriptions.Count)];
-				_race.AddDriver(new RacingAIDriver(opponent));
-			}
-				//_race.AddDriver(new AIDriver(VehicleDescription.Descriptions.Find(a => a.Name == "Viper")));
-				//_race.AddDriver(new AIDriver(VehicleDescription.Descriptions.Find(a => a.Name == "Viper")));
-				//_race.AddDriver(new AIDriver(VehicleDescription.Descriptions.Find(a => a.Name == "Viper")));
-				//_race.AddDriver(new AIDriver(VehicleDescription.Descriptions.Find(a => a.Name == "Viper")));
-				_playerUI = new PlayerUI(_car);
-			/*
-			d = new AIDriver(VehicleDescription.Descriptions.Find(a => a.Name == "911"));
-			_aiDrivers.Add(d);
-			_track.AddDriver(d);
-			d = new AIDriver(VehicleDescription.Descriptions.Find(a => a.Name == "Viper"));
-			_aiDrivers.Add(d);
-			_track.AddDriver(d);
-			d = new AIDriver(VehicleDescription.Descriptions.Find(a => a.Name == "Diablo"));
-			_aiDrivers.Add(d);
-			_track.AddDriver(d);
-			d = new AIDriver(VehicleDescription.Descriptions.Find(a => a.Name == "F512"));
-			_aiDrivers.Add(d);
-			_track.AddDriver(d);
-			d = new AIDriver(VehicleDescription.Descriptions.Find(a => a.Name == "ZR1"));
-			_aiDrivers.Add(d);
-			_track.AddDriver(d);
-			d = new AIDriver(VehicleDescription.Descriptions.Find(a => a.Name == "NSX"));
-			_aiDrivers.Add(d);
-			_track.AddDriver(d);
-			*/
+            // Mode rules are explicit: 1 (Head to Head), 7 (Single/Tournament),
+            // 0 (Time Trial). Opponent count is NOT a generic slider.
+            var rivals = RaceModeRules.BuildOpponents(
+                GameConfig.CurrentRaceMode, GameConfig.UseOpponentPack,
+                GameConfig.SelectedTrackDescription, GameConfig.SelectedVehicle,
+                GameConfig.SelectedOpponent, VehicleDescription.Descriptions);
+            foreach (VehicleDescription rival in rivals)
+                _race.AddDriver(new RacingAIDriver(rival));
+
+			_playerUI = new PlayerUI(_car);
+
 						
 			_raceUI = new RaceUI(_race);
 			_race.StartCountdown();
@@ -128,7 +103,7 @@ namespace OpenNFS1
 
 		public void Resume()
 		{
-			_car.AudioEnabled = true;
+			_car.AudioEnabled = GameConfig.SoundEffectsEnabled;
 		}
 
 		public void Draw()

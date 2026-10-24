@@ -22,7 +22,15 @@ namespace OpenNFS1
         public static Track CurrentTrack;
         public static bool ManualGearbox { get; set; }
         public static bool AlternativeTimeOfDay { get; set; }
-        public static int OpponentCount { get; set; } = 10;
+        public static bool UseOpponentPack { get; set; } = true;
+        public static bool NoMercy { get; set; }
+        public static bool AbsEnabled { get; set; } = true;
+        public static bool TractionControlEnabled { get; set; } = true;
+        public static bool MusicEnabled { get; set; } = true;
+        public static bool MenuMusicEnabled { get; set; } = true;
+        public static bool SoundEffectsEnabled { get; set; } = true;
+        public static bool RockMusic { get; set; } = true;
+        public static float MusicVolume { get; set; } = 0.45f;
         public static int CircuitLaps { get; set; } = 3;
         public static RaceMode CurrentRaceMode { get; set; } = RaceMode.SingleRace;
         public static bool TimeTrial { get { return CurrentRaceMode == RaceMode.TimeTrial; } }
@@ -45,11 +53,35 @@ namespace OpenNFS1
                 {
                     var obj = doc.RootElement;
                     if (obj.TryGetProperty("fullScreen", out var value)) FullScreen = value.GetBoolean();
+                    if (obj.TryGetProperty("musicEnabled", out value)) MusicEnabled = value.GetBoolean();
+                    if (obj.TryGetProperty("rockMusic", out value)) RockMusic = value.GetBoolean();
+                    if (obj.TryGetProperty("musicVolume", out value)) MusicVolume = Math.Clamp(value.GetSingle(), 0, 1);
+                    if (obj.TryGetProperty("absEnabled", out value)) AbsEnabled = value.GetBoolean();
+                    if (obj.TryGetProperty("tractionControlEnabled", out value)) TractionControlEnabled = value.GetBoolean();
+                    if (obj.TryGetProperty("useOpponentPack", out value)) UseOpponentPack = value.GetBoolean();
                     if (obj.TryGetProperty("cdDataPath", out value)) CdDataPath = value.GetString() ?? "CD_Data";
                     if (obj.TryGetProperty("drawDistance", out value)) DrawDistance = value.GetInt32();
                     if (obj.TryGetProperty("respectOpenRoadCheckpoints", out value)) RespectOpenRoadCheckpoints = value.GetBoolean();
                     if (obj.TryGetProperty("drawDebugInfo", out value)) DrawDebugInfo = value.GetBoolean();
                 }
+            }
+
+            // User preferences live outside the install directory and never
+            // overwrite the bundled gameconfig.json or any original CD files.
+            if (File.Exists(UserSettingsPath))
+            {
+                using var preferences = JsonDocument.Parse(File.ReadAllText(UserSettingsPath));
+                var cfg = preferences.RootElement;
+                if (cfg.TryGetProperty("musicEnabled", out var value)) MusicEnabled = value.GetBoolean();
+                if (cfg.TryGetProperty("menuMusicEnabled", out value)) MenuMusicEnabled = value.GetBoolean();
+                if (cfg.TryGetProperty("soundEffectsEnabled", out value)) SoundEffectsEnabled = value.GetBoolean();
+                if (cfg.TryGetProperty("rockMusic", out value)) RockMusic = value.GetBoolean();
+                if (cfg.TryGetProperty("musicVolume", out value)) MusicVolume = Math.Clamp(value.GetSingle(), 0, 1);
+                if (cfg.TryGetProperty("manualGearbox", out value)) ManualGearbox = value.GetBoolean();
+                if (cfg.TryGetProperty("absEnabled", out value)) AbsEnabled = value.GetBoolean();
+                if (cfg.TryGetProperty("tractionControlEnabled", out value)) TractionControlEnabled = value.GetBoolean();
+                if (cfg.TryGetProperty("drawDistance", out value)) DrawDistance = value.GetInt32();
+                if (cfg.TryGetProperty("useOpponentPack", out value)) UseOpponentPack = value.GetBoolean();
             }
 
             if (!Path.IsPathRooted(CdDataPath))
@@ -65,6 +97,35 @@ namespace OpenNFS1
                 else if (string.Equals(args[i], "--windowed", StringComparison.OrdinalIgnoreCase))
                     FullScreen = false;
             }
+        }
+
+        private static string UserSettingsPath => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "OpenNFS1", "settings.json");
+
+        public static void SaveUserSettings()
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(UserSettingsPath));
+                var values = new
+                {
+                    musicEnabled = MusicEnabled,
+                    menuMusicEnabled = MenuMusicEnabled,
+                    soundEffectsEnabled = SoundEffectsEnabled,
+                    rockMusic = RockMusic,
+                    musicVolume = MusicVolume,
+                    manualGearbox = ManualGearbox,
+                    absEnabled = AbsEnabled,
+                    tractionControlEnabled = TractionControlEnabled,
+                    drawDistance = DrawDistance,
+                    useOpponentPack = UseOpponentPack
+                };
+                File.WriteAllText(UserSettingsPath,
+                    JsonSerializer.Serialize(values, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch (IOException) { /* read-only profile must not crash the game */ }
+            catch (UnauthorizedAccessException) { }
         }
 
         public static bool HasOriginalGameData()

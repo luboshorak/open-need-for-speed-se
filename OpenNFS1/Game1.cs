@@ -73,6 +73,7 @@ namespace OpenNFS1
 		/// </summary>
 		protected override void UnloadContent()
 		{
+            OriginalMusicPlayer.Instance.Dispose();
 			Engine.Instance.ContentManager.Unload();
 		}
 
@@ -84,6 +85,12 @@ namespace OpenNFS1
 		protected override void Update(GameTime gameTime)
 		{
 			base.Update(gameTime);
+            if (Engine.Instance.Screen != null)
+            {
+                OriginalMusicPlayer.Instance.Update(
+                    Engine.Instance.Screen is DoRaceScreen,
+                    Engine.Instance.Screen is RacePausedScreen);
+            }
 		}
 
 		/// <summary>
