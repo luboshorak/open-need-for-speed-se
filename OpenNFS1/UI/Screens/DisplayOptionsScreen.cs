@@ -17,18 +17,18 @@ namespace OpenNFS1.UI.Screens
             (800,600), (1024,768), (1280,720), (1280,960),
             (1600,900), (1920,1080), (2560,1440)
         };
-        private const int Rows = 9;
+        private const int Rows = 10;
         private readonly IGameScreen _back;
         private readonly SpriteFont _font;
         private readonly Texture2D _pixel;
         private readonly Texture2D _background;
 
         private readonly bool _originalFull;
-        private readonly int _originalW, _originalH, _originalScaling;
+        private readonly int _originalW, _originalH, _originalScaling, _originalDrawDistance;
         private readonly float _originalGamma, _originalBrightness, _originalContrast;
 
         private bool _full;
-        private int _sizeIndex, _scaling, _selected;
+        private int _sizeIndex, _scaling, _selected, _drawDistance;
         private float _gamma, _brightness, _contrast;
         private string _status = "640 x 480 source · display-only upscale";
 
@@ -46,6 +46,7 @@ namespace OpenNFS1.UI.Screens
             _originalGamma = _gamma = GameConfig.Gamma;
             _originalBrightness = _brightness = GameConfig.Brightness;
             _originalContrast = _contrast = GameConfig.Contrast;
+            _originalDrawDistance = _drawDistance = GameConfig.DrawDistance;
 
             int found = Array.FindIndex(Sizes, s =>
                 s.Width == _originalW && s.Height == _originalH);
@@ -73,9 +74,15 @@ namespace OpenNFS1.UI.Screens
                 case 3: _gamma = Math.Clamp(_gamma + direction * 0.05f, 0.60f, 1.60f); break;
                 case 4: _brightness = Math.Clamp(_brightness + direction * 0.025f, -0.30f, 0.30f); break;
                 case 5: _contrast = Math.Clamp(_contrast + direction * 0.05f, 0.60f, 1.60f); break;
-                case 6: ResetColors(); break;
-                case 7: Apply(); return;
-                case 8: Cancel(); return;
+                case 6:
+                    int[] distances = { 2500, 5000, 7500 };
+                    int index = Array.IndexOf(distances, _drawDistance);
+                    if (index < 0) index = 1;
+                    _drawDistance = distances[(index + direction + distances.Length) % distances.Length];
+                    break;
+                case 7: ResetColors(); break;
+                case 8: Apply(); return;
+                case 9: Cancel(); return;
             }
             PreviewColor();
         }
@@ -94,6 +101,7 @@ namespace OpenNFS1.UI.Screens
             GameConfig.WindowWidth = Sizes[_sizeIndex].Width;
             GameConfig.WindowHeight = Sizes[_sizeIndex].Height;
             PreviewColor();
+            GameConfig.DrawDistance = _drawDistance;
             try
             {
                 ((Game1)Engine.Instance.Game).ApplyDisplaySettings();
@@ -103,6 +111,7 @@ namespace OpenNFS1.UI.Screens
             catch (Exception ex)
             {
                 _status = "Display change failed: " + ex.Message;
+                GameConfig.DrawDistance = _originalDrawDistance;
                 GameConfig.FullScreen = _originalFull;
                 GameConfig.WindowWidth = _originalW;
                 GameConfig.WindowHeight = _originalH;
@@ -116,6 +125,7 @@ namespace OpenNFS1.UI.Screens
 
         private void Cancel()
         {
+            GameConfig.DrawDistance = _originalDrawDistance;
             _scaling = _originalScaling;
             _gamma = _originalGamma;
             _brightness = _originalBrightness;
@@ -139,9 +149,9 @@ namespace OpenNFS1.UI.Screens
 
             if (!input.WasLeftMouseClicked) return;
             Vector2 p = input.GameMousePosition;
-            if (p.X < 30 || p.X >= 620 || p.Y < 88 || p.Y >= 448)
+            if (p.X < 30 || p.X >= 620 || p.Y < 83 || p.Y >= 443)
                 return;
-            _selected = Math.Clamp(((int)p.Y - 88) / 40, 0, Rows - 1);
+            _selected = Math.Clamp(((int)p.Y - 83) / 36, 0, Rows - 1);
             Change(p.X < 340 ? -1 : 1);
         }
 
@@ -156,8 +166,10 @@ namespace OpenNFS1.UI.Screens
                 case 3: return _gamma.ToString("0.00");
                 case 4: return Signed(_brightness);
                 case 5: return _contrast.ToString("0.00");
-                case 6: return "DEFAULT COLOR";
-                case 7: return "APPLY & SAVE";
+                case 6: return _drawDistance == 2500 ? "LOW" :
+                        _drawDistance == 5000 ? "MEDIUM" : "HIGH";
+                case 7: return "DEFAULT COLOR";
+                case 8: return "APPLY & SAVE";
                 default: return "CANCEL";
             }
         }
@@ -173,12 +185,13 @@ namespace OpenNFS1.UI.Screens
             Label(sprite, "OPENNFS1 SE RELOADED  /  DISPLAY", 28, 24, 0.72f, Color.White);
             Label(sprite, "F11: toggle fullscreen any time", 30, 60, .35f, Color.LightGray);
             string[] labels = { "SCREEN", "WINDOW SIZE", "UPSCALING",
-                "GAMMA", "BRIGHTNESS", "CONTRAST", "RESET", "SAVE", "BACK" };
+                "GAMMA", "BRIGHTNESS", "CONTRAST",
+                "DRAW DISTANCE", "RESET", "SAVE", "BACK" };
             for (int i = 0; i < Rows; i++)
             {
-                int y = 88 + i * 40;
+                int y = 83 + i * 36;
                 if (_selected == i)
-                    sprite.Draw(_pixel, new Rectangle(25,y,590,36), Color.DarkSlateGray * 0.95f);
+                    sprite.Draw(_pixel, new Rectangle(25,y,590,34), Color.DarkSlateGray * 0.95f);
                 Label(sprite, labels[i], 40, y+7, .45f,
                     _selected == i ? Color.Yellow : Color.LightGray);
                 Label(sprite, Value(i), 332, y+7, .45f,
