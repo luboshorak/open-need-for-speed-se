@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Diagnostics;
 using System.Linq;
 using GameEngine;
 using Microsoft.Xna.Framework;
@@ -18,6 +20,7 @@ namespace OpenNFS1.UI.Screens
         private readonly IGameScreen _back;
         private readonly BitmapChunk _art;
         private readonly SpriteFont _font;
+        private readonly string _assetError;
 
         public TrackBestTimesScreen(TrackDescription track, IGameScreen back)
         {
@@ -27,11 +30,35 @@ namespace OpenNFS1.UI.Screens
             string code = TrackDetailsScreen.TrackCode(track);
             if (code == null)
                 throw new InvalidOperationException("No original best-times artwork for this track.");
-            _art = new QfsFile(@"FRONTEND\ART\TRACKSEL\" + code + "BST.QFS")
-                .Content.Header;
+            string imagePath = @"FRONTEND\ART\TRACKSEL\" + code + "BST.QFS";
+            try
+            {
+                _art = new QfsFile(imagePath).Content.Header;
+            }
+            catch (Exception error) when (error is InvalidDataException ||
+                error is EndOfStreamException || error is IOException ||
+                error is ArgumentOutOfRangeException || error is IndexOutOfRangeException)
+            {
+                // Some original CD releases store records in a different EA
+                // QFS compression variant. Failure must never crash navigation.
+                Trace.WriteLine("Best Times artwork: " + imagePath + ": " + error);
+                _assetError = "RECORDS ART UNAVAILABLE - PRESS ESC TO RETURN";
+                try
+                {
+                    _art = new QfsFile(@"FRONTEND\ART\TRACKSEL\" + code + "SEL.QFS")
+                        .Content.Header;
+                }
+                catch (Exception fallbackError) when (fallbackError is IOException ||
+                    fallbackError is InvalidDataException ||
+                    fallbackError is IndexOutOfRangeException ||
+                    fallbackError is ArgumentOutOfRangeException)
+                {
+                    Trace.WriteLine("Track fallback artwork: " + fallbackError);
+                }
+            }
         }
 
-        private BitmapEntry ArtEntry(string id) => _art.FindByName(id);
+        private BitmapEntry ArtEntry(string id) => _art?.FindByName(id);
         private void Art(string id)
         {
             BitmapEntry entry = ArtEntry(id);
@@ -95,6 +122,15 @@ namespace OpenNFS1.UI.Screens
             sprite.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied,
                 SamplerState.PointClamp);
             Art("bgnd");
+            if (_art == null)
+            {
+                // No bitmap at all: provide an accessible, safe escape route.
+                sprite.DrawString(_font, "BEST TIMES", new Vector2(16, 40),
+                    Color.Yellow, 0, Vector2.Zero, 0.66f,
+                    SpriteEffects.None, 0);
+            }
+            if (_assetError != null)
+                Text(sprite, _assetError, 12, 116, 0.30f, Color.Yellow);
 
             var records = TrackRecords.Get(_track.FileName);
             if (records.Count == 0)
