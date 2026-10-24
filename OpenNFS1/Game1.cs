@@ -60,6 +60,7 @@ namespace OpenNFS1
 		protected override void LoadContent()
 		{
 			Engine.Create(this, _graphics);
+            PlayerProfile.Load();
             _colorCorrection = Engine.Instance.ContentManager.Load<Effect>("ColorCorrection");
 
 			_renderTarget = new RenderTarget2D(Engine.Instance.Device, 640, 480, false, _graphics.GraphicsDevice.PresentationParameters.BackBufferFormat, DepthFormat.Depth24, 1, RenderTargetUsage.DiscardContents);
