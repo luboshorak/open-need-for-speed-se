@@ -1,81 +1,138 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using System;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using GameEngine;
-using OpenNFS1.Parsers;
 
 namespace OpenNFS1.UI.Screens
 {
-	class RaceOptionsScreen: BaseUIScreen, IGameScreen
-	{
-		int _selectedOption, _gearboxOption, _timeOfDayOption;
+    /// <summary>Race setup usable with either keyboard or mouse.</summary>
+    class RaceOptionsScreen : BaseUIScreen, IGameScreen
+    {
+        private int _selectedOption;
+        private int _gearboxOption;
+        private int _timeOfDayOption;
 
-		public RaceOptionsScreen() : base()
-		{
-			_selectedOption = 2;
-			_gearboxOption = GameConfig.ManualGearbox ? 1 : 0;
-			_timeOfDayOption = GameConfig.AlternativeTimeOfDay ? 1 : 0;
-		}
+        public RaceOptionsScreen()
+        {
+            _selectedOption = 3;
+            _gearboxOption = GameConfig.ManualGearbox ? 1 : 0;
+            _timeOfDayOption = GameConfig.AlternativeTimeOfDay ? 1 : 0;
+        }
 
-		public void Update(GameTime gameTime)
-		{
-			if (Engine.Instance.Input.WasPressed(Keys.Down))
-			{
-				_selectedOption = Math.Min(_selectedOption + 1, 2);
-			}
-			else if (Engine.Instance.Input.WasPressed(Keys.Up))
-			{
-				_selectedOption = Math.Max(_selectedOption - 1, 0);
-			}
-			else if (Engine.Instance.Input.WasPressed(Keys.Left))
-			{
-				if (_selectedOption == 0)
-					_gearboxOption = 0;
-				else
-					_timeOfDayOption = 0;
-			}
-			else if (Engine.Instance.Input.WasPressed(Keys.Right))
-			{
-				if (_selectedOption == 0)
-					_gearboxOption = 1;
-				else
-					_timeOfDayOption = 1;
-			}
-			else if (Engine.Instance.Input.WasPressed(Keys.Enter))
-			{
-				if (_selectedOption == 2)
-				{
-					GameConfig.ManualGearbox = _gearboxOption == 1;
-					GameConfig.AlternativeTimeOfDay = _timeOfDayOption == 1;
-					Engine.Instance.Screen = new LoadRaceScreen();
-				}
-			}
-		}
+        public void Update(GameTime gameTime)
+        {
+            var input = Engine.Instance.Input;
+            if (input.WasLeftMouseClicked)
+            {
+                Vector2 p = input.GameMousePosition;
+                if (p.X >= 0 && HandleClick((int)p.X, (int)p.Y))
+                    return;
+            }
 
-		public override void Draw()
-		{
-			base.Draw();
-			
-			WriteLine("Race settings", Color.White, 20, 30, TitleSize);
+            if (input.WasPressed(Keys.Escape))
+            {
+                Engine.Instance.Screen = new HomeScreen();
+                return;
+            }
+            if (input.WasPressed(Keys.Down) || input.WasPressed(Keys.Tab))
+                _selectedOption = (_selectedOption + 1) % 4;
+            else if (input.WasPressed(Keys.Up))
+                _selectedOption = (_selectedOption + 3) % 4;
+            else if (input.WasPressed(Keys.Left))
+                ChangeValue(-1);
+            else if (input.WasPressed(Keys.Right))
+                ChangeValue(1);
+            else if (input.WasPressed(Keys.Enter))
+            {
+                if (_selectedOption == 3)
+                    StartRace();
+                else
+                    ChangeValue(1);
+            }
+        }
 
-			WriteLine("Gearbox", _selectedOption == 0, 60, 30, SectionSize);
-			WriteLine("Auto", _gearboxOption == 0, 40, 40, TextSize);
-			WriteLine("Manual", _gearboxOption == 1, 0, 120, TextSize);
-			
-			WriteLine("Time of day", _selectedOption == 1, 40, 30, SectionSize);
-			WriteLine("Midday", _timeOfDayOption == 0, 40, 40, TextSize);
-			if (GameConfig.SelectedTrackDescription.AlternativeTimeOfDay != null)
-			{
-				WriteLine(GameConfig.SelectedTrackDescription.AlternativeTimeOfDay, _timeOfDayOption == 1, 0, 120, TextSize);
-			}
+        private bool HandleClick(int x, int y)
+        {
+            if (x >= 25 && x <= 370 && y >= 90 && y <= 153)
+            {
+                _selectedOption = 0;
+                _gearboxOption = x < 110 ? 0 : 1;
+            }
+            else if (x >= 25 && x <= 370 && y >= 178 && y <= 238)
+            {
+                _selectedOption = 1;
+                if (x < 115) _timeOfDayOption = 0;
+                else if (GameConfig.SelectedTrackDescription.AlternativeTimeOfDay != null)
+                    _timeOfDayOption = 1;
+            }
+            else if (x >= 25 && x <= 370 && y >= 256 && y <= 322)
+            {
+                _selectedOption = 2;
+                if (!GameConfig.TimeTrial)
+                    GameConfig.OpponentCount = Math.Clamp(GameConfig.OpponentCount +
+                        (x < 160 ? -1 : 1), 0, 10);
+            }
+            else if (x >= 25 && x <= 255 && y >= 325 && y <= 376)
+            {
+                _selectedOption = 3;
+                StartRace();
+            }
+            else if (x >= 25 && x <= 255 && y >= 379 && y <= 431)
+            {
+                Engine.Instance.Screen = new HomeScreen();
+            }
+            else
+                return false;
+            return true;
+        }
 
-			WriteLine("Go!", _selectedOption == 2, 40, 30, SectionSize);
+        private void ChangeValue(int direction)
+        {
+            switch (_selectedOption)
+            {
+                case 0:
+                    _gearboxOption = direction > 0 ? 1 : 0;
+                    break;
+                case 1:
+                    _timeOfDayOption = direction > 0 &&
+                        GameConfig.SelectedTrackDescription.AlternativeTimeOfDay != null ? 1 : 0;
+                    break;
+                case 2:
+                    if (!GameConfig.TimeTrial)
+                        GameConfig.OpponentCount = Math.Clamp(GameConfig.OpponentCount + direction, 0, 10);
+                    break;
+            }
+        }
 
-			Engine.Instance.SpriteBatch.End();
-		}
-	}
+        private void StartRace()
+        {
+            GameConfig.ManualGearbox = _gearboxOption == 1;
+            GameConfig.AlternativeTimeOfDay = _timeOfDayOption == 1;
+            Engine.Instance.Screen = new LoadRaceScreen();
+        }
+
+        public override void Draw()
+        {
+            base.Draw();
+            WriteLine("Race settings", Color.White, 20, 30, TitleSize);
+            WriteLine("Gearbox", _selectedOption == 0, 55, 30, SectionSize);
+            WriteLine("Auto", _gearboxOption == 0, 35, 40, TextSize);
+            WriteLine("Manual", _gearboxOption == 1, 0, 130, TextSize);
+
+            WriteLine("Time of day", _selectedOption == 1, 55, 30, SectionSize);
+            WriteLine("Midday", _timeOfDayOption == 0, 35, 40, TextSize);
+            if (GameConfig.SelectedTrackDescription.AlternativeTimeOfDay != null)
+                WriteLine(GameConfig.SelectedTrackDescription.AlternativeTimeOfDay,
+                    _timeOfDayOption == 1, 0, 135, TextSize);
+
+            WriteLine("Opponents", _selectedOption == 2, 45, 30, SectionSize);
+            WriteLine(GameConfig.TimeTrial ? "None (time trial)" :
+                "<  " + GameConfig.OpponentCount + " AI cars  >",
+                _selectedOption == 2, 35, 40, TextSize);
+
+            WriteLine("GO!", _selectedOption == 3, 55, 30, SectionSize);
+            WriteLine("Back: Esc / click here", Color.LightGray, 45, 30, TextSize);
+            Engine.Instance.SpriteBatch.End();
+        }
+    }
 }

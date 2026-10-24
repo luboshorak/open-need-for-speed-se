@@ -36,8 +36,12 @@ namespace OpenNFS1
 			int opponentCount = GameConfig.TimeTrial ? 0 : Math.Clamp(GameConfig.OpponentCount, 0, 10);
 			for (int i = 0; i < opponentCount; i++)
 			{
-				int j = Engine.Instance.Random.Next(VehicleDescription.Descriptions.Count);
-				_race.AddDriver(new RacingAIDriver(VehicleDescription.Descriptions[j]));
+				// The first AI racer uses the vehicle chosen in Control Central.
+				// The other AI drivers keep the classic randomized selection.
+				VehicleDescription opponent = i == 0 && GameConfig.SelectedOpponent != null
+					? GameConfig.SelectedOpponent
+					: VehicleDescription.Descriptions[Engine.Instance.Random.Next(VehicleDescription.Descriptions.Count)];
+				_race.AddDriver(new RacingAIDriver(opponent));
 			}
 				//_race.AddDriver(new AIDriver(VehicleDescription.Descriptions.Find(a => a.Name == "Viper")));
 				//_race.AddDriver(new AIDriver(VehicleDescription.Descriptions.Find(a => a.Name == "Viper")));

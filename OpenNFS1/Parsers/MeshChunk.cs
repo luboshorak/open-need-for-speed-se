@@ -15,6 +15,8 @@ namespace OpenNFS1.Parsers
 		List<Vector3> _vertices = new List<Vector3>();
 		List<Vector2> _vertexTextureMap = new List<Vector2>();
 		List<Polygon> _polygons = new List<Polygon>();
+		// Preserve native ORIP polygon numbers even when an unsupported shape is skipped.
+		List<Polygon> _sourcePolygons = new List<Polygon>();
 		private List<string> _textureNames = new List<string>();
 		public string Identifier;
 
@@ -126,7 +128,9 @@ namespace OpenNFS1.Parsers
 
 				if (shapeId != 3 && shapeId != 4)
 				{
-					// something in Burnt Sienna has a value of 2.  Haven't investigated yet.
+					// The label table uses ORIGINAL polygon numbers. Do not shift
+					// their indices when skipping unsupported ORIP polygon shapes.
+					_sourcePolygons.Add(null);
 					continue;
 				}	
 
@@ -193,6 +197,7 @@ namespace OpenNFS1.Parsers
 					}
 				}
 
+				_sourcePolygons.Add(polygon);
 				_polygons.Add(polygon);
 			}
 		}
@@ -201,10 +206,13 @@ namespace OpenNFS1.Parsers
 		{
 			for (int i = 0; i < labelCount; i++)
 			{
-				string label = new string(reader.ReadChars(8));
-				label = label.Substring(0, label.IndexOf("\0"));
+				// ORIP names may be NUL padded, space padded, or full 8-byte names.
+				string label = new string(reader.ReadChars(8)).TrimEnd('\0', ' ');
 				int polyIndex = reader.ReadInt32();
-				_polygons[polyIndex].Label = label;
+				if (polyIndex < 0 || polyIndex >= _sourcePolygons.Count)
+					throw new InvalidDataException($"ORIP label '{label}' references polygon {polyIndex}; polygon count {_sourcePolygons.Count}.");
+				if (_sourcePolygons[polyIndex] != null)
+					_sourcePolygons[polyIndex].Label = label;
 			}
 		}
 	}
