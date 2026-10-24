@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Text.Json;
 using OpenNFS1;
 
 static class Program
@@ -50,6 +51,44 @@ static class Program
         Assert(openRoadCourses == 3, "Missing original Alpine, Coastal and City road courses.");
         Assert(championship.TotalTime == TimeSpan.FromSeconds(expectedSeconds),
             "Overall race time is wrong.");
-        Console.WriteLine("PASS: tournament circuit rotation, point scoring, and results progression");
+        // Snapshot 1: resume a three-segment road venue after its first segment.
+        var alpine = TrackDescription.Descriptions.First(t => t.Name == "Alpine");
+        var alpine2 = TrackDescription.GetNextOpenRoadStage(alpine);
+        var alpine3 = TrackDescription.GetNextOpenRoadStage(alpine2);
+        var road = new TournamentSeries(alpine, TrackDescription.Descriptions);
+        road.RecordRoadSegment(alpine, TimeSpan.FromSeconds(75));
+        var partial = road.CreateCheckpoint(alpine2);
+        Assert(partial.StageIndex == 0 && partial.CompletedStages == 0,
+            "Incomplete road venue must not increment tournament round.");
+        partial = JsonSerializer.Deserialize<TournamentSaveData>(
+            JsonSerializer.Serialize(partial));
+        var restored = TournamentSeries.Restore(partial, TrackDescription.Descriptions);
+        restored.RecordRoadSegment(alpine2, TimeSpan.FromSeconds(80));
+        restored.RecordResult(1, TimeSpan.FromSeconds(85));
+        Assert(restored.CompletedStages == 1 && restored.Points == 9,
+            "Resumed open-road stage lost the tournament standing.");
+        Assert(restored.TotalTime == TimeSpan.FromSeconds(240),
+            "The first road segment was missing after resume.");
+
+        // Snapshot 2: result screen projects forward to the NEXT venue without
+        // mutating current live championship, so repeated saves cannot double-score.
+        var next = restored.NextVenueAfterResult;
+        var projected = restored.CreateCheckpoint(next);
+        Assert(projected.CompletedStages == 1 && projected.StageIndex == 1,
+            "Checkpoint incorrectly restarts already completed venue.");
+        var resumed = TournamentSeries.Restore(projected, TrackDescription.Descriptions);
+        Assert(resumed.CurrentCourse == next && resumed.Points == 9 &&
+            resumed.CompletedStages == 1, "Restored round/points mismatch.");
+        Assert(restored.StageIndex == 0 && restored.CompletedStages == 1,
+            "Saving changed live results and could double-score.");
+
+        // Corrupted saves are rejected rather than leaving invalid live state.
+        projected.Points = -1;
+        bool refused = false;
+        try { TournamentSeries.Restore(projected, TrackDescription.Descriptions); }
+        catch (InvalidOperationException) { refused = true; }
+        Assert(refused, "Invalid or tampered scores were accepted.");
+
+        Console.WriteLine("PASS: tournament venues, scoring, checkpoint serialization, road resume and tamper rejection");
     }
 }

@@ -134,6 +134,14 @@ namespace OpenNFS1.UI.Screens
                 GameConfig.Tournament = new TournamentSeries(
                     GameConfig.SelectedTrackDescription, TrackDescription.Descriptions);
                 GameConfig.SelectedTrackDescription = GameConfig.Tournament.CurrentCourse;
+                // Resume point before the very first race, useful even if the
+                // player has not yet reached the first results screen.
+                try
+                {
+                    TournamentSaveManager.Save(0, GameConfig.SelectedTrackDescription);
+                }
+                catch (System.IO.IOException) { /* No writable profile: still allow racing */ }
+                catch (UnauthorizedAccessException) { }
             }
             else
             {
