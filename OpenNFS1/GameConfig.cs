@@ -45,7 +45,7 @@ namespace OpenNFS1
         public static bool SoundEffectsEnabled { get; set; } = true;
         public static bool RockMusic { get; set; } = true;
         public static float MusicVolume { get; set; } = 0.45f;
-        public static int CircuitLaps { get; set; } = 3;
+        public static int CircuitLaps { get; set; } = 6;
         public static RaceMode CurrentRaceMode { get; set; } = RaceMode.SingleRace;
         public static bool TimeTrial { get { return CurrentRaceMode == RaceMode.TimeTrial; } }
         public static TournamentSeries Tournament { get; set; }
@@ -56,6 +56,7 @@ namespace OpenNFS1
         public static int ScalingMode { get; set; } = 1;
         public static int WindowWidth { get; set; } = 1280;
         public static int WindowHeight { get; set; } = 960;
+        public static bool OriginalColors { get; set; } = true;
         public static float Gamma { get; set; } = 1.0f;
         public static float Brightness { get; set; } = 0.0f;
         public static float Contrast { get; set; } = 1.0f;
@@ -98,6 +99,7 @@ namespace OpenNFS1
                 if (cfg.TryGetProperty("windowWidth", out value)) WindowWidth = Math.Clamp(value.GetInt32(), 640, 3840);
                 if (cfg.TryGetProperty("windowHeight", out value)) WindowHeight = Math.Clamp(value.GetInt32(), 480, 2160);
                 if (cfg.TryGetProperty("scalingMode", out value)) ScalingMode = Math.Clamp(value.GetInt32(), 0, 2);
+                if (cfg.TryGetProperty("originalColors", out value)) OriginalColors = value.GetBoolean();
                 if (cfg.TryGetProperty("gamma", out value)) Gamma = Math.Clamp(value.GetSingle(), 0.6f, 1.6f);
                 if (cfg.TryGetProperty("brightness", out value)) Brightness = Math.Clamp(value.GetSingle(), -0.3f, 0.3f);
                 if (cfg.TryGetProperty("contrast", out value)) Contrast = Math.Clamp(value.GetSingle(), 0.6f, 1.6f);
@@ -106,6 +108,8 @@ namespace OpenNFS1
                 if (cfg.TryGetProperty("soundEffectsEnabled", out value)) SoundEffectsEnabled = value.GetBoolean();
                 if (cfg.TryGetProperty("rockMusic", out value)) RockMusic = value.GetBoolean();
                 if (cfg.TryGetProperty("musicVolume", out value)) MusicVolume = Math.Clamp(value.GetSingle(), 0, 1);
+                if (cfg.TryGetProperty("circuitLaps", out value))
+                    CircuitLaps = Math.Clamp(value.GetInt32(), 1, 12);
                 if (cfg.TryGetProperty("manualGearbox", out value)) ManualGearbox = value.GetBoolean();
                 if (cfg.TryGetProperty("absEnabled", out value)) AbsEnabled = value.GetBoolean();
                 if (cfg.TryGetProperty("tractionControlEnabled", out value)) TractionControlEnabled = value.GetBoolean();
@@ -146,6 +150,7 @@ namespace OpenNFS1
                     windowWidth = WindowWidth,
                     windowHeight = WindowHeight,
                     scalingMode = ScalingMode,
+                    originalColors = OriginalColors,
                     gamma = Gamma,
                     brightness = Brightness,
                     contrast = Contrast,
@@ -154,6 +159,7 @@ namespace OpenNFS1
                     soundEffectsEnabled = SoundEffectsEnabled,
                     rockMusic = RockMusic,
                     musicVolume = MusicVolume,
+                    circuitLaps = CircuitLaps,
                     manualGearbox = ManualGearbox,
                     absEnabled = AbsEnabled,
                     tractionControlEnabled = TractionControlEnabled,

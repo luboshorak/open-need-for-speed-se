@@ -135,7 +135,7 @@ namespace OpenNFS1
 
             if (track == null || vehicle == null ||
                 !RaceModeRules.IsVehicleAllowed(RaceMode.Tournament, series.CurrentCourse, vehicle) ||
-                save.CircuitLaps < 1 || save.CircuitLaps > 5)
+                save.CircuitLaps < 1 || save.CircuitLaps > 12)
                 throw new InvalidDataException("The save references an unavailable race, vehicle or settings.");
 
             GameConfig.SelectedVehicle = vehicle;

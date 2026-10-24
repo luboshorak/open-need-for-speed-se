@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\OpenNFS1\Parsers\EaHuffmanDecoder.cs" Link="EaHuffmanDecoder.cs" />
+    <Compile Include="..\..\OpenNFS1\PlayerProfile.cs" Link="PlayerProfile.cs" />
+  </ItemGroup>
+</Project>
