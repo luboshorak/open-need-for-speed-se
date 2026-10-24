@@ -59,7 +59,7 @@ namespace OpenNFS1.Parsers.Track
 
 		public void Render(Vector3 cameraPosition, TrackNode currentNode)
 		{
-			_skybox.Render();
+			if (GameConfig.HorizonEnabled) _skybox.Render();
 			_effect.View = Engine.Instance.Camera.View;
 			_effect.Projection = Engine.Instance.Camera.Projection;
 			_effect.World = Matrix.Identity;
@@ -190,7 +190,7 @@ namespace OpenNFS1.Parsers.Track
 		private void DrawScenery(List<TerrainSegment> renderedSegments)
 		{
 			Engine.Instance.Device.RasterizerState = RasterizerState.CullNone;
-			Engine.Instance.Device.SamplerStates[0] = SamplerState.PointClamp;
+			Engine.Instance.Device.SamplerStates[0] = GameConfig.ClampSampler;
 
 			if (GameConfig.Render2dScenery)
 			{

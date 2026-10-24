@@ -9,8 +9,8 @@ namespace OpenNFS1.UI.Screens
 {
     /// <summary>
     /// Original Need for Speed SE Graphics Detail screen from GRAPHICS.QFS.
-    /// Old graphics toggles that the remake engine cannot honor yet are
-    /// explicitly read-only; F2 opens the separate modern display extensions.
+    /// All six entries now lead to a real display feature or renderer change.
+    /// The original bitmap IDs and their 1996 pixel positions are preserved.
     /// </summary>
     internal sealed class OriginalGraphicsScreen : IGameScreen
     {
@@ -20,7 +20,9 @@ namespace OpenNFS1.UI.Screens
         private int _selected;
         private bool _originalFullScreen;
         private int _originalDrawDistance;
-        private string _notice = "F9: MODERN DISPLAY / GAMMA / UPSCALING";
+        private int _originalFilter;
+        private bool _originalCarDetail, _originalHorizon;
+        private string _notice = "F9: ADVANCED DISPLAY / GAMMA / UPSCALING";
 
         private static readonly string[] Labels =
             { "scrd", "wind", "imad", "vand", "card", "hord" };
@@ -47,6 +49,9 @@ namespace OpenNFS1.UI.Screens
         {
             _originalFullScreen = GameConfig.FullScreen;
             _originalDrawDistance = GameConfig.DrawDistance;
+            _originalFilter = GameConfig.TextureQuality;
+            _originalCarDetail = GameConfig.HighCarDetail;
+            _originalHorizon = GameConfig.HorizonEnabled;
         }
 
         private void Cancel()
@@ -54,6 +59,9 @@ namespace OpenNFS1.UI.Screens
             bool changed = GameConfig.FullScreen != _originalFullScreen;
             GameConfig.FullScreen = _originalFullScreen;
             GameConfig.DrawDistance = _originalDrawDistance;
+            GameConfig.TextureQuality = _originalFilter;
+            GameConfig.HighCarDetail = _originalCarDetail;
+            GameConfig.HorizonEnabled = _originalHorizon;
             if (changed)
             {
                 try { ((Game1)Engine.Instance.Game).ApplyDisplaySettings(); }
@@ -74,31 +82,40 @@ namespace OpenNFS1.UI.Screens
             switch (_selected)
             {
                 case 0:
-                    _notice = "INTERNAL GAME GRAPHICS REMAIN 640 X 480.";
-                    break;
+                    // The original game's 320x200 render target is not present
+                    // in this engine. Offer a WORKING resolution/scaling screen
+                    // instead of pretending a nonfunctional legacy toggle.
+                    Engine.Instance.Screen = new DisplayOptionsScreen(this);
+                    return;
                 case 1:
-                    GameConfig.FullScreen = !GameConfig.FullScreen;
+                    bool oldFullScreen = GameConfig.FullScreen;
+                    GameConfig.FullScreen = !oldFullScreen;
                     try { ((Game1)Engine.Instance.Game).ApplyDisplaySettings(); }
                     catch (Exception ex)
                     {
-                        GameConfig.FullScreen = !GameConfig.FullScreen;
+                        GameConfig.FullScreen = oldFullScreen;
                         _notice = "DISPLAY CHANGE FAILED: " + ex.Message;
                     }
-                    break;
+                    return;
                 case 2:
-                    _notice = "ORIGINAL IMAGE DETAIL MODES: NOT YET SUPPORTED.";
-                    break;
+                    GameConfig.TextureQuality = (GameConfig.TextureQuality +
+                        direction + 3) % 3;
+                    _notice = "TEXTURE FILTER: POINT / LINEAR / ANISOTROPIC";
+                    return;
                 case 3:
-                    int[] values = { 2500, 5000, 7500 };
-                    int index = Array.IndexOf(values, GameConfig.DrawDistance);
-                    GameConfig.DrawDistance = values[(Math.Max(index, 0) + direction + 3) % 3];
-                    break;
+                    int[] distances = { 2500, 5000, 7500 };
+                    int index = Array.IndexOf(distances, GameConfig.DrawDistance);
+                    GameConfig.DrawDistance = distances[
+                        (Math.Max(index, 0) + direction + distances.Length) % distances.Length];
+                    return;
                 case 4:
-                    _notice = "CAR GEOMETRY DETAIL SWITCH: NOT YET SUPPORTED.";
-                    break;
+                    // In this remake, LOW disables AI car shadows while
+                    // retaining every car's collision body and wheel physics.
+                    GameConfig.HighCarDetail = !GameConfig.HighCarDetail;
+                    return;
                 case 5:
-                    _notice = "ORIGINAL HORIZON OPTION: NOT YET SUPPORTED.";
-                    break;
+                    GameConfig.HorizonEnabled = !GameConfig.HorizonEnabled;
+                    return;
             }
         }
 
@@ -166,13 +183,14 @@ namespace OpenNFS1.UI.Screens
             for (int i = 0; i < Labels.Length; i++)
                 Art(i == _selected ? SelectedLabels[i] : Labels[i]);
 
-            Art("640d"); // Actual native UI and 3D backing surface.
+            Art("640d"); // Source engine remains 640x480, use F9 for output.
             Art(GameConfig.FullScreen ? "fuld" : "wmdd");
-            Art("ihid"); // Legacy original maximum image quality display.
+            Art(GameConfig.TextureQuality == 2 ? "ihid" :
+                GameConfig.TextureQuality == 1 ? "imdd" : "ilwd");
             Art(GameConfig.DrawDistance == 2500 ? "clsd" :
                 GameConfig.DrawDistance == 5000 ? "vmdd" : "fard");
-            Art("chid"); // Car-detail option is not yet connected.
-            Art("hond"); // Native horizon bitmap remains visible.
+            Art(GameConfig.HighCarDetail ? "chid" : "clwd");
+            Art(GameConfig.HorizonEnabled ? "hond" : "offd");
             Art("dond");
             Art("cand");
 

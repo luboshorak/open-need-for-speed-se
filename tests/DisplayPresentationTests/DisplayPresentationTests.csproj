@@ -7,6 +7,7 @@
     <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.5.1" />
     <Compile Include="..\..\Engine\PresentationLayout.cs" Link="PresentationLayout.cs" />
     <Compile Include="..\..\OpenNFS1\Race\MapProjection.cs" Link="MapProjection.cs" />
+    <Compile Include="..\..\OpenNFS1\Race\HudGeometry.cs" Link="HudGeometry.cs" />
     <None Include="..\..\OpenNFS1\Content\ArialBlack.spritefont" Link="ArialBlack.spritefont" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\OpenNFS1\Content\ArialBlack-Italic.spritefont" Link="ArialBlack-Italic.spritefont" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

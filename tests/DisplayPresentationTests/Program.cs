@@ -92,6 +92,37 @@ static class Program
         Check(!float.IsNaN(degenerate.X) && !float.IsNaN(degenerate.Y),
             "Degenerate road projection must not produce NaNs.");
 
-        Console.WriteLine("PASS: display geometry, safe fonts, window recovery and original HUD map projection");
+        // The original `stat` icon begins at x=349. Speed digits
+        // must never overwrite it, even at the 999 km/h edge case.
+        foreach (int digits in new[] { 1, 2, 3 })
+        {
+            for (int i = 0; i < digits; i++)
+            {
+                var bounds = HudGeometry.SpeedDigit(digits, i);
+                Check(bounds.X >= 266 && bounds.Right <= 349 &&
+                    bounds.Y >= 0 && bounds.Bottom <= 32,
+                    "Speed numeral overlaps native gear icon or leaves HUD.");
+            }
+        }
+        foreach (int clock in new[] { 0, 1 })
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                var digit = HudGeometry.ClockDigit(clock, i);
+                Check(digit.X >= (clock == 0 ? 29 : 144) &&
+                    digit.Right < (clock == 0 ? 114 : 254) &&
+                    digit.Bottom <= 32,
+                    "Original clock numeral overlaps one of the stat icons.");
+            }
+        }
+        Check(HudGeometry.Gear.X >= 377 &&
+            HudGeometry.Gear.Right <= 405, "Gear numeral overlaps finish flags.");
+
+        Check(HudGeometry.ValueDigit(11, 0, 592, 6, 11, 16).X >= 570,
+            "Two-digit player position runs into position icon.");
+        Check(HudGeometry.ValueDigit(11, 1, 637, 6, 11, 16).Right <= 640,
+            "Opponent count runs off HUD.");
+
+        Console.WriteLine("PASS: display geometry, safe fonts, window recovery and original HUD layout and map projection");
     }
 }

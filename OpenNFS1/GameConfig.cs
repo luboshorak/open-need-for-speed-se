@@ -14,7 +14,21 @@ namespace OpenNFS1
         public const float TerrainScale = 0.000080f;
         public static readonly float FOV = MathHelper.ToRadians(65);
         public const float MaxSegmentRenderCount = 50;
-        public static readonly SamplerState WrapSampler = SamplerState.AnisotropicWrap;
+        public static int TextureQuality { get; set; } = 2; // Point, Linear, Anisotropic
+        public static bool HighCarDetail { get; set; } = true;
+        public static bool HorizonEnabled { get; set; } = true;
+        public static SamplerState WrapSampler => TextureQuality switch
+        {
+            0 => SamplerState.PointWrap,
+            1 => SamplerState.LinearWrap,
+            _ => SamplerState.AnisotropicWrap
+        };
+        public static SamplerState ClampSampler => TextureQuality switch
+        {
+            0 => SamplerState.PointClamp,
+            1 => SamplerState.LinearClamp,
+            _ => SamplerState.AnisotropicClamp
+        };
 
         public static VehicleDescription SelectedVehicle;
         public static VehicleDescription SelectedOpponent;
@@ -96,6 +110,9 @@ namespace OpenNFS1
                 if (cfg.TryGetProperty("absEnabled", out value)) AbsEnabled = value.GetBoolean();
                 if (cfg.TryGetProperty("tractionControlEnabled", out value)) TractionControlEnabled = value.GetBoolean();
                 if (cfg.TryGetProperty("drawDistance", out value)) DrawDistance = value.GetInt32();
+                    if (cfg.TryGetProperty("textureQuality", out value)) TextureQuality = Math.Clamp(value.GetInt32(), 0, 2);
+                    if (cfg.TryGetProperty("highCarDetail", out value)) HighCarDetail = value.GetBoolean();
+                    if (cfg.TryGetProperty("horizonEnabled", out value)) HorizonEnabled = value.GetBoolean();
                 if (cfg.TryGetProperty("useOpponentPack", out value)) UseOpponentPack = value.GetBoolean();
             }
 
@@ -141,6 +158,9 @@ namespace OpenNFS1
                     absEnabled = AbsEnabled,
                     tractionControlEnabled = TractionControlEnabled,
                     drawDistance = DrawDistance,
+                    textureQuality = TextureQuality,
+                    highCarDetail = HighCarDetail,
+                    horizonEnabled = HorizonEnabled,
                     useOpponentPack = UseOpponentPack
                 };
                 File.WriteAllText(UserSettingsPath,

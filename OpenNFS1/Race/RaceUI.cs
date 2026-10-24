@@ -24,6 +24,9 @@ namespace OpenNFS1.UI
         private readonly BitmapEntry _mileLabel;
         private readonly BitmapEntry _mapBackground;
         private readonly BitmapEntry[] _speedDigits = new BitmapEntry[10];
+        private readonly BitmapEntry[] _yellowDigits = new BitmapEntry[10];
+        private readonly BitmapEntry _yellowReverse;
+        private readonly BitmapEntry _yellowNeutral;
         private readonly Texture2D _pixel;
         private readonly Vector2[] _circuitMap;
 
@@ -40,7 +43,12 @@ namespace OpenNFS1.UI
             _mileLabel = images.FindByName("mile");
             _mapBackground = images.FindByName("mpbd");
             for (int i = 0; i < _speedDigits.Length; i++)
+            {
                 _speedDigits[i] = images.FindByName("red" + i);
+                _yellowDigits[i] = images.FindByName("yel" + i);
+            }
+            _yellowReverse = images.FindByName("yelr");
+            _yellowNeutral = images.FindByName("yeln");
 
             // Precompute the real circuit outline only once, not every frame.
             if (!race.Track.IsOpenRoad && race.Track.RoadNodes.Count > 1)
@@ -74,67 +82,88 @@ namespace OpenNFS1.UI
             TimeSpan lapTime = _race.SecondsTillStart > 0
                 ? TimeSpan.Zero : _race.PlayerStats.CurrentLapTime;
 
-            // The original stat bitmap has dedicated fields. Keep all text
-            // inside those fields: no "GEAR" or large 207 km/h over icons.
-            DrawText(sprite, FormatTime(raceTime), 34, 7, 0.30f);
-            DrawText(sprite, FormatTime(lapTime), 160, 7, 0.30f);
+            // MASKHI.FSH/stat has built-in colon, tenths separator, flags,
+            // LAP/MILES artwork and the position slash. Only draw actual
+            // numeric glyphs in its EMPTY slots; no duplicate separators.
+            DrawClock(sprite, raceTime, 0);
+            DrawClock(sprite, lapTime, 1);
 
             int speed = Math.Clamp((int)Math.Abs(_race.Player.Vehicle.Speed), 0, 999);
-            string speedValue = speed.ToString();
-            int speedX = 308 + (3 - speedValue.Length) * 12;
-            foreach (char c in speedValue)
-            {
-                var digit = _speedDigits[c - '0'];
-                if (digit?.Texture != null)
-                    sprite.Draw(digit.Texture, new Rectangle(speedX, 3, 18, 23), Color.White);
-                speedX += 13;
-            }
+            DrawSpeed(sprite, speed);
 
             if (_race.Player.Vehicle is DrivableVehicle car)
             {
                 int gear = car.Motor.Gearbox.CurrentGear;
-                DrawText(sprite, gear < 0 ? "R" : gear == 0 ? "N" : gear.ToString(),
-                    379, 6, 0.43f);
+                DrawGlyph(sprite, gear < 0 ? _yellowReverse :
+                    gear == 0 ? _yellowNeutral : _yellowDigits[Math.Clamp(gear, 0, 9)],
+                    HudGeometry.Gear);
             }
 
             if (_race.Track.IsOpenRoad)
             {
-                if (_mileLabel?.Texture != null)
-                    sprite.Draw(_mileLabel.Texture, _mileLabel.GetDisplayAt(), Color.White);
-                int remaining = Math.Max(0, _race.Track.RoadNodes.Count - 1 -
-                    (_race.Player.Vehicle.CurrentNode?.Number ?? 0));
-                // This is an approximate remaining-node indicator; actual
-                // miles require distance data from the original TRI parser.
-                DrawText(sprite, (remaining * 0.01f).ToString("0.0"), 468, 7, 0.33f);
+                // Do not invent mileage from node count; real distance needs
+                // the original TRI coordinate-unit calibration.
+                DrawArt(sprite, _mileLabel);
             }
             else
             {
-                if (_lapLabel?.Texture != null)
-                    sprite.Draw(_lapLabel.Texture, _lapLabel.GetDisplayAt(), Color.White);
+                DrawArt(sprite, _lapLabel);
                 int lap = Math.Clamp(_race.PlayerStats.CurrentLap, 1, _race.NbrLaps);
-                DrawText(sprite, lap + " / " + _race.NbrLaps, 469, 7, 0.34f);
+                DrawNumber(sprite, lap, 479, 6, 12, 15);
+                DrawNumber(sprite, _race.NbrLaps, 531, 6, 12, 15);
             }
 
             int racers = _race.Drivers.Count(d => d is RacingAIDriver || d is PlayerDriver);
-            DrawText(sprite,
-                Math.Clamp(_race.PlayerStats.Position + 1, 1, Math.Max(1, racers)) +
-                "/" + Math.Max(1, racers), 577, 7, 0.37f);
+            DrawNumber(sprite,
+                Math.Clamp(_race.PlayerStats.Position + 1, 1, Math.Max(1, racers)),
+                592, 6, 11, 16);
+            DrawNumber(sprite, Math.Max(1, racers), 637, 6, 11, 16);
 
             RenderTrackMap(sprite);
             sprite.End();
         }
 
-        private static string FormatTime(TimeSpan time)
+        private void DrawClock(SpriteBatch sprite, TimeSpan time, int clock)
         {
             if (time < TimeSpan.Zero) time = TimeSpan.Zero;
-            return ((int)time.TotalMinutes).ToString("00") + ":" +
-                time.Seconds.ToString("00") + "." + (time.Milliseconds / 100);
+            int minutes = Math.Min(99, (int)time.TotalMinutes);
+            int seconds = time.Seconds;
+            int[] values = { minutes / 10, minutes % 10,
+                seconds / 10, seconds % 10, time.Milliseconds / 100 };
+            for (int i = 0; i < values.Length; i++)
+                DrawGlyph(sprite, _yellowDigits[values[i]],
+                    HudGeometry.ClockDigit(clock, i));
         }
 
-        private void DrawText(SpriteBatch sprite, string text, float x, float y, float scale)
+        private void DrawSpeed(SpriteBatch sprite, int speed)
         {
-            sprite.DrawString(_font, text, new Vector2(x, y), Color.Yellow,
-                0, Vector2.Zero, scale, SpriteEffects.None, 0);
+            string value = speed.ToString();
+            // Source speed digits are 28x27. Their original source slot is
+            // x=266..346, ending BEFORE the H/gear icon at x=349.
+            for (int i = 0; i < value.Length; i++)
+                DrawGlyph(sprite, _speedDigits[value[i] - '0'],
+                    HudGeometry.SpeedDigit(value.Length, i));
+        }
+
+        private void DrawNumber(SpriteBatch sprite, int value,
+            int rightEdge, int y, int digitWidth, int height)
+        {
+            string text = Math.Clamp(value, 0, 99).ToString();
+            for (int i = 0; i < text.Length; i++)
+                DrawGlyph(sprite, _yellowDigits[text[i] - '0'],
+                    HudGeometry.ValueDigit(value, i, rightEdge, y, digitWidth, height));
+        }
+
+        private static void DrawArt(SpriteBatch sprite, BitmapEntry entry)
+        {
+            if (entry?.Texture != null)
+                sprite.Draw(entry.Texture, entry.GetDisplayAt(), Color.White);
+        }
+
+        private static void DrawGlyph(SpriteBatch sprite, BitmapEntry entry, Rectangle bounds)
+        {
+            if (entry?.Texture != null)
+                sprite.Draw(entry.Texture, bounds, Color.White);
         }
 
         private void RenderTrackMap(SpriteBatch sprite)
