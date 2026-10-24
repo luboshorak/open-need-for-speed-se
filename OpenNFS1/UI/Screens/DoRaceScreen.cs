@@ -31,7 +31,7 @@ namespace OpenNFS1
 			_playerDriver = new PlayerDriver(_car);
 			_car.AudioEnabled = true;
 
-			_race = new Race(_track.IsOpenRoad ? 1 : 3, _track, _playerDriver);
+			_race = new Race(_track.IsOpenRoad ? 1 : Math.Clamp(GameConfig.CircuitLaps, 1, 5), _track, _playerDriver);
 			// Time trial is solo; standard races use the opponent count chosen in the menu.
 			int opponentCount = GameConfig.TimeTrial ? 0 : Math.Clamp(GameConfig.OpponentCount, 0, 10);
 			for (int i = 0; i < opponentCount; i++)
