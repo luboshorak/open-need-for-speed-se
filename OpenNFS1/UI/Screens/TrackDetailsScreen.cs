@@ -20,7 +20,28 @@ namespace OpenNFS1.UI.Screens
         private readonly List<TrackDescription> _tracks;
         private readonly SpriteFont _font;
         private int _index, _photo = 1;
+        private readonly List<TrackDescription> _segments = new List<TrackDescription>();
         private BitmapChunk _art;
+
+        private static string StageFamily(TrackDescription track)
+        {
+            if (track == null || !track.IsOpenRoad) return null;
+            string name = Path.GetFileNameWithoutExtension(track.FileName.Replace('\\', '/'));
+            return name.Length >= 3 ? name.Substring(0, 2).ToUpperInvariant() : null;
+        }
+
+        private void SetSegment(int stageIndex)
+        {
+            if (_segments.Count == 0) return;
+            _photo = (stageIndex + _segments.Count) % _segments.Count + 1;
+            GameConfig.SelectedTrackDescription = _segments[_photo - 1];
+        }
+
+        private void ChangeSegment(int delta)
+        {
+            if (_segments.Count > 1)
+                SetSegment((_photo - 1 + delta + _segments.Count) % _segments.Count);
+        }
 
         internal static string TrackCode(TrackDescription track)
         {
@@ -54,6 +75,11 @@ namespace OpenNFS1.UI.Screens
 
         private void Load()
         {
+            _segments.Clear();
+            string family = StageFamily(_tracks[_index]);
+            if (family != null)
+                _segments.AddRange(TrackDescription.Descriptions.Where(t =>
+                    StageFamily(t) == family).OrderBy(t => t.FileName));
             _photo = 1;
             string fileName = TrackCode(_tracks[_index]) + "SEL.QFS";
             string location = Path.Combine(GameConfig.CdDataPath,
@@ -61,7 +87,14 @@ namespace OpenNFS1.UI.Screens
             if (!File.Exists(location))
                 throw new FileNotFoundException("Original track screen is missing.", location);
             _art = new QfsFile(@"FRONTEND\ART\TRACKSEL\" + fileName).Content.Header;
-            GameConfig.SelectedTrackDescription = _tracks[_index];
+            if (_segments.Count > 0)
+            {
+                int current = _segments.FindIndex(t =>
+                    t == GameConfig.SelectedTrackDescription);
+                SetSegment(Math.Max(0, current));
+            }
+            else
+                GameConfig.SelectedTrackDescription = _tracks[_index];
         }
 
         internal TrackDescription CycleTrack(int direction)
@@ -95,11 +128,7 @@ namespace OpenNFS1.UI.Screens
         private void BestTimes() =>
             Engine.Instance.Screen = new TrackBestTimesScreen(_tracks[_index], this);
 
-        private void ChangePhoto(int direction)
-        {
-            if (_tracks[_index].IsOpenRoad)
-                _photo = (_photo - 1 + direction + 3) % 3 + 1;
-        }
+        private void ChangePhoto(int direction) => ChangeSegment(direction);
 
         public void Update(GameTime time)
         {
@@ -111,8 +140,16 @@ namespace OpenNFS1.UI.Screens
             }
             if (input.WasPressed(Keys.Left)) { NextTrack(-1); return; }
             if (input.WasPressed(Keys.Right)) { NextTrack(1); return; }
-            if (input.WasPressed(Keys.A)) ChangePhoto(-1);
-            if (input.WasPressed(Keys.D)) ChangePhoto(1);
+            if (input.WasPressed(Keys.A) || input.WasPressed(Keys.PageUp))
+                ChangeSegment(-1);
+            if (input.WasPressed(Keys.D) || input.WasPressed(Keys.PageDown))
+                ChangeSegment(1);
+            if (_segments.Count > 0)
+            {
+                if (input.WasPressed(Keys.D1) || input.WasPressed(Keys.NumPad1)) SetSegment(0);
+                if (input.WasPressed(Keys.D2) || input.WasPressed(Keys.NumPad2)) SetSegment(1);
+                if (input.WasPressed(Keys.D3) || input.WasPressed(Keys.NumPad3)) SetSegment(2);
+            }
             if (input.WasPressed(Keys.B)) { BestTimes(); return; }
             if (input.WasPressed(Keys.T))
                 GameConfig.AlternativeTimeOfDay = !GameConfig.AlternativeTimeOfDay;
@@ -132,6 +169,14 @@ namespace OpenNFS1.UI.Screens
                 Hit("mord", p) || Hit("morl", p))
             {
                 GameConfig.AlternativeTimeOfDay = !GameConfig.AlternativeTimeOfDay;
+                return;
+            }
+            // Segment arrows on the right-hand photo are separate from the
+            // bottom ROAD/TRACK arrows, which choose another entire course.
+            if (_segments.Count > 1 && p.X >= 305 && p.X < 610 &&
+                p.Y > 110 && p.Y < 390)
+            {
+                ChangeSegment(p.X < 450 ? -1 : 1);
                 return;
             }
             // Native track selection uses a small number of click targets.
@@ -161,6 +206,10 @@ namespace OpenNFS1.UI.Screens
             {
                 Art("bsg" + _photo);
                 Art("ssg" + _photo);
+                // Stage selection now changes the actual AL/CL/CY TRI file,
+                // not only the illustration. Keep feedback in the data field.
+                if (_segments.Count > 1)
+                    Value("SEGMENT " + _photo + " / " + _segments.Count, 185, 360, .35f);
             }
             else
             {
