@@ -4,6 +4,7 @@ using System.Text;
 using GameEngine;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
 using OpenNFS1.Parsers.Track;
 
 namespace OpenNFS1.UI.Screens
@@ -34,6 +35,16 @@ namespace OpenNFS1.UI.Screens
                     GameConfig.Tournament.RecordRoadSegment(GameConfig.SelectedTrackDescription, race.RaceTime);
                 else
                     GameConfig.Tournament.RecordResult(race.PlayerStats.Position, race.RaceTime);
+
+                // Update the automatic restart checkpoint immediately after
+                // completing a race/road stage (even if the player exits here).
+                TrackDescription next = TournamentSaveManager.NextAfterResults();
+                if (next != null)
+                {
+                    try { TournamentSaveManager.Save(0, next); }
+                    catch (System.IO.IOException) { }
+                    catch (UnauthorizedAccessException) { }
+                }
             }
 
             GC.Collect(); //force some memory freeness here.
@@ -44,9 +55,24 @@ namespace OpenNFS1.UI.Screens
 
         public void Update(GameTime gameTime)
         {
+            if (GameConfig.CurrentRaceMode == RaceMode.Tournament &&
+                GameConfig.Tournament != null &&
+                Engine.Instance.Input.WasPressed(Keys.S))
+            {
+                OpenTournamentSave();
+                return;
+            }
+
             if (Engine.Instance.Input.WasLeftMouseClicked)
             {
                 var p = Engine.Instance.Input.GameMousePosition;
+                if (GameConfig.CurrentRaceMode == RaceMode.Tournament &&
+                    GameConfig.Tournament != null && p.X >= 20 && p.X <= 390 &&
+                    p.Y >= 338 && p.Y < 368)
+                {
+                    OpenTournamentSave();
+                    return;
+                }
                 if (p.X >= 20 && p.X <= 390 && p.Y >= 370 && p.Y < 419)
                 {
                     _selectedOption = 0;
@@ -74,6 +100,13 @@ namespace OpenNFS1.UI.Screens
 
             if (UIController.Ok)
                 ActivateSelection();
+        }
+
+        private void OpenTournamentSave()
+        {
+            TrackDescription upcoming = TournamentSaveManager.NextAfterResults();
+            if (upcoming != null)
+                Engine.Instance.Screen = new LoadSaveScreen(this, upcoming);
         }
 
         private void ReturnToMenu()
@@ -201,6 +234,13 @@ namespace OpenNFS1.UI.Screens
         private void DrawMenuActions(string firstAction)
         {
             var sprite = Engine.Instance.SpriteBatch;
+            if (GameConfig.CurrentRaceMode == RaceMode.Tournament &&
+                GameConfig.Tournament != null &&
+                TournamentSaveManager.NextAfterResults() != null)
+            {
+                sprite.DrawString(Font, "SAVE TOURNAMENT (S)", new Vector2(30, 346),
+                    Color.Yellow, 0, Vector2.Zero, 0.38f, SpriteEffects.None, 0);
+            }
             sprite.DrawString(Font, firstAction, new Vector2(30, 377),
                 _selectedOption == 0 ? Color.Yellow : Color.LightGray,
                 0, Vector2.Zero, SectionSize, SpriteEffects.None, 0);
