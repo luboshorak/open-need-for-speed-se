@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Xml.Linq;
 using GameEngine;
+using OpenNFS1.UI;
 
 static class Program
 {
@@ -75,6 +76,22 @@ static class Program
         Check(smallMonitor.X <= 1366 - 64 && smallMonitor.Y <= 768 - 112,
             "Smaller laptop monitor must also be protected.");
 
-        Console.WriteLine("PASS: fullscreen scaling, font safety, window fitting and rescue sizing");
+        // Original 116x142 mpbd minimap coordinates must stay within the
+        // right-hand source bitmap for both ordinary and degenerate circuits.
+        var mapCenter = MapProjection.ToMap(50, 50, 0, 100, 0, 100);
+        Check(mapCenter.X >= 510 && mapCenter.X <= 626 &&
+            mapCenter.Y >= 303 && mapCenter.Y <= 445,
+            "Track minimap center is outside original HUD mpbd.");
+
+        var mapCorner = MapProjection.ToMap(100, 100, 0, 100, 0, 100);
+        Check(mapCorner.X >= 510 && mapCorner.X <= 626 &&
+            mapCorner.Y >= 303 && mapCorner.Y <= 445,
+            "Track minimap corner is outside original HUD mpbd.");
+
+        var degenerate = MapProjection.ToMap(0, 0, 0, 0, 0, 0);
+        Check(!float.IsNaN(degenerate.X) && !float.IsNaN(degenerate.Y),
+            "Degenerate road projection must not produce NaNs.");
+
+        Console.WriteLine("PASS: display geometry, safe fonts, window recovery and original HUD map projection");
     }
 }
