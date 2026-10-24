@@ -85,7 +85,7 @@ namespace OpenNFS1.UI.Screens
                 case 1: GameConfig.AbsEnabled = !GameConfig.AbsEnabled; break;
                 case 2: GameConfig.TractionControlEnabled = !GameConfig.TractionControlEnabled; break;
                 case 4:
-                    Engine.Instance.Screen = new DisplayOptionsScreen(this);
+                    Engine.Instance.Screen = new OriginalGraphicsScreen(this);
                     break;
                 default: Activate(); break;
             }
@@ -165,8 +165,7 @@ namespace OpenNFS1.UI.Screens
             DrawArt(GameConfig.ManualGearbox ? "Mand" : "Autd");
             DrawArt(GameConfig.AbsEnabled ? "On1d" : "Of1d");
             DrawArt(GameConfig.TractionControlEnabled ? "On2d" : "Of2d");
-            DrawText(GameConfig.DrawDistance == 2500 ? "LOW" :
-                GameConfig.DrawDistance == 5000 ? "NORMAL" : "HIGH", 388, 248);
+
             if (!string.IsNullOrEmpty(_message))
                 DrawText(_message, 24, 394, 0.30f);
             sprite.End();
