@@ -19,6 +19,7 @@ namespace OpenNFS1
 		public Game1()
 		{
 			_graphics = new GraphicsDeviceManager(this);
+			IsMouseVisible = true; // show the native cursor for main-menu interaction
 			Content.RootDirectory = "Content";
 
 			GameConfig.Load(Environment.GetCommandLineArgs());
