@@ -1,7 +1,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Forms;
+using OpenFileDialog = System.Windows.Forms.OpenFileDialog;
+using DialogResult = System.Windows.Forms.DialogResult;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using GameEngine;
