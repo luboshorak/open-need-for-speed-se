@@ -87,6 +87,10 @@ namespace OpenNFS1.Vehicles
                     _pursuit.ResetPursuit();
                 }
             }
+            // If the player is too close to an end marker, spawning would
+            // be unsafe; do not leave the pursuit state permanently armed.
+            if (spawn && _police == null)
+                _pursuit.ResetPursuit();
             _race.PolicePursuitActive = _police != null;
             for (int i = _traffic.Count - 1; i >= 0; i--)
             {
