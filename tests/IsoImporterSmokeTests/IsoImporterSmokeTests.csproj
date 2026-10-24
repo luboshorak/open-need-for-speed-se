@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>IsoImporterSmokeTests</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="DiscUtils.Iso9660" Version="0.16.13" />
+    <Compile Include="..\..\OpenNFS1\IsoDataImporter.cs" Link="IsoDataImporter.cs" />
+  </ItemGroup>
+</Project>
