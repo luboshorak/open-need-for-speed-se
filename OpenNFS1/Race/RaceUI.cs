@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using GameEngine;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -11,73 +10,92 @@ using OpenNFS1.Physics;
 
 namespace OpenNFS1.UI
 {
+    /// <summary>
+    /// Driving HUD: original MASKHI.FSH speed digits and LAP artwork,
+    /// with compact readable live data rather than the old debug-sized labels.
+    /// </summary>
     class RaceUI
     {
-        Race _race;
-
-        Rectangle _backgroundRectangle;
-        Texture2D _backgroundTexture;
-        SpriteFont _font;
+        private readonly Race _race;
+        private readonly Texture2D _darkBackground;
+        private readonly SpriteFont _font;
+        private readonly BitmapEntry[] _speedDigits = new BitmapEntry[10];
+        private readonly BitmapEntry _lapLabel;
 
         public RaceUI(Race race)
         {
             _race = race;
-
-			int height = Engine.Instance.Device.Viewport.Height;
-			int width = Engine.Instance.Device.Viewport.Width;
-
-            _backgroundRectangle = new Rectangle(0, 0, width, 30);
-			Color[] pixel = new Color[1] { Color.Black };
-			_backgroundTexture = new Texture2D(Engine.Instance.Device, 1, 1);
-			_backgroundTexture.SetData<Color>(pixel);
+            _darkBackground = new Texture2D(Engine.Instance.Device, 1, 1);
+            _darkBackground.SetData(new[] { Color.Black });
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
+
+            var original = new FshFile(@"SIMDATA\MISC\MASKHI.FSH").Header;
+            _lapLabel = original.FindByName("lap#");
+            for (int i = 0; i < _speedDigits.Length; i++)
+                _speedDigits[i] = original.FindByName("red" + i);
         }
 
         public void Render()
         {
-            Engine.Instance.SpriteBatch.Begin();
+            var sprite = Engine.Instance.SpriteBatch;
+            sprite.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointClamp);
+            sprite.Draw(_darkBackground, new Rectangle(0, 0, 640, 32), Color.White);
 
-            int secondsTillStart = _race.SecondsTillStart;
-            if (secondsTillStart > 0)
+            if (_race.SecondsTillStart > 0)
+                DrawText(sprite, _race.SecondsTillStart.ToString(), 300, 55, 1.35f, Color.Yellow);
+            else if (_race.SecondsTillStart == 0)
+                DrawText(sprite, "GO!", 297, 55, 1.05f, Color.Yellow);
+
+            TimeSpan elapsed = _race.SecondsTillStart > 0
+                ? TimeSpan.Zero : _race.PlayerStats.CurrentLapTime;
+            DrawText(sprite, string.Format("{0:00}:{1:00}", (int)elapsed.TotalMinutes, elapsed.Seconds),
+                13, 5, 0.50f, Color.Yellow);
+
+            int kph = Math.Clamp((int)Math.Abs(_race.Player.Vehicle.Speed), 0, 999);
+            string speed = kph.ToString();
+            int speedX = 225;
+            foreach (char digit in speed)
             {
-                Engine.Instance.SpriteBatch.DrawString(_font, _race.SecondsTillStart.ToString(), new Vector2(300, 50), Color.Yellow, 0, Vector2.Zero, 1.5f, SpriteEffects.None, 0);
+                var entry = _speedDigits[digit - '0'];
+                if (entry?.Texture != null)
+                    sprite.Draw(entry.Texture, new Vector2(speedX, 2), Color.White);
+                speedX += 28;
             }
-            else if (secondsTillStart == 0)
+            DrawText(sprite, "km/h", speedX + 5, 11, 0.30f, Color.White);
+
+            int gear = ((DrivableVehicle)_race.Player.Vehicle).Motor.Gearbox.CurrentGear;
+            DrawText(sprite, "GEAR " + GearToString(gear), 374, 6, 0.44f, Color.Yellow);
+
+            if (!GameConfig.SelectedTrackDescription.IsOpenRoad)
             {
-                Engine.Instance.SpriteBatch.DrawString(_font, "Go!", new Vector2(300, 50), Color.Yellow, 0, Vector2.Zero, 1.5f, SpriteEffects.None, 0);
+                if (_lapLabel?.Texture != null)
+                    sprite.Draw(_lapLabel.Texture, _lapLabel.GetDisplayAt(), Color.White);
+                DrawText(sprite, Math.Max(1, Math.Min(_race.PlayerStats.CurrentLap, _race.NbrLaps))
+                    .ToString(), 475, 8, 0.40f, Color.Yellow);
+                DrawText(sprite, _race.NbrLaps.ToString(), 512, 8, 0.40f, Color.Yellow);
             }
-			
-            Engine.Instance.SpriteBatch.Draw(_backgroundTexture, _backgroundRectangle, Color.White);
-			
-            string msg = String.Format("{0}:{1}", _race.PlayerStats.CurrentLapTime.Minutes.ToString("00"), _race.PlayerStats.CurrentLapTime.Seconds.ToString("00"));
-            Engine.Instance.SpriteBatch.DrawString(_font, msg, new Vector2(15, 0), Color.GreenYellow, 0, Vector2.Zero, 0.6f, SpriteEffects.None, 0);
-
-            msg = String.Format("{0} kph", Math.Abs((int)_race.Player.Vehicle.Speed));
-            Engine.Instance.SpriteBatch.DrawString(_font, msg, new Vector2(270, -5), Color.WhiteSmoke, 0, Vector2.Zero, 0.8f, SpriteEffects.None, 0);
-            Engine.Instance.SpriteBatch.DrawString(_font, msg, new Vector2(271, -4), Color.Red, 0, Vector2.Zero, 0.8f, SpriteEffects.None, 0);
-
-            msg = String.Format("G:{0}", GearToString(((DrivableVehicle)_race.Player.Vehicle).Motor.Gearbox.CurrentGear));
-            Engine.Instance.SpriteBatch.DrawString(_font, msg, new Vector2(410, 0), Color.GreenYellow, 0, Vector2.Zero, 0.6f, SpriteEffects.None, 0);
-
-			if (!GameConfig.SelectedTrackDescription.IsOpenRoad)
+            else
             {
-				msg = String.Format("L:{0}/{1}", Math.Min(_race.PlayerStats.CurrentLap, _race.NbrLaps), _race.NbrLaps);
-                Engine.Instance.SpriteBatch.DrawString(_font, msg, new Vector2(480, 0), Color.GreenYellow, 0, Vector2.Zero, 0.6f, SpriteEffects.None, 0);
+                DrawText(sprite, "STAGE", 468, 8, 0.38f, Color.Yellow);
             }
 
-			msg = String.Format("P:{0}/{1}", _race.PlayerStats.Position + 1, _race.Drivers.Count(a => a is RacingAIDriver || a is PlayerDriver));
-			Engine.Instance.SpriteBatch.DrawString(_font, msg, new Vector2(550, 0), Color.GreenYellow, 0, Vector2.Zero, 0.6f, SpriteEffects.None, 0);
-            Engine.Instance.SpriteBatch.End();
+            int participants = _race.Drivers.Count(d => d is RacingAIDriver || d is PlayerDriver);
+            DrawText(sprite, string.Format("{0}/{1}",
+                Math.Max(1, _race.PlayerStats.Position + 1), participants),
+                562, 6, 0.44f, Color.Yellow);
+
+            sprite.End();
         }
 
-        private string GearToString(int gear)
+        private void DrawText(SpriteBatch sprite, string text, float x, float y, float scale, Color color)
         {
-            if (gear == -1)
-                return "R";
-            else if (gear == 0)
-                return "N";
-            else
-                return gear.ToString();
+            sprite.DrawString(_font, text, new Vector2(x, y), color,
+                0, Vector2.Zero, scale, SpriteEffects.None, 0);
+        }
+
+        private static string GearToString(int gear)
+        {
+            return gear < 0 ? "R" : gear == 0 ? "N" : gear.ToString();
         }
     }
 }
