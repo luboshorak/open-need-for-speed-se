@@ -17,6 +17,8 @@ namespace OpenNFS1.UI.Screens
         private readonly SpriteFont _font;
         private readonly bool _manualBefore, _absBefore, _tractionBefore;
         private readonly int _distanceBefore;
+        private readonly bool _musicBefore, _menuMusicBefore, _soundBefore, _rockBefore;
+        private readonly float _volumeBefore;
         private int _selected;
         private string _message;
 
@@ -34,6 +36,11 @@ namespace OpenNFS1.UI.Screens
             _absBefore = GameConfig.AbsEnabled;
             _tractionBefore = GameConfig.TractionControlEnabled;
             _distanceBefore = GameConfig.DrawDistance;
+            _musicBefore = GameConfig.MusicEnabled;
+            _menuMusicBefore = GameConfig.MenuMusicEnabled;
+            _soundBefore = GameConfig.SoundEffectsEnabled;
+            _rockBefore = GameConfig.RockMusic;
+            _volumeBefore = GameConfig.MusicVolume;
         }
 
         private void DrawArt(string id)
@@ -55,6 +62,11 @@ namespace OpenNFS1.UI.Screens
             GameConfig.AbsEnabled = _absBefore;
             GameConfig.TractionControlEnabled = _tractionBefore;
             GameConfig.DrawDistance = _distanceBefore;
+            GameConfig.MusicEnabled = _musicBefore;
+            GameConfig.MenuMusicEnabled = _menuMusicBefore;
+            GameConfig.SoundEffectsEnabled = _soundBefore;
+            GameConfig.RockMusic = _rockBefore;
+            GameConfig.MusicVolume = _volumeBefore;
             Engine.Instance.Screen = new HomeScreen();
         }
 
@@ -87,7 +99,7 @@ namespace OpenNFS1.UI.Screens
             switch (_selected)
             {
                 case 3:
-                    Engine.Instance.Screen = new AudioOptionsScreen();
+                    Engine.Instance.Screen = new AudioOptionsScreen(this);
                     break;
                 case 5:
                     _message = "Driving: arrows / WASD, Enter, Esc, M, R. Remapping pending.";
