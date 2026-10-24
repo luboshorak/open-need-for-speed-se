@@ -56,6 +56,7 @@ namespace OpenNFS1
         public static int ScalingMode { get; set; } = 1;
         public static int WindowWidth { get; set; } = 1280;
         public static int WindowHeight { get; set; } = 960;
+        public static bool OriginalColors { get; set; } = true;
         public static float Gamma { get; set; } = 1.0f;
         public static float Brightness { get; set; } = 0.0f;
         public static float Contrast { get; set; } = 1.0f;
@@ -98,6 +99,7 @@ namespace OpenNFS1
                 if (cfg.TryGetProperty("windowWidth", out value)) WindowWidth = Math.Clamp(value.GetInt32(), 640, 3840);
                 if (cfg.TryGetProperty("windowHeight", out value)) WindowHeight = Math.Clamp(value.GetInt32(), 480, 2160);
                 if (cfg.TryGetProperty("scalingMode", out value)) ScalingMode = Math.Clamp(value.GetInt32(), 0, 2);
+                if (cfg.TryGetProperty("originalColors", out value)) OriginalColors = value.GetBoolean();
                 if (cfg.TryGetProperty("gamma", out value)) Gamma = Math.Clamp(value.GetSingle(), 0.6f, 1.6f);
                 if (cfg.TryGetProperty("brightness", out value)) Brightness = Math.Clamp(value.GetSingle(), -0.3f, 0.3f);
                 if (cfg.TryGetProperty("contrast", out value)) Contrast = Math.Clamp(value.GetSingle(), 0.6f, 1.6f);
@@ -146,6 +148,7 @@ namespace OpenNFS1
                     windowWidth = WindowWidth,
                     windowHeight = WindowHeight,
                     scalingMode = ScalingMode,
+                    originalColors = OriginalColors,
                     gamma = Gamma,
                     brightness = Brightness,
                     contrast = Contrast,
