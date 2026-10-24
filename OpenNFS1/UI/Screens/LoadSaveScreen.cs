@@ -53,6 +53,11 @@ namespace OpenNFS1.UI.Screens
             _confirmDelete = false;
             try
             {
+                if (_slot == 0)
+                {
+                    _message = "Autosave is managed by the game. Choose slots 1-3.";
+                    return;
+                }
                 TrackDescription upcoming = _upcomingTrackOverride ??
                     TournamentSaveManager.SuggestedNextTrack();
                 if (upcoming == null)
@@ -115,12 +120,12 @@ namespace OpenNFS1.UI.Screens
             if (input.WasPressed(Keys.Escape)) { Engine.Instance.Screen = _returnTo; return; }
             if (input.WasPressed(Keys.Left) || input.WasPressed(Keys.Up))
             {
-                _slot = (_slot + 1) % 3 + 1; // backwards in 1,2,3
+                _slot = (_slot + 3) % 4; // includes autosave (slot 0)
                 _confirmDelete = false;
             }
             if (input.WasPressed(Keys.Right) || input.WasPressed(Keys.Down))
             {
-                _slot = _slot % 3 + 1;
+                _slot = (_slot + 1) % 4;
                 _confirmDelete = false;
             }
             if (input.WasPressed(Keys.S)) Save();
@@ -135,7 +140,7 @@ namespace OpenNFS1.UI.Screens
             else if (Hit("dond", p)) Engine.Instance.Screen = _returnTo;
             else if (p.X >= 310 && p.X <= 635 && p.Y >= 140 && p.Y < 350)
             {
-                _slot = Math.Clamp((int)((p.Y - 140) / 70) + 1, 1, 3);
+                _slot = Math.Clamp((int)((p.Y - 135) / 54), 0, 3);
                 _confirmDelete = false;
             }
         }
@@ -156,16 +161,18 @@ namespace OpenNFS1.UI.Screens
             DrawArt("sard"); DrawArt("vwrd"); DrawArt("vwhd"); DrawArt("dlrd");
 
             Text("TOURNAMENT SAVE SLOTS", 332, 104, 0.43f, Color.Yellow);
-            for (int slot = 1; slot <= 3; slot++)
+            for (int slot = 0; slot <= 3; slot++)
             {
-                int y = 151 + 70 * (slot - 1);
-                Text((slot == _slot ? "> " : "  ") + "SLOT " + slot, 328, y, 0.38f,
+                int y = 145 + 54 * slot;
+                Text((slot == _slot ? "> " : "  ") +
+                    (slot == 0 ? "AUTOSAVE" : "SLOT " + slot),
+                    328, y, 0.38f,
                     slot == _slot ? Color.Yellow : Color.White);
                 string line = TournamentSaveManager.Describe(slot);
                 if (line.Length > 34) line = line.Substring(0, 34);
                 Text(line, 334, y + 24, 0.28f, Color.White);
             }
-            Text("S=Save  L=Load  D=Delete", 314, 360, 0.30f, Color.Yellow);
+            Text("S=Save  L=Load  D=Delete", 314, 368, 0.30f, Color.Yellow);
             if (_message.Length > 74) _message = _message.Substring(0, 71) + "...";
             Text(_message, 20, 409, 0.29f, Color.Yellow);
             sprite.End();
