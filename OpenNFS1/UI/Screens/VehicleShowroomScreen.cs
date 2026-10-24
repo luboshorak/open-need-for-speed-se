@@ -19,13 +19,21 @@ namespace OpenNFS1.UI.Screens
         private readonly SpriteFont _font;
         private BitmapChunk _art;
         private string _message;
+        private bool _previewFallback;
 
         public VehicleShowroomScreen(VehicleDescription selectedCar)
         {
             _nav = new ShowroomNavigator(selectedCar?.Name);
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
-            SyncSelectedVehicle();
+            // Warrior has no original FRONTEND/SHOW artwork. A temporary RX7
+            // preview must not silently change the vehicle chosen for the race.
+            _previewFallback = selectedCar != null &&
+                !Array.Exists(ShowroomNavigator.Cars, name => string.Equals(
+                    name, selectedCar.Name, StringComparison.OrdinalIgnoreCase));
+            if (!_previewFallback) SyncSelectedVehicle();
             LoadArt();
+            if (_previewFallback)
+                _message = "No original Warrior showroom; showing RX7. Use NEXT to select a car.";
         }
 
         private static string PageFile(string car, ShowroomNavigator.Page page)
@@ -92,6 +100,7 @@ namespace OpenNFS1.UI.Screens
         private void ChangeCar(int delta)
         {
             _nav.ChangeCar(delta);
+            _previewFallback = false;
             SyncSelectedVehicle();
             LoadArt(); // Retain the chosen detail page for the NEXT actual car
         }
