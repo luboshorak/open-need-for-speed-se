@@ -108,6 +108,8 @@ namespace OpenNFS1
                 if (cfg.TryGetProperty("soundEffectsEnabled", out value)) SoundEffectsEnabled = value.GetBoolean();
                 if (cfg.TryGetProperty("rockMusic", out value)) RockMusic = value.GetBoolean();
                 if (cfg.TryGetProperty("musicVolume", out value)) MusicVolume = Math.Clamp(value.GetSingle(), 0, 1);
+                if (cfg.TryGetProperty("circuitLaps", out value))
+                    CircuitLaps = Math.Clamp(value.GetInt32(), 1, 12);
                 if (cfg.TryGetProperty("manualGearbox", out value)) ManualGearbox = value.GetBoolean();
                 if (cfg.TryGetProperty("absEnabled", out value)) AbsEnabled = value.GetBoolean();
                 if (cfg.TryGetProperty("tractionControlEnabled", out value)) TractionControlEnabled = value.GetBoolean();
@@ -157,6 +159,7 @@ namespace OpenNFS1
                     soundEffectsEnabled = SoundEffectsEnabled,
                     rockMusic = RockMusic,
                     musicVolume = MusicVolume,
+                    circuitLaps = CircuitLaps,
                     manualGearbox = ManualGearbox,
                     absEnabled = AbsEnabled,
                     tractionControlEnabled = TractionControlEnabled,
