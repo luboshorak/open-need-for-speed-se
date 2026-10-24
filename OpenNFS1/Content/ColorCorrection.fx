@@ -19,12 +19,15 @@ sampler2D TextureSampler : register(s0) = sampler_state
 float Gamma = 1.0;
 float Brightness = 0.0;
 float Contrast = 1.0;
+float Saturation = 1.0;
 
 float4 ColorCorrect(float2 texCoord : TEXCOORD0, float4 vertexColor : COLOR0) : COLOR0
 {
     float4 pixel = tex2D(TextureSampler, texCoord) * vertexColor;
     float3 corrected = saturate((pixel.rgb - 0.5) * Contrast + 0.5 + Brightness);
     corrected = pow(corrected, 1.0 / max(Gamma, 0.05));
+    float luminance = dot(corrected, float3(0.2126, 0.7152, 0.0722));
+    corrected = lerp(float3(luminance, luminance, luminance), corrected, Saturation);
     return float4(saturate(corrected), pixel.a);
 }
 
