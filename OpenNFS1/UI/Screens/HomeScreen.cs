@@ -227,6 +227,8 @@ namespace OpenNFS1.UI.Screens
                     Engine.Instance.Screen = new GameModeScreen();
                 else if (_selectedControl == VehicleSelected)
                     OpenShowroom();
+                else if (_selectedControl == TrackSelected)
+                    OpenTrackDetails();
                 else ChangeSelected(1);
             }
         }
@@ -255,7 +257,11 @@ namespace OpenNFS1.UI.Screens
             else if (TrackArea.Contains(x, y))
             {
                 _selectedControl = TrackSelected;
-                ChangeSelected(x < TrackArea.Center.X ? -1 : 1);
+                // Center of the original track photo opens its native TRACKSEL
+                // detail screen; narrow edge strips retain prev/next cycling.
+                if (x < TrackArea.Left + 32) ChangeSelected(-1);
+                else if (x >= TrackArea.Right - 32) ChangeSelected(1);
+                else OpenTrackDetails();
             }
             else if (RaceButtonArea.Contains(x, y))
             {
@@ -357,12 +363,18 @@ namespace OpenNFS1.UI.Screens
             Engine.Instance.Screen = new VehicleShowroomScreen(GameConfig.SelectedVehicle);
         }
 
+        private void OpenTrackDetails()
+        {
+            GameConfig.SelectedTrackDescription = _tracks[_currentTrack].Descriptor;
+            Engine.Instance.Screen = new TrackDetailsScreen(GameConfig.SelectedTrackDescription);
+        }
+
         private void OpenRaceOptions()
         {
             GameConfig.SelectedVehicle = _vehicles[_currentVehicle].Descriptor;
             GameConfig.SelectedOpponent = _vehicles[_currentOpponent].Descriptor;
             GameConfig.SelectedTrackDescription = _tracks[_currentTrack].Descriptor;
-            Engine.Instance.Screen = new RaceOptionsScreen();
+            RaceLauncher.Start();
         }
 
         public void Draw()
