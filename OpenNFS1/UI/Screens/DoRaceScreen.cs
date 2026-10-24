@@ -31,7 +31,7 @@ namespace OpenNFS1
 			_playerDriver = new PlayerDriver(_car);
 			_car.AudioEnabled = GameConfig.SoundEffectsEnabled;
 
-			_race = new Race(_track.IsOpenRoad ? 1 : Math.Clamp(GameConfig.CircuitLaps, 1, 5), _track, _playerDriver);
+			_race = new Race(_track.IsOpenRoad ? 1 : Math.Clamp(GameConfig.CircuitLaps, 1, 12), _track, _playerDriver);
             // Mode rules are explicit: 1 (Head to Head), 7 (Single/Tournament),
             // 0 (Time Trial). Opponent count is NOT a generic slider.
             var rivals = RaceModeRules.BuildOpponents(
