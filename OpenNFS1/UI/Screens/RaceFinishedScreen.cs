@@ -1,112 +1,81 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using System;
+using System.IO;
 using GameEngine;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using OpenNFS1.Parsers;
 using OpenNFS1.Parsers.Track;
 
 namespace OpenNFS1.UI.Screens
 {
-    class RaceFinishedScreen : BaseUIScreen, IGameScreen
+    /// <summary>
+    /// Original NFS SE FINMENU.QFS shown after completing a race.
+    /// Results/standings open separately on source STANDTRK/STANDSEG art.
+    /// The established tournament scoring and save state remain unchanged.
+    /// </summary>
+    class RaceFinishedScreen : IGameScreen
     {
-        Race _race;
-        Texture2D _background;
-        Track _raceTrack;
+        private readonly Race _race;
+        private readonly TimeSpan _finishedTime;
+        private readonly Track _raceTrack;
+        private readonly BitmapChunk _menu;
+        private readonly SpriteFont _font;
+        private int _selected;
+        private string _notice = "N: NEXT RACE   S: SAVE TOURNAMENT   ESC: MENU";
 
-        int _selectedOption = 0;
+        private static readonly string[] Normal =
+            { "cond", "repd", "higd", "gmod", "gmsd", "chad" };
+        private static readonly string[] Active =
+            { "conl", "repl", "higl", "gmol", "gmsl", "chal" };
 
         public RaceFinishedScreen(Race race, Track raceTrack)
-            : base()
         {
             _race = race;
+            _finishedTime = race.RaceTime;
             _raceTrack = raceTrack;
-            _background = ScreenEffects.TakeScreenshot();
+            _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
+            _menu = new QfsFile(@"FRONTEND\ART\CHECK\FINMENU.QFS").Content.Header;
 
-            // A results screen is created once after each race. Save points
-            // here (not on keyboard input) so retries/clicks cannot score twice.
-            if (GameConfig.CurrentRaceMode == RaceMode.Tournament && GameConfig.Tournament != null)
+            // Same checkpoint logic as the former results page. This constructor
+            // is called only once; opening Game Standings must NOT score twice.
+            if (GameConfig.CurrentRaceMode == RaceMode.Tournament &&
+                GameConfig.Tournament != null)
             {
-                TrackDescription nextRoadStage = GameConfig.SelectedTrackDescription.IsOpenRoad
+                TrackDescription nextRoad = GameConfig.SelectedTrackDescription.IsOpenRoad
                     ? TrackDescription.GetNextOpenRoadStage(GameConfig.SelectedTrackDescription)
                     : null;
-                if (nextRoadStage != null)
-                    GameConfig.Tournament.RecordRoadSegment(GameConfig.SelectedTrackDescription, race.RaceTime);
+                if (nextRoad != null)
+                    GameConfig.Tournament.RecordRoadSegment(
+                        GameConfig.SelectedTrackDescription, _finishedTime);
                 else
-                    GameConfig.Tournament.RecordResult(race.PlayerStats.Position, race.RaceTime);
+                    GameConfig.Tournament.RecordResult(
+                        race.PlayerStats.Position, _finishedTime);
 
-                // Update the automatic restart checkpoint immediately after
-                // completing a race/road stage (even if the player exits here).
-                TrackDescription next = TournamentSaveManager.NextAfterResults();
-                if (next != null)
+                TrackDescription checkpoint = TournamentSaveManager.NextAfterResults();
+                if (checkpoint != null)
                 {
-                    try { TournamentSaveManager.Save(0, next); }
-                    catch (System.IO.IOException) { }
+                    try { TournamentSaveManager.Save(0, checkpoint); }
+                    catch (IOException) { }
                     catch (UnauthorizedAccessException) { }
                 }
             }
-
-            GC.Collect(); //force some memory freeness here.
         }
 
-
-        #region IDrawableObject Members
-
-        public void Update(GameTime gameTime)
+        private void Art(string id)
         {
-            if (GameConfig.CurrentRaceMode == RaceMode.Tournament &&
-                GameConfig.Tournament != null &&
-                Engine.Instance.Input.WasPressed(Keys.S))
-            {
-                OpenTournamentSave();
-                return;
-            }
-
-            if (Engine.Instance.Input.WasLeftMouseClicked)
-            {
-                var p = Engine.Instance.Input.GameMousePosition;
-                if (GameConfig.CurrentRaceMode == RaceMode.Tournament &&
-                    GameConfig.Tournament != null && p.X >= 20 && p.X <= 390 &&
-                    p.Y >= 338 && p.Y < 368)
-                {
-                    OpenTournamentSave();
-                    return;
-                }
-                if (p.X >= 20 && p.X <= 390 && p.Y >= 370 && p.Y < 419)
-                {
-                    _selectedOption = 0;
-                    ActivateSelection();
-                    return;
-                }
-                if (p.X >= 20 && p.X <= 390 && p.Y >= 419 && p.Y < 480)
-                {
-                    _selectedOption = 1;
-                    ActivateSelection();
-                    return;
-                }
-            }
-
-            if (UIController.Back)
-            {
-                ReturnToMenu();
-                return;
-            }
-
-            if (UIController.Up && _selectedOption > 0)
-                _selectedOption--;
-            else if (UIController.Down && _selectedOption < 1)
-                _selectedOption++;
-
-            if (UIController.Ok)
-                ActivateSelection();
+            BitmapEntry bitmap = _menu.FindByName(id);
+            if (bitmap?.Texture != null)
+                Engine.Instance.SpriteBatch.Draw(bitmap.Texture, bitmap.GetDisplayAt(), Color.White);
         }
 
-        private void OpenTournamentSave()
+        private bool Hit(string id, Vector2 p)
         {
-            TrackDescription upcoming = TournamentSaveManager.NextAfterResults();
-            if (upcoming != null)
-                Engine.Instance.Screen = new LoadSaveScreen(this, upcoming);
+            BitmapEntry bmp = _menu.FindByName(id);
+            if (bmp?.Texture == null || p.X < 0) return false;
+            Vector2 xy = bmp.GetDisplayAt();
+            return new Rectangle((int)xy.X, (int)xy.Y,
+                bmp.Texture.Width, bmp.Texture.Height).Contains((int)p.X, (int)p.Y);
         }
 
         private void ReturnToMenu()
@@ -115,26 +84,28 @@ namespace OpenNFS1.UI.Screens
             Engine.Instance.Screen = new HomeScreen();
         }
 
-        private void ActivateSelection()
+        private void OpenSave()
         {
-            if (_selectedOption == 1)
-            {
-                ReturnToMenu();
-                return;
-            }
+            TrackDescription upcoming = TournamentSaveManager.NextAfterResults();
+            if (GameConfig.CurrentRaceMode == RaceMode.Tournament &&
+                GameConfig.Tournament != null && upcoming != null)
+                Engine.Instance.Screen = new LoadSaveScreen(this, upcoming);
+            else
+                _notice = "NO ACTIVE TOURNAMENT CHECKPOINT TO SAVE.";
+        }
 
+        private void Continue()
+        {
             if (GameConfig.CurrentRaceMode == RaceMode.Tournament &&
                 GameConfig.Tournament != null)
             {
-                // Complete all three segments of an open-road venue before
-                // awarding points and advancing to the next championship venue.
                 if (GameConfig.SelectedTrackDescription.IsOpenRoad)
                 {
-                    TrackDescription next = TrackDescription.GetNextOpenRoadStage(
+                    TrackDescription nextRoad = TrackDescription.GetNextOpenRoadStage(
                         GameConfig.SelectedTrackDescription);
-                    if (next != null)
+                    if (nextRoad != null)
                     {
-                        GameConfig.SelectedTrackDescription = next;
+                        GameConfig.SelectedTrackDescription = nextRoad;
                         Engine.Instance.Screen = new LoadRaceScreen();
                         return;
                     }
@@ -145,109 +116,111 @@ namespace OpenNFS1.UI.Screens
                     GameConfig.SelectedTrackDescription = GameConfig.Tournament.CurrentCourse;
                     Engine.Instance.Screen = new LoadRaceScreen();
                 }
-                else
-                {
-                    ReturnToMenu();
-                }
+                else ReturnToMenu();
                 return;
             }
 
-            if (!GameConfig.SelectedTrackDescription.IsOpenRoad)
+            if (GameConfig.SelectedTrackDescription.IsOpenRoad)
+            {
+                TrackDescription next = TrackDescription.GetNextOpenRoadStage(
+                    GameConfig.SelectedTrackDescription);
+                if (next != null)
+                {
+                    GameConfig.SelectedTrackDescription = next;
+                    Engine.Instance.Screen = new LoadRaceScreen();
+                }
+                else ReturnToMenu();
+            }
+            else
                 Engine.Instance.Screen = new DoRaceScreen(_raceTrack);
-            else
-            {
-                GameConfig.SelectedTrackDescription =
-                    TrackDescription.GetNextOpenRoadStage(GameConfig.SelectedTrackDescription);
-                Engine.Instance.Screen = GameConfig.SelectedTrackDescription == null
-                    ? new HomeScreen() : new LoadRaceScreen();
-            }
         }
 
-		public override void Draw()
-		{
-			base.Draw();
-
-            Engine.Instance.SpriteBatch.Draw(_background, Vector2.Zero, new Color(255, 255, 255, 100));
-
-			if (GameConfig.SelectedTrackDescription.IsOpenRoad)
-                DrawOpenRoadResult();
-            else
-                DrawCircuitResult();
-
-            Engine.Instance.SpriteBatch.End();
-        }
-
-        #endregion
-
-        private void DrawCircuitResult()
+        private void Activate()
         {
-			WriteLine(GameConfig.SelectedTrackDescription.Name + "- Race completed", Color.Gray, 20, 30, TitleSize);
-            
-            int totalSeconds = 0;
-            for (int i = 0; i < _race.PlayerStats.LapTimes.Count; i++)
+            switch (_selected)
             {
-				WriteLine("Lap " + (i + 1) + ": " + TimeSpan.FromSeconds(_race.PlayerStats.LapTimes[i]).ToString());
-                totalSeconds += _race.PlayerStats.LapTimes[i];
-            }
-
-			WriteLine("Total time: " + TimeSpan.FromSeconds(totalSeconds));
-			
-            if (GameConfig.CurrentRaceMode == RaceMode.Tournament &&
-                GameConfig.Tournament != null)
-            {
-                var series = GameConfig.Tournament;
-                Engine.Instance.SpriteBatch.DrawString(Font,
-                    "TOURNAMENT " + series.CompletedStages + "/" + series.StageCount +
-                    "   SCORE " + series.Points,
-                    new Vector2(30, 311), Color.Yellow,
-                    0f, Vector2.Zero, 0.52f, SpriteEffects.None, 0);
-                DrawMenuActions(series.IsComplete ? "Finish tournament" : "Next tournament race");
-            }
-            else
-            {
-                DrawMenuActions("Race again");
+                case 0: ReturnToMenu(); break;
+                case 1:
+                    if (GameConfig.CurrentRaceMode == RaceMode.Tournament)
+                        _notice = "REPLAY DOES NOT CHANGE CHAMPIONSHIP RESULTS.";
+                    else
+                        Engine.Instance.Screen = new DoRaceScreen(_raceTrack);
+                    break;
+                case 2:
+                    _notice = "ORIGINAL HIGHLIGHT VIDEO PLAYBACK IS NOT READY.";
+                    break;
+                case 3:
+                    Engine.Instance.Screen = new OptionsScreen();
+                    break;
+                case 4:
+                    Engine.Instance.Screen = new RaceStandingsScreen(_race, _finishedTime, this);
+                    break;
+                case 5:
+                    _notice = "CHAT MODE IS NOT AVAILABLE IN SINGLE PLAYER.";
+                    break;
             }
         }
 
-        private void DrawOpenRoadResult()
+        public void Update(GameTime gameTime)
         {
-			WriteLine(GameConfig.SelectedTrackDescription.Name + " - Stage completed", Color.Gray, 20, 30, TitleSize);
-            
-			WriteLine("Time: " + TimeSpan.FromSeconds(_race.PlayerStats.LapTimes[0]));
-
-            TrackDescription nextRoad = TrackDescription.GetNextOpenRoadStage(GameConfig.SelectedTrackDescription);
-            if (GameConfig.CurrentRaceMode == RaceMode.Tournament && GameConfig.Tournament != null)
+            var input = Engine.Instance.Input;
+            if (input.WasPressed(Keys.Escape) || input.WasPressed(Keys.M))
             {
-                var series = GameConfig.Tournament;
-                Engine.Instance.SpriteBatch.DrawString(Font,
-                    "TOURNAMENT " + series.CompletedStages + "/" + series.StageCount +
-                    "  SCORE " + series.Points,
-                    new Vector2(30, 308), Color.Yellow,
-                    0f, Vector2.Zero, 0.52f, SpriteEffects.None, 0);
-                DrawMenuActions(nextRoad != null ? "Continue to next stage" :
-                    series.IsComplete ? "Finish tournament" : "Next tournament race");
+                ReturnToMenu();
+                return;
             }
-            else
-                DrawMenuActions(nextRoad != null ? "Continue to next stage" : "Main menu");
+            if (input.WasPressed(Keys.N))
+            {
+                Continue();
+                return;
+            }
+            if (input.WasPressed(Keys.S))
+            {
+                OpenSave();
+                return;
+            }
+
+            if (input.WasLeftMouseClicked)
+            {
+                Vector2 p = input.GameMousePosition;
+                for (int i = 0; i < Normal.Length; i++)
+                {
+                    if (Hit(Normal[i], p) || Hit(Active[i], p))
+                    {
+                        _selected = i;
+                        Activate();
+                        return;
+                    }
+                }
+            }
+            if (input.WasPressed(Keys.Down) || input.WasPressed(Keys.Tab))
+                _selected = (_selected + 1) % Normal.Length;
+            else if (input.WasPressed(Keys.Up))
+                _selected = (_selected + Normal.Length - 1) % Normal.Length;
+            else if (input.WasPressed(Keys.Enter) || input.WasPressed(Keys.Space))
+                Activate();
         }
 
-        private void DrawMenuActions(string firstAction)
+        public void Draw()
         {
+            Engine.Instance.Device.Viewport = new Viewport(0, 0, 640, 480);
             var sprite = Engine.Instance.SpriteBatch;
-            if (GameConfig.CurrentRaceMode == RaceMode.Tournament &&
-                GameConfig.Tournament != null &&
-                TournamentSaveManager.NextAfterResults() != null)
-            {
-                sprite.DrawString(Font, "SAVE TOURNAMENT (S)", new Vector2(30, 346),
-                    Color.Yellow, 0, Vector2.Zero, 0.38f, SpriteEffects.None, 0);
-            }
-            sprite.DrawString(Font, firstAction, new Vector2(30, 377),
-                _selectedOption == 0 ? Color.Yellow : Color.LightGray,
-                0, Vector2.Zero, SectionSize, SpriteEffects.None, 0);
-            sprite.DrawString(Font, "Main menu", new Vector2(30, 421),
-                _selectedOption == 1 ? Color.Yellow : Color.LightGray,
-                0, Vector2.Zero, SectionSize, SpriteEffects.None, 0);
-        }
+            sprite.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied,
+                SamplerState.PointClamp);
+            Art("bgnd");
+            for (int i = 0; i < Normal.Length; i++)
+                Art(_selected == i ? Active[i] : Normal[i]);
 
+            string prefix = GameConfig.CurrentRaceMode == RaceMode.Tournament &&
+                GameConfig.Tournament != null
+                ? "TOURNAMENT " + GameConfig.Tournament.CompletedStages + "/" +
+                    GameConfig.Tournament.StageCount + "  "
+                : "";
+            string notice = prefix + _notice;
+            if (notice.Length > 83) notice = notice.Substring(0, 83);
+            sprite.DrawString(_font, notice, new Vector2(16, 453),
+                Color.Yellow, 0, Vector2.Zero, 0.29f, SpriteEffects.None, 0);
+            sprite.End();
+        }
     }
 }

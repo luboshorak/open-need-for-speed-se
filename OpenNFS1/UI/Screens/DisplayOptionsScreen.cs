@@ -106,6 +106,8 @@ namespace OpenNFS1.UI.Screens
             {
                 ((Game1)Engine.Instance.Game).ApplyDisplaySettings();
                 GameConfig.SaveUserSettings();
+                if (_back is OriginalGraphicsScreen graphics)
+                    graphics.AcceptChanges();
                 Engine.Instance.Screen = _back ?? new OptionsScreen();
             }
             catch (Exception ex)
