@@ -22,6 +22,8 @@ namespace OpenNFS1
 		bool _started;
 		private readonly RaceGateTracker _finishGate;
 		public bool Finished { get; private set; }
+        public bool PolicePursuitActive { get; internal set; }
+        public bool PoliceTicketed { get; internal set; }
         public float PeakPlayerSpeed { get; private set; }
 		public PlayerDriver Player { get; private set; }
 		TrafficController _trafficController;
