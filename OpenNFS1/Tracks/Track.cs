@@ -190,7 +190,7 @@ namespace OpenNFS1.Parsers.Track
 		private void DrawScenery(List<TerrainSegment> renderedSegments)
 		{
 			Engine.Instance.Device.RasterizerState = RasterizerState.CullNone;
-			Engine.Instance.Device.SamplerStates[0] = SamplerState.PointClamp;
+			Engine.Instance.Device.SamplerStates[0] = GameConfig.ClampSampler;
 
 			if (GameConfig.Render2dScenery)
 			{
