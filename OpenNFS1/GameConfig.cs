@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using OpenNFS1.Vehicles;
+using OpenNFS1.Parsers.Track;
 
 namespace OpenNFS1
 {
