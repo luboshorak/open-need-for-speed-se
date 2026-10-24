@@ -6,7 +6,7 @@
     <AssemblyName>OpenNFS1</AssemblyName>
     <RootNamespace>OpenNFS1</RootNamespace>
     <ApplicationIcon>Icon.ico</ApplicationIcon>
-    <Version>1.7.1</Version>
+    <Version>1.8.0</Version>
     <!-- Keep compiler/content errors visible instead of hiding MGCB output behind /quiet. -->
     <MonoGameMGCBAdditionalArguments>/incremental</MonoGameMGCBAdditionalArguments>
   </PropertyGroup>
