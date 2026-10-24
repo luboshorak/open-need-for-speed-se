@@ -123,6 +123,16 @@ namespace OpenNFS1
 			base.Update(gameTime);
             // Panic key: always restore a usable 800x600 window, even if the
             // graphics menu itself is inaccessible. Available from any screen.
+            if (Engine.Instance.Input.WasPressed(Keys.F8))
+            {
+                // Emergency one-key return to the unmodified DOS palette,
+                // regardless of saved gamma/brightness/contrast.
+                GameConfig.OriginalColors = true;
+                GameConfig.Gamma = 1;
+                GameConfig.Brightness = 0;
+                GameConfig.Contrast = 1;
+                GameConfig.SaveUserSettings();
+            }
             if (Engine.Instance.Input.WasPressed(Keys.F10))
             {
                 GameConfig.FullScreen = false;
@@ -175,16 +185,21 @@ namespace OpenNFS1
 
             SamplerState sampling = GameConfig.ScalingMode == 0
                 ? SamplerState.LinearClamp : SamplerState.PointClamp;
-            _colorCorrection.Parameters["Texture"].SetValue(_renderTarget);
-            _colorCorrection.Parameters["Gamma"].SetValue(GameConfig.Gamma);
-            _colorCorrection.Parameters["Brightness"].SetValue(GameConfig.Brightness);
-            _colorCorrection.Parameters["Contrast"].SetValue(GameConfig.Contrast);
+            Effect correction = null;
+            if (!GameConfig.OriginalColors)
+            {
+                _colorCorrection.Parameters["Texture"].SetValue(_renderTarget);
+                _colorCorrection.Parameters["Gamma"].SetValue(GameConfig.Gamma);
+                _colorCorrection.Parameters["Brightness"].SetValue(GameConfig.Brightness);
+                _colorCorrection.Parameters["Contrast"].SetValue(GameConfig.Contrast);
+                correction = _colorCorrection;
+            }
 
             using (var sprite = new SpriteBatch(GraphicsDevice))
             {
                 sprite.Begin(SpriteSortMode.Immediate, BlendState.Opaque, sampling,
                     DepthStencilState.None, RasterizerState.CullNone,
-                    effect: _colorCorrection);
+                    effect: correction);
                 sprite.Draw(_renderTarget, destination, Color.White);
                 sprite.End();
             }
