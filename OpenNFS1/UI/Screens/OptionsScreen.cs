@@ -105,7 +105,7 @@ namespace OpenNFS1.UI.Screens
                     _message = "Driving: arrows / WASD, Enter, Esc, M, R. Remapping pending.";
                     break;
                 case 6:
-                    _message = "Saved tournaments/profiles are not implemented yet.";
+                    Engine.Instance.Screen = new LoadSaveScreen(this);
                     break;
                 case 7:
                     _message = "OpenNFS1 SE - community remake. Original game (c) EA.";
