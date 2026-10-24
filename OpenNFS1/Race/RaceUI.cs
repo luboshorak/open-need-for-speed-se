@@ -116,7 +116,7 @@ namespace OpenNFS1.UI
             int racers = _race.Drivers.Count(d => d is RacingAIDriver || d is PlayerDriver);
             DrawNumber(sprite,
                 Math.Clamp(_race.PlayerStats.Position + 1, 1, Math.Max(1, racers)),
-                591, 6, 11, 16);
+                592, 6, 11, 16);
             DrawNumber(sprite, Math.Max(1, racers), 637, 6, 11, 16);
 
             RenderTrackMap(sprite);
