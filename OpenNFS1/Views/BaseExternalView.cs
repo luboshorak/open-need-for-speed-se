@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,7 +12,7 @@ namespace OpenNFS1.Views
 {
 	class BaseExternalView
 	{
-		static BitmapEntry _bottomBar, _bottomFill, _tacho, _map;
+		static BitmapEntry _bottomFill, _tacho, _map;
 		static Texture2D _tachLineTexture;
 		const int _size = 160;
 		const float _needleLength = 2.5f;
@@ -23,7 +23,6 @@ namespace OpenNFS1.Views
 			if (_bottomBar == null)
 			{
 				var fsh = new FshFile(@"Simdata\Misc\MaskHi.fsh");
-				_bottomBar = fsh.Header.Bitmaps.Find(a => a.Id == "b00b");
 				_bottomFill = fsh.Header.Bitmaps.Find(a => a.Id == "0002");
 				_tacho = fsh.Header.Bitmaps.Find(a => a.Id == "tach");
 				_map = fsh.Header.Bitmaps.Find(a => a.Id == "mpbd");
@@ -37,25 +36,38 @@ namespace OpenNFS1.Views
 
 		public void RenderBackground(DrivableVehicle car)
 		{
-			float carRpm = car.Motor.Rpm / car.Motor.RedlineRpm;
-			Engine.Instance.SpriteBatch.Begin(SpriteSortMode.FrontToBack, BlendState.NonPremultiplied, SamplerState.LinearWrap, DepthStencilState.None, RasterizerState.CullNone);
+			float carRpm = MathHelper.Clamp(car.Motor.Rpm / Math.Max(1f, car.Motor.RedlineRpm), 0f, 1f);
+            var sprite = Engine.Instance.SpriteBatch;
+            // Deferred drawing is intentional: the native tachometer overlaps
+            // the bottom panel. FrontToBack previously hid its bottom 45 pixels.
+            sprite.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied,
+                SamplerState.PointWrap, DepthStencilState.None, RasterizerState.CullNone);
 
-			// Draw tacho
-			Color color = new Color(255, 255, 255, 200);
-			Engine.Instance.SpriteBatch.Draw(_tacho.Texture, new Rectangle(_tacho.Misc[2], _tacho.Misc[3], _size, _size), Color.White);
+            // The original MASKHI.FSH uses small 32x32 tiles, NOT a 640x60
+            // bitmap. Tile the existing dark texture into the lower 80 pixels.
+            if (_bottomFill?.Texture != null)
+            {
+                sprite.Draw(_bottomFill.Texture, new Rectangle(0, 400, 640, 80),
+                    new Rectangle(0, 0, 640, 80), Color.White);
+            }
 
-			float rotation = (float)(carRpm * Math.PI * 1.4f) - 2.56f;
-			Engine.Instance.SpriteBatch.Draw(_tachLineTexture, new Vector2(_tacho.Misc[2] + _size / 2, _tacho.Misc[3] + _size / 2), null, color, rotation, new Vector2(_needleWidth/2, 25), new Vector2(1f, _needleLength), SpriteEffects.None, 0);
+            // Draw the tach on TOP of the bottom panel at its native
+            // (10,289) position and 156x156 size, down to screen row 445.
+            if (_tacho?.Texture != null)
+            {
+                Vector2 position = _tacho.GetDisplayAt();
+                int width = _tacho.Texture.Width;
+                int height = _tacho.Texture.Height;
+                sprite.Draw(_tacho.Texture, position, Color.White);
 
-			// mini-map overlay
-			//Engine.Instance.SpriteBatch.Draw(_map.Texture, _map.GetDisplayAt(), Color.White);
+                float rotation = (float)(carRpm * Math.PI * 1.4f) - 2.56f;
+                sprite.Draw(_tachLineTexture,
+                    position + new Vector2(width / 2f, height / 2f), null,
+                    Color.Red, rotation, new Vector2(_needleWidth / 2, 25),
+                    new Vector2(1f, _needleLength), SpriteEffects.None, 0);
+            }
 
-			// Draw bottom fill
-			const int barHeight = 17;
-			Engine.Instance.SpriteBatch.Draw(_bottomBar.Texture, new Vector2(0, 400), new Rectangle(0, 0, 640, barHeight), Color.White);
-			Engine.Instance.SpriteBatch.Draw(_bottomFill.Texture, new Vector2(0, 400 + barHeight), new Rectangle(0, 0, 640, 60), Color.White);		
-
-			Engine.Instance.SpriteBatch.End();
+            sprite.End();
 		}
 	}
 }
