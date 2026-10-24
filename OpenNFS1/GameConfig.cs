@@ -21,6 +21,8 @@ namespace OpenNFS1
         public static Track CurrentTrack;
         public static bool ManualGearbox { get; set; }
         public static bool AlternativeTimeOfDay { get; set; }
+        public static int OpponentCount { get; set; } = 10;
+        public static bool TimeTrial { get; set; }
 
         public static bool FullScreen { get; set; }
         public static string CdDataPath { get; set; } = Path.Combine(AppContext.BaseDirectory, "CD_Data");

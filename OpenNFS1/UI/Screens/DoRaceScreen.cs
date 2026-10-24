@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -31,7 +32,9 @@ namespace OpenNFS1
 			_car.AudioEnabled = true;
 
 			_race = new Race(_track.IsOpenRoad ? 1 : 3, _track, _playerDriver);
-			for (int i = 0; i < 10; i++)
+			// Time trial is solo; standard races use the opponent count chosen in the menu.
+			int opponentCount = GameConfig.TimeTrial ? 0 : Math.Clamp(GameConfig.OpponentCount, 0, 10);
+			for (int i = 0; i < opponentCount; i++)
 			{
 				int j = Engine.Instance.Random.Next(VehicleDescription.Descriptions.Count);
 				_race.AddDriver(new RacingAIDriver(VehicleDescription.Descriptions[j]));
