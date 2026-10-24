@@ -30,7 +30,7 @@ namespace OpenNFS1.UI.Screens
         private bool _full;
         private int _sizeIndex, _scaling, _selected, _drawDistance;
         private float _gamma, _brightness, _contrast;
-        private string _status = "640 x 480 source · display-only upscale";
+        private string _status = "640 x 480 source - display-only upscale";
 
         public DisplayOptionsScreen(IGameScreen back)
         {
