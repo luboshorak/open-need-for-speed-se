@@ -30,9 +30,27 @@ namespace OpenNFS1.UI.Screens
 
         public void Update(GameTime gameTime)
         {
+            if (Engine.Instance.Input.WasLeftMouseClicked)
+            {
+                var p = Engine.Instance.Input.GameMousePosition;
+                if (p.X >= 20 && p.X <= 390 && p.Y >= 370 && p.Y < 419)
+                {
+                    _selectedOption = 0;
+                    ActivateSelection();
+                    return;
+                }
+                if (p.X >= 20 && p.X <= 390 && p.Y >= 419 && p.Y < 480)
+                {
+                    _selectedOption = 1;
+                    ActivateSelection();
+                    return;
+                }
+            }
+
             if (UIController.Back)
             {
                 Engine.Instance.Screen = new HomeScreen();
+                return;
             }
 
             if (UIController.Up && _selectedOption > 0)
@@ -41,22 +59,25 @@ namespace OpenNFS1.UI.Screens
                 _selectedOption++;
 
             if (UIController.Ok)
+                ActivateSelection();
+        }
+
+        private void ActivateSelection()
+        {
+            if (_selectedOption == 1)
             {
-                if (_selectedOption == 1)
-                    Engine.Instance.Screen = new HomeScreen();
-                else
-                {
-					if (!GameConfig.SelectedTrackDescription.IsOpenRoad)
-                        Engine.Instance.Screen = new DoRaceScreen(_raceTrack);
-                    else
-                    {
-                        GameConfig.SelectedTrackDescription = TrackDescription.GetNextOpenRoadStage(GameConfig.SelectedTrackDescription);
-                        if (GameConfig.SelectedTrackDescription == null)
-                            Engine.Instance.Screen = new HomeScreen();
-                        else
-                            Engine.Instance.Screen = new LoadRaceScreen();
-                    }
-                }
+                Engine.Instance.Screen = new HomeScreen();
+                return;
+            }
+
+            if (!GameConfig.SelectedTrackDescription.IsOpenRoad)
+                Engine.Instance.Screen = new DoRaceScreen(_raceTrack);
+            else
+            {
+                GameConfig.SelectedTrackDescription =
+                    TrackDescription.GetNextOpenRoadStage(GameConfig.SelectedTrackDescription);
+                Engine.Instance.Screen = GameConfig.SelectedTrackDescription == null
+                    ? new HomeScreen() : new LoadRaceScreen();
             }
         }
 
@@ -89,8 +110,7 @@ namespace OpenNFS1.UI.Screens
 
 			WriteLine("Total time: " + TimeSpan.FromSeconds(totalSeconds));
 			
-			WriteLine(" Race again", _selectedOption == 0, 60, 30, SectionSize);
-			WriteLine(" Main menu", _selectedOption == 1, 30, 30, SectionSize);
+            DrawMenuActions("Race again");
         }
 
         private void DrawOpenRoadResult()
@@ -99,12 +119,21 @@ namespace OpenNFS1.UI.Screens
             
 			WriteLine("Time: " + TimeSpan.FromSeconds(_race.PlayerStats.LapTimes[0]));
 
-            if (TrackDescription.GetNextOpenRoadStage(GameConfig.SelectedTrackDescription) != null)
-			{
-				WriteLine("Continue to next stage", _selectedOption == 0, 60, 30, SectionSize);
-            }
-
-			WriteLine(" Main menu", _selectedOption == 1, 30, 30, SectionSize);
+            DrawMenuActions(
+                TrackDescription.GetNextOpenRoadStage(GameConfig.SelectedTrackDescription) != null
+                    ? "Continue to next stage" : "Main menu");
         }
+
+        private void DrawMenuActions(string firstAction)
+        {
+            var sprite = Engine.Instance.SpriteBatch;
+            sprite.DrawString(Font, firstAction, new Vector2(30, 377),
+                _selectedOption == 0 ? Color.Yellow : Color.LightGray,
+                0, Vector2.Zero, SectionSize, SpriteEffects.None, 0);
+            sprite.DrawString(Font, "Main menu", new Vector2(30, 421),
+                _selectedOption == 1 ? Color.Yellow : Color.LightGray,
+                0, Vector2.Zero, SectionSize, SpriteEffects.None, 0);
+        }
+
     }
 }
