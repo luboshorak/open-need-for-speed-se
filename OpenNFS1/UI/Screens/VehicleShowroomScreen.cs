@@ -218,20 +218,23 @@ namespace OpenNFS1.UI.Screens
                     DrawArt("perd"); DrawArt("vidd");
                     break;
                 case ShowroomNavigator.Page.General:
+                    // The opaque frame/backdrop must go UNDER the photos.
+                    DrawArt("fr1d"); DrawArt("fr2d");
                     DrawArt("f1s" + _nav.BottomPhoto);
                     DrawArt("f2s" + _nav.TopPhoto);
-                    DrawArt("fr1d"); DrawArt("fr2d");
                     DrawArt("f1lf"); DrawArt("f1rt");
                     DrawArt("f2lf"); DrawArt("f2rt");
                     break;
                 case ShowroomNavigator.Page.Mechanical:
+                    DrawArt("frmd");
                     DrawArt(new[] { "chas", "engn", "driv" }[_nav.Section]);
-                    DrawArt("frmd"); DrawArt("left"); DrawArt("righ");
+                    DrawArt("left"); DrawArt("righ");
                     break;
                 case ShowroomNavigator.Page.Performance:
+                    DrawArt("frmd");
                     DrawArt(new[] { "acc1", "bra1", "han1" }[_nav.Section]);
                     DrawArt(new[] { "accl", "brak", "hand" }[_nav.Section]);
-                    DrawArt("frmd"); DrawArt("left"); DrawArt("righ");
+                    DrawArt("left"); DrawArt("righ");
                     break;
             }
 
