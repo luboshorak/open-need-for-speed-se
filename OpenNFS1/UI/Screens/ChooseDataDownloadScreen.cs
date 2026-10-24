@@ -33,7 +33,8 @@ namespace OpenNFS1.UI.Screens
                 }
                 else if (GameConfig.HasOriginalGameData())
                 {
-                    Engine.Instance.Screen = new GameModeScreen();
+                    Engine.Instance.Screen = PlayerProfile.IsNamed ?
+                        new GameModeScreen() : new PlayerNameScreen();
                 }
                 else
                 {
