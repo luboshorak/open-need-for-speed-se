@@ -23,6 +23,19 @@ static class Program
         Check(!circuit.Update(170), "Third midpoint");
         Check(circuit.Update(301), "Third lap finish");
 
+        // Test the real circuit boundary: TR2 (Autumn Valley) has 1024
+        // road nodes, and its finish is at index 1022. At high speed we
+        // may jump from 1021 straight to 1 without observing 1022 or 1023.
+        var skippedWrap = new RaceGateTracker(1, 1022, false);
+        Check(!skippedWrap.Update(600), "Halfway is not the finish");
+        Check(!skippedWrap.Update(1021), "Approaching the finish");
+        Check(skippedWrap.Update(1), "Crossing the unobserved wrap must count");
+        Check(!skippedWrap.Update(2), "No double count after wrap");
+
+        var backwards = new RaceGateTracker(1, 1022, false);
+        Check(!backwards.Update(700), "Midpoint reached");
+        Check(!backwards.Update(600), "Reversing inside circuit must not count");
+
         var openRoad = new RaceGateTracker(1, 572, true);
         Check(!openRoad.Update(450), "End of open road not reached");
         Check(openRoad.Update(575), "Crossing open-road finish between frames");
@@ -34,6 +47,6 @@ static class Program
         Check(!reverse.Update(240), "Midpoint reached but not finish");
         Check(reverse.Update(252), "Finish after passing midpoint");
 
-        Console.WriteLine("PASS: three circuit laps, skipped nodes, open-road finish, and reverse handling");
+        Console.WriteLine("PASS: three circuit laps, skipped nodes and wrapping, open-road finish, and reverse handling");
     }
 }
