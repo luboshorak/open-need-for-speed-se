@@ -45,7 +45,7 @@ namespace OpenNFS1
         public static bool SoundEffectsEnabled { get; set; } = true;
         public static bool RockMusic { get; set; } = true;
         public static float MusicVolume { get; set; } = 0.45f;
-        public static int CircuitLaps { get; set; } = 3;
+        public static int CircuitLaps { get; set; } = 6;
         public static RaceMode CurrentRaceMode { get; set; } = RaceMode.SingleRace;
         public static bool TimeTrial { get { return CurrentRaceMode == RaceMode.TimeTrial; } }
         public static TournamentSeries Tournament { get; set; }
