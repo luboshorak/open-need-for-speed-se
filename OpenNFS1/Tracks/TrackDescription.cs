@@ -80,6 +80,7 @@ namespace OpenNFS1
 			{
 				FileName = "SIMDATA\\MISC\\tr5.tri",
 				Name = "Oasis Springs (hidden track)",
+                HideFromMenu = true,
 				IsOpenRoad = false,
 				ImageFile = "springsr.qfs",
 				AlternativeTimeOfDay = "Morning"
