@@ -59,6 +59,22 @@ static class Program
                 font + " no longer guarantees ASCII '?' in its character region.");
         }
 
-        Console.WriteLine("PASS: fullscreen scaling, mouse mapping, and safe UI font fallback");
+        // Never allow saved 2560x1440 window preferences to open partly
+        // outside a 1920x1080 monitor, including taskbar/title-bar margins.
+        var fitted = PresentationLayout.FitWindow(2560, 1440, 1920, 1080);
+        Check(fitted.X <= 1920 - 64 && fitted.Y <= 1080 - 112,
+            "Oversized saved window exceeds the available desktop.");
+        Check(Math.Abs(fitted.X / (double)fitted.Y - 2560.0 / 1440.0) < 0.01,
+            "Fitting the window must preserve its chosen aspect ratio.");
+
+        var safeWindow = PresentationLayout.FitWindow(800, 600, 1920, 1080);
+        Check(safeWindow.X == 800 && safeWindow.Y == 600,
+            "Safe 800x600 emergency reset must remain unchanged.");
+
+        var smallMonitor = PresentationLayout.FitWindow(1280, 960, 1366, 768);
+        Check(smallMonitor.X <= 1366 - 64 && smallMonitor.Y <= 768 - 112,
+            "Smaller laptop monitor must also be protected.");
+
+        Console.WriteLine("PASS: fullscreen scaling, font safety, window fitting and rescue sizing");
     }
 }
