@@ -20,7 +20,7 @@ namespace OpenNFS1.Views
 
 		public BaseExternalView()
 		{
-			if (_bottomBar == null)
+			if (_bottomFill == null)
 			{
 				var fsh = new FshFile(@"Simdata\Misc\MaskHi.fsh");
 				_bottomFill = fsh.Header.Bitmaps.Find(a => a.Id == "0002");
