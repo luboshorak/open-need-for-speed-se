@@ -36,6 +36,7 @@ namespace GameEngine
         private GamePadState _gamePadState, _previousGamePadState;
 
         private KeyboardState _keyboardState, _previousKeyboardState;
+        private MouseState _mouseState, _previousMouseState;
         
         private const float SENSITIVITY = 1.0f;
         
@@ -61,8 +62,10 @@ namespace GameEngine
             
             _previousKeyboardState = _keyboardState;
             _previousGamePadState = _gamePadState;
+            _previousMouseState = _mouseState;
             _keyboardState = Keyboard.GetState();
             _gamePadState = GamePad.GetState(PlayerIndex.One);
+            _mouseState = Mouse.GetState();
 
             if (_previousKeyboardState == null)
                 _previousKeyboardState = _keyboardState;
@@ -102,6 +105,43 @@ namespace GameEngine
                     return 1.0f * _perFrameMultiplier;
                 else
                     return 0.0f;
+            }
+        }
+
+        /// <summary>True after a left mouse button was released.</summary>
+        public bool WasLeftMouseClicked
+        {
+            get { return Game.IsActive &&
+                    _previousMouseState.LeftButton == ButtonState.Pressed &&
+                    _mouseState.LeftButton == ButtonState.Released; }
+        }
+
+        /// <summary>
+        /// Map mouse coordinates to the virtual 640 x 480 render target, preserving
+        /// centered 4:3 letterboxing. (-1,-1) means outside the game image.
+        /// </summary>
+        public Vector2 GameMousePosition
+        {
+            get
+            {
+                if (!Game.IsActive)
+                    return new Vector2(-1, -1);
+                var presentation = Engine.Instance.Device.PresentationParameters;
+                int w = presentation.BackBufferWidth;
+                int h = presentation.BackBufferHeight;
+                if (w <= 0 || h <= 0)
+                    return new Vector2(-1, -1);
+
+                float scale = Math.Min(w / 640f, h / 480f);
+                int destWidth = Math.Max(1, (int)Math.Round(640 * scale));
+                int destHeight = Math.Max(1, (int)Math.Round(480 * scale));
+                int x0 = (w - destWidth) / 2;
+                int y0 = (h - destHeight) / 2;
+                int x = _mouseState.X - x0;
+                int y = _mouseState.Y - y0;
+                if (x < 0 || y < 0 || x >= destWidth || y >= destHeight)
+                    return new Vector2(-1, -1);
+                return new Vector2(x * 640f / destWidth, y * 480f / destHeight);
             }
         }
 
