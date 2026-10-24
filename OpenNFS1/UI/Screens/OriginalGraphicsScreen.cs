@@ -20,7 +20,7 @@ namespace OpenNFS1.UI.Screens
         private int _selected;
         private bool _originalFullScreen;
         private int _originalDrawDistance;
-        private string _notice = "F2: MODERN DISPLAY / GAMMA / UPSCALING";
+        private string _notice = "F9: MODERN DISPLAY / GAMMA / UPSCALING";
 
         private static readonly string[] Labels =
             { "scrd", "wind", "imad", "vand", "card", "hord" };
@@ -110,11 +110,17 @@ namespace OpenNFS1.UI.Screens
                 Cancel();
                 return;
             }
-            if (input.WasPressed(Keys.F2))
+            // F1-F4 are printed on the original EA background, and must
+            // retain their historical meanings. F9 is our new extension.
+            if (input.WasPressed(Keys.F9))
             {
                 Engine.Instance.Screen = new DisplayOptionsScreen(this);
                 return;
             }
+            if (input.WasPressed(Keys.F1)) { _selected = 1; Change(1); return; }
+            if (input.WasPressed(Keys.F2)) { _selected = 2; Change(1); return; }
+            if (input.WasPressed(Keys.F3)) { _selected = 3; Change(1); return; }
+            if (input.WasPressed(Keys.F4)) { _selected = 5; Change(1); return; }
             if (input.WasPressed(Keys.Up))
                 _selected = (_selected + Labels.Length - 1) % Labels.Length;
             else if (input.WasPressed(Keys.Down) || input.WasPressed(Keys.Tab))
