@@ -19,7 +19,6 @@ namespace OpenNFS1.UI.Screens
         private readonly List<TrackDescription> _tracks;
         private readonly SpriteFont _font;
         private int _index, _photo;
-        private bool _bestTimes;
         private BitmapChunk _art;
         private string _message;
 
@@ -53,7 +52,6 @@ namespace OpenNFS1.UI.Screens
         private void Load()
         {
             _photo = 1;
-            _bestTimes = false;
             _message = null;
             string code = TrackCode(_tracks[_index]);
             if (code == null)
@@ -118,15 +116,22 @@ namespace OpenNFS1.UI.Screens
             if (input.WasPressed(Keys.D)) ChangePhoto(1);
             if (input.WasPressed(Keys.T))
                 GameConfig.AlternativeTimeOfDay = !GameConfig.AlternativeTimeOfDay;
+            if (input.WasPressed(Keys.L) && !_tracks[_index].IsOpenRoad)
+                GameConfig.CircuitLaps = GameConfig.CircuitLaps % 5 + 1;
 
             if (!input.WasLeftMouseClicked) return;
             Vector2 p = input.GameMousePosition;
             if (Hit("dond", p) || Hit("donl", p)) { Back(); return; }
             if (Hit("pred", p)) { NextTrack(-1); return; }
             if (Hit("nexd", p)) { NextTrack(1); return; }
-            if (Hit("timd", p) || Hit("timl", p))
+            if (Hit("midd", p) || Hit("midl", p))
             {
-                GameConfig.AlternativeTimeOfDay = !GameConfig.AlternativeTimeOfDay;
+                GameConfig.AlternativeTimeOfDay = false;
+                return;
+            }
+            if (Hit("mord", p) || Hit("morl", p))
+            {
+                GameConfig.AlternativeTimeOfDay = true;
                 return;
             }
             if (Hit("besd", p) || Hit("besl", p))
@@ -152,7 +157,10 @@ namespace OpenNFS1.UI.Screens
             Art("timd");
             Art(GameConfig.AlternativeTimeOfDay ? "mord" : "midd");
             Art("pred"); Art("nexd"); Art("dond"); Art("besd");
-            string hint = _message ?? "LEFT/RIGHT: TRACK   A/D: PHOTO   T: TIME   ENTER: DONE";
+            string hint = _message ??
+                ("ARROWS: TRACK   A/D: PHOTO   T: TIME   " +
+                 (_tracks[_index].IsOpenRoad ? "" : "L: " + GameConfig.CircuitLaps + " LAPS   ") +
+                 "ENTER: DONE");
             sprite.DrawString(_font, hint, new Vector2(12, 420), Color.Yellow,
                 0, Vector2.Zero, 0.27f, SpriteEffects.None, 0);
             sprite.End();
