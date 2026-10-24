@@ -17,6 +17,7 @@ namespace OpenNFS1
         public static readonly SamplerState WrapSampler = SamplerState.AnisotropicWrap;
 
         public static VehicleDescription SelectedVehicle;
+        public static VehicleDescription SelectedOpponent;
         public static TrackDescription SelectedTrackDescription;
         public static Track CurrentTrack;
         public static bool ManualGearbox { get; set; }
