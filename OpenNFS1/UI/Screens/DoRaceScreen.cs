@@ -100,6 +100,17 @@ namespace OpenNFS1
 				return;
 			}
 
+			// Always provide an escape hatch when debugging unfinished races.
+			// Esc opens the pause menu; M goes straight back to Control Central.
+			if (Engine.Instance.Input.WasPressed(Keys.M))
+			{
+				_car.AudioEnabled = false;
+				VehicleController.ForceBrake = false;
+				Engine.Instance.Device.Viewport = new Viewport(0, 0, 640, 480);
+				Engine.Instance.Screen = new HomeScreen();
+				return;
+			}
+
 			if (Engine.Instance.Input.WasPressed(Keys.R))
 			{
 				_car.Reset();
