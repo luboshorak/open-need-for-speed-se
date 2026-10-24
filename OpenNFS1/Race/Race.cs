@@ -41,7 +41,11 @@ namespace OpenNFS1
 				: track.RoadNodes.Count - 2;
 			_finishGate = new RaceGateTracker(
 				player.Vehicle.CurrentNode.Number, checkpoint, track.IsOpenRoad);
-			if (track.Description.IsOpenRoad)
+			// In NFS SE open-road traffic belongs to Head to Head only.
+            // No Mercy suppresses traffic; cops still require separate AI work.
+            if (track.Description.IsOpenRoad &&
+                GameConfig.CurrentRaceMode == RaceMode.HeadToHead &&
+                !GameConfig.NoMercy)
 			{
 				_trafficController = new TrafficController(this);
 			}
