@@ -73,6 +73,7 @@ namespace OpenNFS1
 		/// </summary>
 		protected override void UnloadContent()
 		{
+            MenuSoundPlayer.Instance.Dispose();
             OriginalMusicPlayer.Instance.Dispose();
 			Engine.Instance.ContentManager.Unload();
 		}
@@ -90,6 +91,8 @@ namespace OpenNFS1
                 OriginalMusicPlayer.Instance.Update(
                     Engine.Instance.Screen is DoRaceScreen,
                     Engine.Instance.Screen is RacePausedScreen);
+                // Original FRONT_MW.BNK menu clicks, independent of AS4 music.
+                MenuSoundPlayer.Instance.Update();
             }
 		}
 
