@@ -69,6 +69,7 @@ namespace OpenNFS1.UI.Screens
         private readonly BitmapEntry _background, _vehicleSelection, _opponentSelection,
             _raceTypeSelection, _trackSelection, _raceButtonSelection;
         private readonly BitmapEntry _singleRaceArt;
+        private readonly BitmapEntry _computerOpponentsArt;
         private readonly List<VehicleUIControl> _vehicles = new List<VehicleUIControl>();
         private readonly List<TrackUIControl> _tracks = new List<TrackUIControl>();
         private readonly SpriteFont _font;
@@ -90,6 +91,7 @@ namespace OpenNFS1.UI.Screens
             // race type placeholder in CENTRAL.QFS.
             _singleRaceArt = new QfsFile(@"FRONTEND\ART\CONTROL\SINGLE.QFS")
                 .Content.Header.FindByName("0000");
+            _computerOpponentsArt = qfs.Content.Header.FindByName("Coml");
             WriteArtInventory(qfs);
 
             foreach (var vehicle in VehicleDescription.Descriptions)
@@ -265,6 +267,10 @@ namespace OpenNFS1.UI.Screens
                 if (opponent?.Texture != null)
                     sprite.Draw(opponent.Texture, opponent.GetDisplayAt(), Color.White);
             }
+
+            if (!GameConfig.TimeTrial && _computerOpponentsArt?.Texture != null)
+                sprite.Draw(_computerOpponentsArt.Texture,
+                    _computerOpponentsArt.GetDisplayAt(), Color.White);
 
             // Single Race is a genuine original game graphic. Time Trial is a
             // modern extension without an original matching asset, so label it clearly.
