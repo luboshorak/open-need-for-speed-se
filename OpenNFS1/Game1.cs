@@ -23,6 +23,12 @@ namespace OpenNFS1
 			_graphics = new GraphicsDeviceManager(this);
 			IsMouseVisible = true; // show the native cursor for main-menu interaction
 			Content.RootDirectory = "Content";
+            // Native window title identifies the exact compiled version even
+            // when an older desktop shortcut or release installation exists.
+            Version productVersion = typeof(Game1).Assembly.GetName().Version;
+            Window.Title = "Need for Speed SE Reloaded v" +
+                (productVersion == null ? "unknown" : productVersion.ToString(3));
+
 
 			GameConfig.Load(Environment.GetCommandLineArgs());
 
