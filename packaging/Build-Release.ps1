@@ -72,10 +72,23 @@ function Assert-PortableFiles([string]$Directory) {
         Assert-File (Join-Path $Directory $relative)
     }
     $files = @(Get-ChildItem -LiteralPath $Directory -Recurse -File)
-    foreach ($native in @('SDL2.dll','openal.dll')) {
-        if (@($files | Where-Object { $_.Name -ieq $native }).Count -eq 0) {
-            throw "Missing native MonoGame runtime: $native"
+    # WindowsDX uses Direct3D; SDL2.dll and openal.dll belong to DesktopGL.
+    # Validate natives only when the project actually targets DesktopGL.
+    $projectText = Get-Content -LiteralPath $proj -Raw
+    if ($projectText -match 'MonoGame\.Framework\.WindowsDX') {
+        if ($projectText -match 'MonoGame\.Framework\.DesktopGL') {
+            throw 'Mixed WindowsDX and DesktopGL references in game project.'
         }
+    }
+    elseif ($projectText -match 'MonoGame\.Framework\.DesktopGL') {
+        foreach ($native in @('SDL2.dll','openal.dll')) {
+            if (@($files | Where-Object { $_.Name -ieq $native }).Count -eq 0) {
+                throw "Missing native MonoGame DesktopGL runtime: $native"
+            }
+        }
+    }
+    else {
+        throw 'Unknown MonoGame backend in OpenNFS1.csproj; cannot validate release dependencies.'
     }
     # Do not distribute any files from the user's original commercial CD.
     $retail = @($files | Where-Object {
@@ -232,7 +245,7 @@ OPENNFS1 SE v$version - UNOFFICIAL FAN REIMPLEMENTATION
 No separately installed .NET runtime, .NET SDK, or FFmpeg is required.
 Original commercial game assets are NOT included in this release.
 Settings and saves: %LOCALAPPDATA%\OpenNFS1
-Crash diagnostics (if folder is writable): exception.txt, audio.log
+Crash diagnostics: %LOCALAPPDATA%\OpenNFS1\exception.txt
 Project: https://github.com/luboshorak/open-need-for-speed-se
 Not affiliated with or endorsed by Electronic Arts.
 "@ | Set-Content -LiteralPath (Join-Path $stage 'README-FIRST.txt') -Encoding UTF8
