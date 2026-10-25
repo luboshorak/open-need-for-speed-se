@@ -198,7 +198,6 @@ namespace OpenNFS1.UI
 
             RenderTrackMap(sprite);
             RenderRivalMarkers(sprite);
-            RenderStartingCountdown(sprite);
             sprite.End();
         }
 
