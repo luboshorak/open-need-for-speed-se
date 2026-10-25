@@ -1,86 +1,75 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using System;
 using GameEngine;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
-using OpenNFS1.Physics;
+using Microsoft.Xna.Framework.Input;
 
 namespace OpenNFS1.UI.Screens
 {
-    class RacePausedScreen : BaseUIScreen, IGameScreen
+    // Functional pause menu. Keep the live race object intact.
+    internal sealed class RacePausedScreen : BaseUIScreen, IGameScreen
     {
-        DoRaceScreen _currentRace;
-        int _selectedOption = 0;
-
-        public RacePausedScreen(DoRaceScreen currentRace)
-            : base()
+        private readonly DoRaceScreen _race;
+        private readonly string[] _items =
         {
-            _currentRace = currentRace;
+            "CONTINUE", "REPLAY", "AUDIO", "GRAPHICS DETAIL",
+            "CHAT MODE", "QUIT CURRENT GAME"
+        };
+        private int _selected;
+
+        public RacePausedScreen(DoRaceScreen race) { _race = race; }
+
+        private void ContinueRace()
+        {
+            _race.Resume();
+            Engine.Instance.Screen = _race;
         }
 
-        #region IDrawableObject Members
+        private void Activate()
+        {
+            switch (_selected)
+            {
+                case 0: ContinueRace(); break;
+                case 1: // Replay is not implemented; do not mislabel a new race as a replay.
+                case 2:
+                case 3:
+                case 4: break;
+                case 5:
+                    VehicleController.ForceBrake = false;
+                    Engine.Instance.Screen = new HomeScreen();
+                    break;
+            }
+        }
 
         public void Update(GameTime gameTime)
         {
-			//Engine.Instance.Device.Viewport = FullViewport;
-
-            if (UIController.Up && _selectedOption > 0)
-                _selectedOption--;
-            else if (UIController.Down && _selectedOption < 1)
-                _selectedOption++;
-
-            if (Engine.Instance.Input.WasLeftMouseClicked)
-            {
-                var point = Engine.Instance.Input.GameMousePosition;
-                if (point.X >= 20 && point.X <= 350 && point.Y >= 75 && point.Y <= 120)
-                {
-                    ContinueRace();
-                    return;
-                }
-                if (point.X >= 20 && point.X <= 350 && point.Y > 120 && point.Y <= 178)
-                {
-                    Engine.Instance.Screen = new HomeScreen();
-                    return;
-                }
-            }
-
-            if (UIController.Back)
+            var input = Engine.Instance.Input;
+            if (UIController.Back || input.WasPressed(Keys.P))
             {
                 ContinueRace();
                 return;
             }
-
-            if (UIController.Ok)
+            if (UIController.Up) _selected = (_selected + _items.Length - 1) % _items.Length;
+            if (UIController.Down) _selected = (_selected + 1) % _items.Length;
+            if (input.WasLeftMouseClicked)
             {
-                if (_selectedOption == 0)
+                var p = input.GameMousePosition;
+                if (p.X >= 10 && p.X < 360 && p.Y >= 160 && p.Y < 160 + _items.Length * 48)
                 {
-                    ContinueRace();
-                }
-                else
-                {
-                    Engine.Instance.Screen = new HomeScreen();
+                    _selected = Math.Clamp(((int)p.Y - 160) / 48, 0, _items.Length - 1);
+                    Activate();
+                    return;
                 }
             }
+            if (UIController.Ok) Activate();
         }
 
-		private void ContinueRace()
+        public override void Draw()
         {
-            _currentRace.Resume();
-            Engine.Instance.Screen = _currentRace;
-        }
-
-		public override void Draw()
-		{
-			base.Draw();
-			
-			WriteLine("Race paused", Color.White, 20, 30, TitleSize);
-			WriteLine("Continue", _selectedOption == 0, 60, 30, SectionSize);
-			WriteLine("Main menu", _selectedOption == 1, 40, 30, SectionSize);
-
+            base.Draw();
+            WriteLine("PAUSE", Color.Red, 16, 14, 0.90f);
+            for (int i = 0; i < _items.Length; i++)
+                WriteLine(_items[i], i == _selected, 48, 14, .58f);
             Engine.Instance.SpriteBatch.End();
         }
-
-        #endregion
     }
 }
