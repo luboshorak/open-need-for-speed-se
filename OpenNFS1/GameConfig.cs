@@ -63,6 +63,44 @@ namespace OpenNFS1
         public static float Brightness { get; set; } = 0.0f;
         public static float Contrast { get; set; } = 1.0f;
         public static string CdDataPath { get; set; } = Path.Combine(AppContext.BaseDirectory, "CD_Data");
+        // Original CD or ISO is strictly read-only input. Import always writes
+        // to the user's application data, never to a CD, mounted image, or
+        // read-only installation such as Program Files.
+        public static string ImportedCdDataPath => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "OpenNFS1", "CD_Data");
+
+        private static bool IsOriginalDataRoot(string path)
+        {
+            return !string.IsNullOrWhiteSpace(path) &&
+                File.Exists(Path.Combine(path, "FRONTEND", "ART", "CONTROL", "CENTRAL.QFS")) &&
+                File.Exists(Path.Combine(path, "SIMDATA", "MISC", "AL1.TRI"));
+        }
+
+        public static string FindOriginalDataRoot(string sourcePath)
+        {
+            if (string.IsNullOrWhiteSpace(sourcePath) || !Directory.Exists(sourcePath))
+                return null;
+
+            string root = Path.GetFullPath(sourcePath);
+            if (IsOriginalDataRoot(root)) return root;
+            // NFS SE CD editions often contain an additional NFSSE directory.
+            // Limit probing to two levels so a removable CD never undergoes
+            // an expensive recursive scan during game initialization.
+            try
+            {
+                foreach (string folder in Directory.GetDirectories(root))
+                {
+                    if (IsOriginalDataRoot(folder)) return folder;
+                    foreach (string nested in Directory.GetDirectories(folder))
+                        if (IsOriginalDataRoot(nested)) return nested;
+                }
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+            return null;
+        }
+
         public static bool Render2dScenery = true, Render3dScenery = true;
         public static bool RenderOnlyPhysicalTrack = true;
         public static int DrawDistance { get; set; } = 5000;
@@ -97,6 +135,9 @@ namespace OpenNFS1
             {
                 using var preferences = JsonDocument.Parse(File.ReadAllText(UserSettingsPath));
                 var cfg = preferences.RootElement;
+                if (cfg.TryGetProperty("cdDataPath", out var selectedPath) &&
+                    selectedPath.ValueKind == JsonValueKind.String)
+                    CdDataPath = selectedPath.GetString() ?? CdDataPath;
                 if (cfg.TryGetProperty("fullScreen", out var value)) FullScreen = value.GetBoolean();
                 if (cfg.TryGetProperty("windowWidth", out value)) WindowWidth = Math.Clamp(value.GetInt32(), 640, 3840);
                 if (cfg.TryGetProperty("windowHeight", out value)) WindowHeight = Math.Clamp(value.GetInt32(), 480, 2160);
@@ -126,16 +167,26 @@ namespace OpenNFS1
             if (!Path.IsPathRooted(CdDataPath))
                 CdDataPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, CdDataPath));
 
-            if (args == null) return;
-            for (int i = 0; i < args.Length; i++)
+            if (args != null)
             {
-                if (string.Equals(args[i], "--data", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
-                    CdDataPath = Path.GetFullPath(args[++i]);
-                else if (string.Equals(args[i], "--fullscreen", StringComparison.OrdinalIgnoreCase))
-                    FullScreen = true;
-                else if (string.Equals(args[i], "--windowed", StringComparison.OrdinalIgnoreCase))
-                    FullScreen = false;
+                for (int i = 0; i < args.Length; i++)
+                {
+                    if (string.Equals(args[i], "--data", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                        CdDataPath = Path.GetFullPath(args[++i]);
+                    else if (string.Equals(args[i], "--fullscreen", StringComparison.OrdinalIgnoreCase))
+                        FullScreen = true;
+                    else if (string.Equals(args[i], "--windowed", StringComparison.OrdinalIgnoreCase))
+                        FullScreen = false;
+                }
             }
+
+            // A mounted original CD is a source, never the installation
+            // destination. Resolve NFSSE subfolders for read-only gameplay.
+            // If this path doesn't have the required files, let the importer
+            // ask for an ISO, which will be extracted ONLY to LocalAppData.
+            CdDataPath = FindOriginalDataRoot(CdDataPath) ?? CdDataPath;
+            if (!HasOriginalGameData() && IsOriginalDataRoot(ImportedCdDataPath))
+                CdDataPath = ImportedCdDataPath;
         }
 
         private static string UserSettingsPath => Path.Combine(
@@ -160,6 +211,7 @@ namespace OpenNFS1
                     contrast = Contrast,
                     musicEnabled = MusicEnabled,
                     menuMusicEnabled = MenuMusicEnabled,
+                    cdDataPath = CdDataPath,
                     soundEffectsEnabled = SoundEffectsEnabled,
                     rockMusic = RockMusic,
                     musicVolume = MusicVolume,
