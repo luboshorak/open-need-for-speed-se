@@ -18,6 +18,7 @@ namespace OpenNFS1
         private SoundEffect _gearChange;
         private SoundEffect _skidEffect;
         private bool _isActive;
+        private bool _skidding;
 
         public VehicleAudioProvider(DrivableVehicle car) { _car = car; }
 
@@ -94,13 +95,15 @@ namespace OpenNFS1
 
         public void PlaySkid(bool play)
         {
-            if (!_isActive || _skidEffect == null || !play) return;
-            // One-shots with MonoGame SoundEffect.Play avoid leaking looping instances.
-            if (_skidDelay <= 0f)
+            if (!_isActive || _skidEffect == null) return;
+            // A brief contact sound when a skid BEGINS, not an unrelated
+            // one-shot repeated every 0.45s while holding the steering key.
+            if (play && !_skidding && _skidDelay <= 0f)
             {
                 _skidEffect.Play(0.25f, 0f, 0f);
-                _skidDelay = 0.45f;
+                _skidDelay = 0.4f;
             }
+            _skidding = play;
         }
         private float _skidDelay;
 
@@ -129,6 +132,7 @@ namespace OpenNFS1
             _accelerating?.Stop();
             _coasting?.Stop();
             _offRoad?.Stop();
+            _skidding = false;
         }
     }
 }
