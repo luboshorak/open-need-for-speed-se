@@ -32,25 +32,45 @@ if ($dirty.Count -gt 0) {
 $version = [string]$project.Project.PropertyGroup.Version
 if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Unknown project version '$version'." }
 
-if ($CdDataPath) {
-    $CdDataPath = [IO.Path]::GetFullPath($CdDataPath)
-} else {
-    $candidates = @(
-        (Join-Path $root 'OpenNFS1\CD_Data'),
-        (Join-Path $root 'CD_Data'),
-        'I:\NFSSE', 'I:\'
-    )
-    foreach ($candidate in $candidates) {
-        if (Test-Path -LiteralPath (Join-Path $candidate 'FRONTEND\ART\CONTROL\CENTRAL.QFS') -PathType Leaf) {
-            $CdDataPath = $candidate
-            break
+function Test-OriginalDataRoot([string]$Folder) {
+    return (Test-Path -LiteralPath (Join-Path $Folder 'FRONTEND\ART\CONTROL\CENTRAL.QFS') -PathType Leaf) -and
+           (Test-Path -LiteralPath (Join-Path $Folder 'SIMDATA\MISC\AL1.TRI') -PathType Leaf)
+}
+function Resolve-OriginalDataRoot([string]$Folder) {
+    if (-not (Test-Path -LiteralPath $Folder -PathType Container)) { return $null }
+    $possible = @($Folder)
+    # Only inspect two levels; different original CD editions have NFSSE
+    # as a top-level or nested folder. Do not copy or write anything here.
+    try {
+        $children = @(Get-ChildItem -LiteralPath $Folder -Directory -ErrorAction Stop)
+        foreach ($child in $children) {
+            $possible += $child.FullName
+            foreach ($nested in @(Get-ChildItem -LiteralPath $child.FullName -Directory -ErrorAction Stop)) {
+                $possible += $nested.FullName
+            }
         }
+    } catch [System.UnauthorizedAccessException] {}
+      catch [System.IO.IOException] {}
+    foreach ($candidate in $possible) {
+        if (Test-OriginalDataRoot $candidate) { return $candidate }
+    }
+    return $null
+}
+$candidates = if ($CdDataPath) { @([IO.Path]::GetFullPath($CdDataPath)) } else { @(
+    (Join-Path $root 'OpenNFS1\CD_Data'),
+    (Join-Path $root 'CD_Data'),
+    'I:\'
+) }
+$CdDataPath = $null
+foreach ($candidate in $candidates) {
+    $resolved = Resolve-OriginalDataRoot $candidate
+    if ($resolved) {
+        $CdDataPath = $resolved
+        break
     }
 }
-if (-not $CdDataPath -or
-    -not (Test-Path -LiteralPath (Join-Path $CdDataPath 'FRONTEND\ART\CONTROL\CENTRAL.QFS') -PathType Leaf) -or
-    -not (Test-Path -LiteralPath (Join-Path $CdDataPath 'SIMDATA\MISC\AL1.TRI') -PathType Leaf)) {
-    throw 'Original CD data root not found. Run: .\packaging\Verify-CurrentBuild.ps1 -CdDataPath "I:\NFSSE" (or your extracted CD_Data path).'
+if (-not $CdDataPath) {
+    throw 'Original CD data were not found. Use -CdDataPath "I:\" or a directory containing original NFSSE/FRONTEND/SIMDATA. Source is read-only; imports always go to LocalAppData.'
 }
 
 $short = $commit.Substring(0, 12)
