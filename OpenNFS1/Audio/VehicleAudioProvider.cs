@@ -50,12 +50,28 @@ namespace OpenNFS1
                         _offRoad = CreateEffect(environmentBank.Samples[5]).CreateInstance();
                         _offRoad.IsLooped = true;
                     }
-                    if (environmentBank.Samples.Count > 0)
+                    // COLL_SW sample 0 is already used for vehicle COLLISIONS.
+                    // It was mistakenly reused as road tire squeal, making
+                    // steering sound like a collision. Only use a sample with
+                    // an actual tire/skid identity verified from its BNK header.
+                    BnkSample actualSkid = environmentBank.Samples.Find(sample =>
                     {
-                        _skidEffect = CreateEffect(environmentBank.Samples[0]);
+                        string id = (sample.SourceId ?? "").Trim();
+                        return id.Equals("SKID", StringComparison.OrdinalIgnoreCase) ||
+                               id.Equals("TIRE", StringComparison.OrdinalIgnoreCase);
+                    });
+                    if (actualSkid != null)
+                    {
+                        _skidEffect = CreateEffect(actualSkid);
                         _skidLoop = _skidEffect.CreateInstance();
                         _skidLoop.IsLooped = true;
                         _skidLoop.Volume = 0.24f;
+                    }
+                    else
+                    {
+                        AudioDiagnostics.Record(new InvalidDataException(
+                            "Original tire skid sample has not been mapped. " +
+                            "Not reusing collision sample 0 as a fake tire sound."));
                     }
                 }
                 catch (Exception ex) { AudioDiagnostics.Record(ex); }
