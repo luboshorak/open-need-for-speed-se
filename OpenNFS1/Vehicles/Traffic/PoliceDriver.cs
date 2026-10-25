@@ -16,6 +16,7 @@ namespace OpenNFS1.Vehicles
         private readonly IDriver _suspect;
         private float _laneChangeCooldown;
         private int _preferredLane = 3;
+        private float _filteredSteering;
 
         public PoliceDriver(IDriver suspect)
             : base(@"SIMDATA\CARFAMS\copmust.CFM", TrafficDriverDirection.Forward)
@@ -46,21 +47,25 @@ namespace OpenNFS1.Vehicles
                 return;
             }
 
+            // Near the suspect, move into its lane only when the adjacent
+            // lane is safe. Unlike the old patrol, never weave at random.
+            int suspectLane = Math.Clamp(EstimateLane(_suspect.Vehicle.Position,
+                _suspect.Vehicle.CurrentNode ?? node), 2, 4);
             bool blocked = false;
             float blockedSpeed = 0;
             bool leftClear = true, rightClear = true;
             foreach (var driver in others)
             {
-                if (driver == this || driver == _suspect || driver.Vehicle?.CurrentNode == null)
+                if (driver == this || driver.Vehicle?.CurrentNode == null)
                     continue;
 
                 int separation = driver.Vehicle.CurrentNode.Number - node.Number;
-                if (separation <= 0 || separation >= 12)
+                if (separation < -2 || separation >= 12)
                     continue;
 
                 int otherLane = driver is AIDriver ai ? ai.VirtualLane :
                     EstimateLane(driver.Vehicle.Position, node);
-                if (otherLane == _preferredLane && separation < 9)
+                if (otherLane == _preferredLane && separation >= 0 && separation < 9)
                 {
                     blocked = true;
                     blockedSpeed = driver.Vehicle.Speed;
@@ -72,9 +77,18 @@ namespace OpenNFS1.Vehicles
             _laneChangeCooldown = Math.Max(0, _laneChangeCooldown - Engine.Instance.FrameTime);
             var decision = PoliceRoadPlanner.Plan(_suspect.Vehicle.Speed, gap,
                 _preferredLane, blocked, blockedSpeed, leftClear, rightClear);
-            if (_laneChangeCooldown <= 0 && decision.TargetLane != _preferredLane)
+            int chosenLane = decision.TargetLane;
+            if (!blocked && gap > 0 && gap <= 9 && _preferredLane != suspectLane)
             {
-                _preferredLane = decision.TargetLane;
+                // Close behind the suspect, merge one lane at a time.
+                // Clearance flags also cover the target lane's nearby traffic.
+                int step = Math.Sign(suspectLane - _preferredLane);
+                if ((step < 0 && leftClear) || (step > 0 && rightClear))
+                    chosenLane = _preferredLane + step;
+            }
+            if (_laneChangeCooldown <= 0 && chosenLane != _preferredLane)
+            {
+                _preferredLane = chosenLane;
                 _laneChangeCooldown = 2.4f;
             }
             VirtualLane = _preferredLane;
@@ -121,7 +135,10 @@ namespace OpenNFS1.Vehicles
                 heading, targetDirection, true);
             // Continuous proportional steering, never a binary left/right
             // snap and never an instant 180-degree heading reset.
-            Vehicle.SteeringInput = MathHelper.Clamp(-angle / 0.65f, -1f, 1f);
+            float desiredSteering = MathHelper.Clamp(-angle / 0.85f, -1f, 1f);
+            float response = MathHelper.Clamp(Engine.Instance.FrameTime * 3.5f, 0, 1);
+            _filteredSteering = MathHelper.Lerp(_filteredSteering, desiredSteering, response);
+            Vehicle.SteeringInput = _filteredSteering;
         }
     }
 }
