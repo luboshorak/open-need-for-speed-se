@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Inspect original NFS SE QFS/FSH artwork without a game/GPU dependency.
+r"""Inspect original NFS SE QFS/FSH artwork without a game/GPU dependency.
 
-py -3 tools/nfs_asset_map.py "C:\Path\To\CD_Data"
+py -3 tools/nfs_asset_map.py "I:\"
 py -3 tools/nfs_asset_map.py "C:\Path\To\CD_Data" --out "C:\Temp\nfs-art" --all
 Only local outputs contain copyrighted original-game images. Never commit them.
 """
@@ -244,13 +244,30 @@ def inspect(data, name, output):
 
 
 def find_files(root, all_files):
-    if root.is_file(): return [root]
+    """Find artwork under any CD layout, including I:/NFSSE/... or mixed case.
+
+    The original CD may nest FRONTEND/SIMDATA under another directory.
+    Path.glob("FRONTEND/ART") at the drive root silently skipped such discs.
+    """
+    if root.is_file():
+        return [root]
+    candidates = sorted(
+        (p for p in root.rglob("*")
+         if p.is_file() and p.suffix.casefold() in (".qfs", ".fsh")),
+        key=lambda p: str(p).casefold()
+    )
     if all_files:
-        return sorted(p for p in root.rglob("*")
-                      if p.is_file() and p.suffix.lower() in (".qfs", ".fsh"))
-    return sorted(set(p for pattern in ("FRONTEND/ART/**/*", "SIMDATA/MISC/**/*")
-                      for p in root.glob(pattern)
-                      if p.is_file() and p.suffix.lower() in (".qfs", ".fsh")))
+        return candidates
+
+    def game_art(path):
+        parts = [part.casefold() for part in path.relative_to(root).parts]
+        return any(
+            (parts[i] == "frontend" and parts[i + 1] == "art") or
+            (parts[i] == "simdata" and parts[i + 1] == "misc")
+            for i in range(len(parts) - 1)
+        )
+
+    return [p for p in candidates if game_art(p)]
 
 
 def gallery(entries, output):
@@ -285,15 +302,18 @@ def main():
     arg = argparse.ArgumentParser(description=__doc__)
     arg.add_argument("cd_data", type=Path, help="Extracted original CD root or single FSH/QFS file")
     arg.add_argument("--out", type=Path, default=Path("research/local-art-inventory"))
-    arg.add_argument("--all", action="store_true", help="Include all QFS/FSH from the CD root")
+    arg.add_argument("--all", "-all", action="store_true", help="Include all QFS/FSH from the disc, not just frontend art")
     a = arg.parse_args()
     source, output = a.cd_data.resolve(), a.out.resolve()
     if not source.exists(): arg.error(f"Not found: {source}")
     paths = find_files(source, a.all)
-    if not paths: arg.error("No QFS/FSH found. Check CD_Data path; optionally use --all")
+    if not paths: arg.error(f"No UI QFS/FSH found under {source}. Use your mounted original CD root, e.g. I:\\, with --all to scan every archive.")
     output.mkdir(parents=True, exist_ok=True)
     entries, errors = [], []
-    for path in paths:
+    print(f"Found {len(paths)} original archives under {source}")
+    for number, path in enumerate(paths, 1):
+        if number == 1 or number % 25 == 0:
+            print(f"Scanning {number}/{len(paths)}: {path.name}", flush=True)
         relative = path.relative_to(source).as_posix() if source.is_dir() else path.name
         try:
             entries.extend(inspect(decompress(path.read_bytes()), relative, output))
