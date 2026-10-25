@@ -281,18 +281,26 @@ namespace OpenNFS1.Physics
                 _audioProvider.Tick(Engine.Instance.FrameTime);
                 _audioProvider.UpdateEngine();
 
-                // Steering alone is not a tire screech. Centralize the actual
-                // physics events so one frame cannot Play then Stop a sample.
+                // Original COLL_SW slot 42 contains tire scrub/squeal.
+                // Previously we required front slip > .13 AND steering
+                // wheel > .35, which almost never occurred in normal driving.
+                // Use steering INPUT and actual speed for audible cornering,
+                // rising in volume with effort. Strong drift, handbrake and
+                // wheelspin provide stronger tire noise.
                 float roadSpeed = Math.Abs(Speed);
-                bool brakeSlip = _isOnGround && !GameConfig.AbsEnabled &&
-                    BrakePedalInput > 0.5f && roadSpeed > 12f;
-                bool lateralSlip = _isOnGround && roadSpeed > 30f &&
-                    ((Math.Abs(_rearSlipFactor) > .08f) ||
-                     (Math.Abs(_steeringWheel) > .35f && _frontSlipFactor > .13f));
-                bool skidding = (brakeSlip || lateralSlip ||
-                    (_isOnGround && Motor.WheelsSpinning && roadSpeed < 40f) ||
-                    (_isOnGround && _rotateAfterCollision != 0));
-                _audioProvider.PlaySkid(skidding);
+                float steering = Math.Clamp(Math.Abs(SteeringInput), 0f, 1f);
+                float cornering = Math.Clamp((steering - .12f) / .65f, 0f, 1f) *
+                    Math.Clamp((roadSpeed - 17f) / 50f, 0f, 1f);
+                float drift = Math.Clamp(Math.Abs(_rearSlipFactor) * 3.5f, 0f, 1f);
+                float brake = (BrakePedalInput > .65f || HandbrakeInput) &&
+                    roadSpeed > 16f ? 0.85f : 0f;
+                float spin = Motor.WheelsSpinning && roadSpeed < 45f ? .8f : 0f;
+                float collisionSpin = Math.Abs(_rotateAfterCollision) > .03f ? 1f : 0f;
+                float skid = _isOnGround
+                    ? Math.Max(cornering, Math.Max(drift,
+                        Math.Max(brake, Math.Max(spin, collisionSpin))))
+                    : 0f;
+                _audioProvider.PlaySkid(skid);
             }
 		}
 
