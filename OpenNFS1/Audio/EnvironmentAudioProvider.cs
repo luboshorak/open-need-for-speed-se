@@ -17,9 +17,15 @@ namespace OpenNFS1.Audio
         {
             try
             {
-                var samples = new BnkFile("COLL_SW.BNK").Samples;
-                for (int i = 0; i < Math.Min(3, samples.Count); i++)
-                    _collisions.Add(VehicleAudioProvider.CreateEffect(samples[i]));
+                var bank = new BnkFile("COLL_SW.BNK");
+                // The five original, one-shot impact samples occupy BNK
+                // slots 33–37. 38+ are continuous road/vehicle sounds.
+                for (int slot = 33; slot <= 37; slot++)
+                {
+                    var sample = bank.GetBySlot(slot);
+                    if (sample != null)
+                        _collisions.Add(VehicleAudioProvider.CreateEffect(sample, full: true));
+                }
             }
             catch (Exception ex) { AudioDiagnostics.Record(ex); }
         }
