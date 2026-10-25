@@ -19,6 +19,7 @@ namespace OpenNFS1
         private bool _isActive;
         private float _engineLoadBlend;
         private float _skidVolume;
+        private bool _firstSkidLogged;
         private SoundEffectInstance _skidLoop;
 
         public VehicleAudioProvider(DrivableVehicle car) { _car = car; }
@@ -62,6 +63,8 @@ namespace OpenNFS1
                     _skidLoop = CreateEffect(tireSkid).CreateInstance();
                     _skidLoop.IsLooped = true;
                     _skidLoop.Volume = 0f;
+                    AudioDiagnostics.Note("Original tire skid loaded: COLL_SW.BNK slot 42 for " +
+                        _car.Descriptor.Name);
                 }
                 catch (Exception ex) { AudioDiagnostics.Record(ex); }
 
@@ -133,6 +136,13 @@ namespace OpenNFS1
             float rate = target > _skidVolume ? 11f : 6f;
             _skidVolume += (target - _skidVolume) * Math.Clamp(dt * rate, 0f, 1f);
             _skidLoop.Volume = Math.Clamp(_skidVolume * 0.7f, 0f, 0.7f);
+            if (!_firstSkidLogged && _skidVolume > .08f)
+            {
+                _firstSkidLogged = true;
+                AudioDiagnostics.Note("Tire sound activated: COLL_SW.BNK slot 42, intensity=" +
+                    target.ToString("F2") + ", speed=" + _car.Speed.ToString("F1") +
+                    ", steering=" + _car.SteeringInput.ToString("F2"));
+            }
             SetPlayback(_skidLoop, _skidVolume > 0.015f);
         }
 
