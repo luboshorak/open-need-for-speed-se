@@ -22,6 +22,7 @@ namespace OpenNFS1
 		PlayerUI _playerUI;
 		Viewport _raceViewport, _uiViewport;
 		PlayerDriver _playerDriver;
+        private float _finishHoldSeconds;
 
 		public DoRaceScreen(Track track)
 		{
@@ -68,12 +69,18 @@ namespace OpenNFS1
 			
 			_playerUI.Update(gameTime);
 
-			if (_race.Finished)
-			{
-				_car.AudioEnabled = false;
-				Engine.Instance.Screen = new RaceFinishedScreen(_race, _track);
-				return;
-			}
+            if (_race.Finished)
+            {
+                // Keep the race scene visible briefly instead of jumping to
+                // a menu in the same frame as the finish/checkpoint crossing.
+                _finishHoldSeconds += MathHelper.Clamp((float)gameTime.ElapsedGameTime.TotalSeconds, 0f, .1f);
+                if (_finishHoldSeconds >= 2.5f)
+                {
+                    _car.AudioEnabled = false;
+                    Engine.Instance.Screen = new RaceFinishedScreen(_race, _track);
+                    return;
+                }
+            }
 
 			if (UIController.Pause)
 			{
