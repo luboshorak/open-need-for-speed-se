@@ -1,7 +1,7 @@
 #------------------------------------- Global Properties -----------------------------#
 /outputDir:bin/$(Platform)
 /intermediateDir:obj/$(Platform)
-/platform:DesktopGL
+/platform:Windows
 /config:
 /profile:HiDef
 /compress:False
