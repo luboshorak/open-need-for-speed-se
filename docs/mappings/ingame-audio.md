@@ -23,13 +23,13 @@ The `COLL_SW.BNK` common bank has:
 | 38, 40, 46 | 1.93 s | all three slots point to the **same stereo sound**; legacy code uses it for offroad |
 | 39, 52, 54 | 1.86 s | aliases of the same mono sound; loop length 1.55 s |
 | 41, 48, 50 | 0.95 s | aliases of the same stereo sound |
-| 42, 43, 45, 56, 58 | 2.11 s | aliases of the same mono sound; loop length 1.56 s |
+| 42, 43, 45, 56, 58 | 2.11 s | **CONFIRMED tire skid sound (slot 42)** by original-game listener; aliases of one mono sound; loop length 1.56 s |
 | 61 | 1.66 s | separate mono loop, not yet positively classified |
 | 62 | 0.88 s | separate mono loop, not yet positively classified |
 | 63 | 0.18 s | very short separate mono sample |
 | 80 | 0.72 s | separate mono nonlooping sample |
 
-**Do not invent tire-slip sound IDs.** `COLL_SW` slot 33 (formerly `Samples[0]`) is an impact sample, not an authenticated skid sound. Candidate groups have been separated for human audition. Finer audio mapping requires actual listening against the DOSBox original and/or provenance beyond the EACS bank header.
+**Confirmed with user audition on 2026-10-25:** `COLL_SW.BNK` **slot 42** is the original tire skid/turning sound. Runtime uses its actual 1.56-second loop. Alias slots 43/45/56/58 point to identical original data, but slot 42 is canonical. `COLL_SW` slot 33 (formerly `Samples[0]`) is instead an impact sample and must never be used for tire skid.
 
 ## Correct data use
 
@@ -38,6 +38,7 @@ The `COLL_SW.BNK` common bank has:
 - Preserve original stereo when the source contains stereo, including the car engine samples.
 - `VehicleAudioProvider` loads car-specific engine slots 1 and 2, gear slot 3 and the known offroad slot 38. Crossfade by real engine load; do not restart effects on every input change.
 - `EnvironmentAudioProvider` uses original common-bank impact slots 33–37 (whole one-shot clips).
+- `VehicleAudioProvider` uses the **verified original `COLL_SW.BNK` slot 42**, with its loop segment and continuous state-based playback, for tire slip.
 - Trigger road slip from vehicle physics once per frame. Ordinary steering without actual slip must not generate screeching.
 - Audio disabled / paused must remain disabled.
 
@@ -49,5 +50,6 @@ The `COLL_SW.BNK` common bank has:
 
 - Structural bank-slot mapping: verified from uploaded original bytes.
 - Parser fix, original stereo, full-vs-loop attack, engine/gear/impact routing: source changes made.
-- Tire screech event / source sound and countdown cues: **UNMAPPED**. Never present as restored until compared to the original game.
+- Tire-screech source sample: **VERIFIED by user (slot 42)**; in-game volume, slip thresholds, and actual output still need gameplay audition.
+- Countdown cues: **UNMAPPED** (not guessed).
 - Windows CI validates compilation and standalone tests only; it cannot audition the game or your copyrighted CD samples.
