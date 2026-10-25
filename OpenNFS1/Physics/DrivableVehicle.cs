@@ -189,6 +189,7 @@ namespace OpenNFS1.Physics
 				else if (Speed < 0)
 				{
 					Speed += drag * elapsedSeconds;
+                    if (Speed > 0) Speed = 0; // Don't start rolling forwards from reverse braking.
 				}
 			}
 		}
