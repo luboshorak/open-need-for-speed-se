@@ -18,11 +18,15 @@ namespace OpenNFS1.Vehicles.AI
 
 		public void Update(List<IDriver> otherDrivers)
 		{
-			_vehicle.ThrottlePedalInput = VehicleController.Acceleration;
-			_vehicle.BrakePedalInput = VehicleController.Brake;
-			_vehicle.SteeringInput= VehicleController.Turn;
-			_vehicle.GearDownInput = VehicleController.GearDown;
-			_vehicle.GearUpInput = VehicleController.GearUp;
+			var drive = ReverseDriveControl.Compute(GameConfig.ManualGearbox,
+                _vehicle.Motor.Gearbox.CurrentGear, _vehicle.Speed,
+                VehicleController.Acceleration, VehicleController.Brake,
+                VehicleController.GearUp, VehicleController.GearDown);
+            _vehicle.ThrottlePedalInput = drive.Throttle;
+            _vehicle.BrakePedalInput = drive.Brake;
+            _vehicle.SteeringInput = VehicleController.Turn;
+            _vehicle.GearDownInput = drive.ShiftDown;
+            _vehicle.GearUpInput = drive.ShiftUp;
 			_vehicle.HandbrakeInput = VehicleController.Handbrake;
 			_vehicle.Update();
 		}
