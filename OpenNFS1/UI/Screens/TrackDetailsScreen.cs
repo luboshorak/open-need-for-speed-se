@@ -136,9 +136,9 @@ namespace OpenNFS1.UI.Screens
             }
             if (input.WasPressed(Keys.Left)) { NextTrack(-1); return; }
             if (input.WasPressed(Keys.Right)) { NextTrack(1); return; }
-            if (input.WasPressed(Keys.A) || input.WasPressed(Keys.PageUp))
+            if (input.WasPressed(Keys.A) || input.WasPressed(Keys.Q) || input.WasPressed(Keys.PageUp))
                 ChangeSegment(-1);
-            if (input.WasPressed(Keys.D) || input.WasPressed(Keys.PageDown))
+            if (input.WasPressed(Keys.D) || input.WasPressed(Keys.E) || input.WasPressed(Keys.PageDown))
                 ChangeSegment(1);
             if (_segments.Count > 0)
             {
@@ -169,11 +169,10 @@ namespace OpenNFS1.UI.Screens
             }
             // Segment arrows on the right-hand photo are separate from the
             // bottom ROAD/TRACK arrows, which choose another entire course.
-            if (_segments.Count > 1 && p.X >= 305 && p.X < 610 &&
-                p.Y > 110 && p.Y < 390)
+            if (_segments.Count > 1 && p.Y >= 335 && p.Y < 380)
             {
-                ChangeSegment(p.X < 450 ? -1 : 1);
-                return;
+                if (p.X >= 320 && p.X < 370) { ChangeSegment(-1); return; }
+                if (p.X >= 530 && p.X < 590) { ChangeSegment(1); return; }
             }
             // Native track selection uses a small number of click targets.
             // No arbitrary "click on the map changes photos" behavior.
@@ -205,7 +204,12 @@ namespace OpenNFS1.UI.Screens
                 // Stage selection now changes the actual AL/CL/CY TRI file,
                 // not only the illustration. Keep feedback in the data field.
                 if (_segments.Count > 1)
-                    Value("SEGMENT " + _photo + " / " + _segments.Count, 185, 360, .35f);
+                {
+                    Value("<", 335, 350, .60f);
+                    Value("SEGMENT " + _photo + " / " + _segments.Count, 385, 350, .35f);
+                    Value(">", 545, 350, .60f);
+                    Value("Q / E OR 1-3", 375, 377, .26f);
+                }
             }
             else
             {

@@ -86,7 +86,9 @@ namespace OpenNFS1.Vehicles
             if (spawn && _police == null && playerNode >= 30 &&
                 playerNode < _race.Track.RoadNodes.Count - 40)
             {
-                int spawnNode = Math.Max(2, playerNode - 15);
+                // Spawn ahead so a speeding player can actually encounter the patrol. 
+                // A patrol permanently trailing behind was effectively invisible.
+                int spawnNode = Math.Min(_race.Track.RoadNodes.Count - 3, playerNode + 26);
                 try
                 {
                     var officer = new PoliceDriver(player);
