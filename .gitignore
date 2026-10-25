@@ -18,3 +18,5 @@ dist/
 
 # Extracted original game audio from local user-owned CD
 research/audio-bank-inventory/
+# Local extraction of copyrighted original NFS SE art (research only)
+research/local-art-inventory/
