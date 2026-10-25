@@ -20,6 +20,17 @@ internal static class Program
             builder.AddFile(@"NFSSE\SIMDATA\CARFAMS\MRX7.CFM", Encoding.ASCII.GetBytes("car"));
             builder.Build(isoPath);
 
+            // A mounted CD (I:\\ in normal use) and any drive root are
+            // source-only. The importer must reject them before trying a
+            // CreateDirectory or overwriting any source files.
+            bool blockedDriveRoot = false;
+            try
+            {
+                IsoDataImporter.Import(isoPath, Path.GetPathRoot(root), null);
+            }
+            catch (InvalidDataException) { blockedDriveRoot = true; }
+            Check(blockedDriveRoot, "ISO import attempted to use a drive root as destination.");
+
             string installed = Path.Combine(root, "CD_Data");
             Directory.CreateDirectory(installed);
             File.WriteAllText(Path.Combine(installed, "README.txt"), "placeholder");
