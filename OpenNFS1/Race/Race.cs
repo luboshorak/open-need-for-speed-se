@@ -38,6 +38,9 @@ namespace OpenNFS1
         public bool PoliceArrested { get; internal set; }
         public int PoliceTicketsCount { get; internal set; }
         public float PeakPlayerSpeed { get; private set; }
+        public float AveragePlayerSpeed => _speedSampleSeconds > 0 ?
+            _accumulatedSpeed / _speedSampleSeconds : 0;
+        private float _accumulatedSpeed, _speedSampleSeconds;
 		public PlayerDriver Player { get; private set; }
 		TrafficController _trafficController;
 		public List<IDriver> Drivers { get; private set; }
@@ -135,8 +138,13 @@ namespace OpenNFS1
             // Measured on each racing frame; used for authentic Best Times
             // speed records rather than an invented default table.
             if (_started && !Finished)
-                PeakPlayerSpeed = Math.Max(PeakPlayerSpeed,
-                    Math.Abs(Player.Vehicle.Speed));
+            {
+                float speed = Math.Abs(Player.Vehicle.Speed);
+                PeakPlayerSpeed = Math.Max(PeakPlayerSpeed, speed);
+                float dt = Math.Clamp(Engine.Instance.FrameTime, 0f, .1f);
+                _accumulatedSpeed += speed * dt;
+                _speedSampleSeconds += dt;
+            }
             if (!_started && SecondsTillStart > 0)
             {
                 foreach (var driver in Drivers)
