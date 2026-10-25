@@ -18,7 +18,7 @@ namespace OpenNFS1
         private SoundEffect _gearChange;
         private SoundEffect _skidEffect;
         private bool _isActive;
-        private bool _skidding;
+        private SoundEffectInstance _skidLoop;
 
         public VehicleAudioProvider(DrivableVehicle car) { _car = car; }
 
@@ -49,7 +49,12 @@ namespace OpenNFS1
                         _offRoad.IsLooped = true;
                     }
                     if (environmentBank.Samples.Count > 0)
+                    {
                         _skidEffect = CreateEffect(environmentBank.Samples[0]);
+                        _skidLoop = _skidEffect.CreateInstance();
+                        _skidLoop.IsLooped = true;
+                        _skidLoop.Volume = 0.24f;
+                    }
                 }
                 catch (Exception ex) { AudioDiagnostics.Record(ex); }
 
@@ -95,22 +100,13 @@ namespace OpenNFS1
 
         public void PlaySkid(bool play)
         {
-            if (!_isActive || _skidEffect == null) return;
-            // A brief contact sound when a skid BEGINS, not an unrelated
-            // one-shot repeated every 0.45s while holding the steering key.
-            if (play && !_skidding && _skidDelay <= 0f)
-            {
-                _skidEffect.Play(0.25f, 0f, 0f);
-                _skidDelay = 0.4f;
-            }
-            _skidding = play;
+            if (!_isActive || _skidLoop == null) return;
+            // The original effect is a continuous tire sound, not a single
+            // transient fired only on the first slip frame.
+            SetPlayback(_skidLoop, play);
         }
-        private float _skidDelay;
 
-        public void Tick(float seconds)
-        {
-            if (_skidDelay > 0f) _skidDelay -= seconds;
-        }
+        public void Tick(float seconds) { }
 
         public void ChangeGear() { if (_isActive && _gearChange != null) _gearChange.Play(0.5f, 0f, 0f); }
 
@@ -132,7 +128,7 @@ namespace OpenNFS1
             _accelerating?.Stop();
             _coasting?.Stop();
             _offRoad?.Stop();
-            _skidding = false;
+            _skidLoop?.Stop();
         }
     }
 }
