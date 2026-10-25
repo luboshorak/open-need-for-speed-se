@@ -8,6 +8,7 @@ namespace OpenNFS1.Parsers.Audio
 {
 	class BnkSample
 	{
+        public string SourceId;
 		public int NbrSamples;
 		public Int16 NbrChannels;
 		public byte[] PCMData;
@@ -55,6 +56,7 @@ namespace OpenNFS1.Parsers.Audio
 			BnkSample sample = new BnkSample();
 			reader.BaseStream.Position += 0x28;
 			string id = new string(reader.ReadChars(4));
+            sample.SourceId = id;
 			sample.SampleRate = reader.ReadInt32();
 			byte bytesPerSample = reader.ReadByte();
 			sample.NbrChannels = reader.ReadByte();
