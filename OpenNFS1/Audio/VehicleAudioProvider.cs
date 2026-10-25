@@ -16,10 +16,9 @@ namespace OpenNFS1
         private SoundEffectInstance _accelerating;
         private SoundEffectInstance _coasting;
         private SoundEffectInstance _offRoad;
-        private SoundEffect _gearChange;
-        private SoundEffect _skidEffect;
         private bool _isActive;
         private float _engineLoadBlend;
+        private float _skidVolume;
         private SoundEffectInstance _skidLoop;
 
         public VehicleAudioProvider(DrivableVehicle car) { _car = car; }
@@ -38,8 +37,10 @@ namespace OpenNFS1
                 _accelerating.IsLooped = true;
                 _coasting.IsLooped = true;
 
-                if (carBank.GetBySlot(3) != null)
-                    _gearChange = CreateEffect(carBank.GetBySlot(3), full: true);
+                // Slot 3 was incorrectly treated as a gear-change effect;
+                // on the original CD it audibly honks. Gear transitions are
+                // already reflected by the engine RPM/pitch. Do not trigger
+                // ANY unverified discrete sound on gear shifts.
 
                 try
                 {
@@ -58,10 +59,9 @@ namespace OpenNFS1
                     if (tireSkid == null)
                         throw new InvalidDataException(
                             "Original COLL_SW.BNK tire-skid sample slot 42 is missing.");
-                    _skidEffect = CreateEffect(tireSkid);
-                    _skidLoop = _skidEffect.CreateInstance();
+                    _skidLoop = CreateEffect(tireSkid).CreateInstance();
                     _skidLoop.IsLooped = true;
-                    _skidLoop.Volume = 0.27f;
+                    _skidLoop.Volume = 0f;
                 }
                 catch (Exception ex) { AudioDiagnostics.Record(ex); }
 
@@ -123,17 +123,26 @@ namespace OpenNFS1
             }
         }
 
-        public void PlaySkid(bool play)
+        public void PlaySkid(float intensity)
         {
             if (!_isActive || _skidLoop == null) return;
-            // The original effect is a continuous tire sound, not a single
-            // transient fired only on the first slip frame.
-            SetPlayback(_skidLoop, play);
+            float dt = Math.Clamp(Engine.Instance.FrameTime, 0f, 0.1f);
+            float target = Math.Clamp(intensity, 0f, 1f);
+            // Smooth genuine tire noise instead of rapidly restarting a
+            // short sound at each steering correction.
+            float rate = target > _skidVolume ? 11f : 6f;
+            _skidVolume += (target - _skidVolume) * Math.Clamp(dt * rate, 0f, 1f);
+            _skidLoop.Volume = Math.Clamp(_skidVolume * 0.7f, 0f, 0.7f);
+            SetPlayback(_skidLoop, _skidVolume > 0.015f);
         }
 
         public void Tick(float seconds) { }
 
-        public void ChangeGear() { if (_isActive && _gearChange != null) _gearChange.Play(0.5f, 0f, 0f); }
+        public void ChangeGear()
+        {
+            // No verified discrete gearbox sample is mapped yet. Playing
+            // original car-bank slot 3 here produces the HORN.
+        }
 
         public void HitGround()
         {
@@ -155,6 +164,7 @@ namespace OpenNFS1
             _offRoad?.Stop();
             _skidLoop?.Stop();
             _engineLoadBlend = 0;
+            _skidVolume = 0;
         }
     }
 }
