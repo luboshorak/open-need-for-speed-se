@@ -66,6 +66,53 @@ namespace OpenNFS1.UI
             }
         }
 
+        // Stable opponent identity: identical color on the world marker and map.
+        private static readonly Color[] RivalColors =
+        {
+            Color.Cyan, Color.Magenta, Color.LimeGreen, Color.Orange,
+            Color.DeepSkyBlue, Color.HotPink, Color.Gold
+        };
+
+        private Color MarkerColor(OpenNFS1.Vehicles.AI.IDriver driver)
+        {
+            if (driver is PlayerDriver) return Color.Yellow;
+            int index = 0;
+            foreach (var rival in _race.Drivers)
+            {
+                if (rival is RacingAIDriver)
+                {
+                    if (ReferenceEquals(rival, driver))
+                        return RivalColors[index % RivalColors.Length];
+                    index++;
+                }
+            }
+            return Color.Red;
+        }
+
+        private void RenderRivalMarkers(SpriteBatch sprite)
+        {
+            var camera = Engine.Instance.Camera;
+            if (camera == null) return;
+            var viewport = new Viewport(0, 0, 640, 400);
+            foreach (var driver in _race.Drivers)
+            {
+                if (driver is not RacingAIDriver || driver.Vehicle == null)
+                    continue;
+                var car = driver.Vehicle;
+                Vector3 position = car.Position + Vector3.Up * (car.CollisionHeight + 4);
+                Vector3 screen = viewport.Project(position, camera.Projection, camera.View, Matrix.Identity);
+                if (screen.Z < 0 || screen.Z > 1 || screen.X < 5 || screen.X > 635 ||
+                    screen.Y < 5 || screen.Y > 390) continue;
+                Color color = MarkerColor(driver);
+                int x = (int)screen.X, y = (int)screen.Y;
+                // Small down-pointing marker, no font glyph dependency.
+                sprite.Draw(_pixel, new Rectangle(x - 6, y - 9, 13, 3), color);
+                sprite.Draw(_pixel, new Rectangle(x - 4, y - 6, 9, 3), color);
+                sprite.Draw(_pixel, new Rectangle(x - 2, y - 3, 5, 3), color);
+                sprite.Draw(_pixel, new Rectangle(x, y, 1, 3), color);
+            }
+        }
+
         public void Render()
         {
             var sprite = Engine.Instance.SpriteBatch;
@@ -120,6 +167,7 @@ namespace OpenNFS1.UI
             DrawNumber(sprite, Math.Max(1, racers), 637, 6, 11, 16);
 
             RenderTrackMap(sprite);
+            RenderRivalMarkers(sprite);
             sprite.End();
         }
 
@@ -214,7 +262,7 @@ namespace OpenNFS1.UI
                     new Rectangle((int)point.X - (player ? 3 : 2),
                         (int)point.Y - (player ? 3 : 2),
                         player ? 7 : 5, player ? 7 : 5),
-                    player ? Color.Yellow : Color.Red);
+                    MarkerColor(driver));
             }
         }
 
