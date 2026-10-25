@@ -79,10 +79,19 @@ namespace OpenNFS1
 			get { return Finished ? _completedRaceTime : _started ? (_pausedAt ?? DateTime.Now) - _raceStartTime : TimeSpan.Zero; }
 		}
 
-		public int SecondsTillStart
-		{
-			get { return 3 - (int)new TimeSpan((_pausedAt ?? DateTime.Now).Ticks - _countdownStartTime.Ticks).TotalSeconds; }
-		}
+        // Original NFS SE starting lights (verified against DOSBox recording):
+        // 0..2 = three red lights, 3..4 = two yellow lights,
+        // 5 = green; after stage 5 the normal racing HUD returns.
+        // The vehicle releases when the green phase begins, not when it ends.
+        public double StartLightsElapsedSeconds =>
+            _countdownStartTime == default ? 0 :
+            Math.Max(0, ((_pausedAt ?? DateTime.Now) - _countdownStartTime).TotalSeconds);
+
+        public int StartLightStage => Math.Clamp((int)StartLightsElapsedSeconds, 0, 5);
+        public bool StartLightsVisible =>
+            _countdownStartTime != default && StartLightsElapsedSeconds < 6.0;
+
+        public int SecondsTillStart => Math.Max(0, 5 - (int)StartLightsElapsedSeconds);
 
 
 		public void StartCountdown()
