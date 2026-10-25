@@ -57,6 +57,13 @@ namespace OpenNFS1
 
 		public void Update(GameTime gameTime)
 		{
+            // Read pause BEFORE simulation advances, so a key press freezes
+            // gameplay immediately and is not consumed by another transition.
+            if (UIController.Pause)
+            {
+                Pause();
+                return;
+            }
 			Engine.Instance.Device.Viewport = _raceViewport;
 
 			_race.Update();
@@ -89,11 +96,6 @@ namespace OpenNFS1
                 }
             }
 
-			if (UIController.Pause)
-			{
-				Pause();
-				return;
-			}
 
 			// Always provide an escape hatch when debugging unfinished races.
 			// Esc opens the pause menu; M goes straight back to Control Central.
