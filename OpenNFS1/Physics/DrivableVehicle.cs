@@ -125,12 +125,12 @@ namespace OpenNFS1.Physics
 				}
 				_audioProvider.PlaySkid(true);
 			}
-			else if (_isOnGround && Math.Abs(_rearSlipFactor) > 0)
+			else if (_isOnGround && Math.Abs(_rearSlipFactor) > 0.12f && Math.Abs(Speed) > 20f)
 			{
 				Wheels[2].IsSkidding = Wheels[3].IsSkidding = true;
 				_audioProvider.PlaySkid(true);
 			}
-			else if (_isOnGround && Math.Abs(_steeringWheel) > 0.25f && _frontSlipFactor > 0.43f)
+			else if (_isOnGround && Math.Abs(_steeringWheel) > 0.25f && _frontSlipFactor > 0.43f && Math.Abs(Speed) > 35f)
 			{
 				_audioProvider.PlaySkid(true);
 			}

@@ -174,39 +174,19 @@ if (-not $SkipBuild) {
 
     New-Item -Path (Join-Path $stage 'Tools') -ItemType Directory -Force | Out-Null
     $ffmpegDest = Join-Path $stage 'Tools\ffmpeg.exe'
-    $cachedFFmpeg = Join-Path $cache 'ffmpeg.exe'
-    $cachedLicense = Join-Path $cache 'ffmpeg-license.txt'
+    $vendorDir = Join-Path $root 'third_party\\ffmpeg'
+    $vendorExe = Join-Path $vendorDir 'ffmpeg.exe'
+    $vendorLicense = Join-Path $vendorDir 'LICENSE.txt'
     if ($FFmpegExe) {
         Assert-File $FFmpegExe
         Copy-Item -LiteralPath $FFmpegExe -Destination $ffmpegDest -Force
-        Write-Warning 'Custom FFmpeg binary: verify its redistributable license/build configuration.'
+        Write-Warning 'Custom FFmpeg: verify redistributable license and decoder configuration.'
     }
     else {
-        if (-not (Test-Path -LiteralPath $cachedFFmpeg -PathType Leaf) -or
-            -not (Test-Path -LiteralPath $cachedLicense -PathType Leaf)) {
-            $url = 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n9.0-latest-win64-lgpl-9.0.zip'
-            $download = Join-Path $cache 'ffmpeg-lgpl-win64.zip'
-            $extract = Join-Path $cache 'ffmpeg-unpacked'
-            Write-Host 'First build: downloading FFmpeg LGPL (subsequent builds use cache)...' -ForegroundColor Cyan
-            try {
-                Invoke-WebRequest -Uri $url -OutFile $download -MaximumRedirection 10
-                if (Test-Path -LiteralPath $extract) { Remove-Item -LiteralPath $extract -Recurse -Force }
-                Expand-Archive -LiteralPath $download -DestinationPath $extract -Force
-                $ff = @(Get-ChildItem -LiteralPath $extract -Filter 'ffmpeg.exe' -Recurse -File | Select-Object -First 1)
-                if ($ff.Count -ne 1) { throw 'FFmpeg was not found inside downloaded archive.' }
-                $licenses = @(Get-ChildItem -LiteralPath $extract -File -Recurse | Where-Object {
-                    $_.Name -match '^(LICENSE|COPYING)(\.(txt|md|LGPL.*))?$'
-                } | Select-Object -First 1)
-                if ($licenses.Count -eq 0) { throw 'FFmpeg license file missing in LGPL archive.' }
-                Copy-Item -LiteralPath $ff[0].FullName -Destination $cachedFFmpeg -Force
-                Copy-Item -LiteralPath $licenses[0].FullName -Destination $cachedLicense -Force
-            }
-            finally {
-                if (Test-Path -LiteralPath $extract) { Remove-Item -LiteralPath $extract -Recurse -Force }
-                if (Test-Path -LiteralPath $download) { Remove-Item -LiteralPath $download -Force }
-            }
-        }
-        Copy-Item -LiteralPath $cachedFFmpeg -Destination $ffmpegDest -Force
+        Assert-File $vendorExe
+        Assert-File $vendorLicense
+        Copy-Item -LiteralPath $vendorExe -Destination $ffmpegDest -Force
+        Write-Host 'Bundling versioned third_party/ffmpeg/ffmpeg.exe (offline release).' -ForegroundColor Green
     }
     $decoderList = (& $ffmpegDest -hide_banner -decoders 2>&1 | Out-String)
     if ($LASTEXITCODE -ne 0 -or -not $decoderList.Contains('adpcm_ima_ea_eacs')) {
@@ -215,14 +195,14 @@ if (-not $SkipBuild) {
 
     $licenseDir = Join-Path $stage 'THIRD_PARTY_LICENSES'
     New-Item -Path $licenseDir -ItemType Directory -Force | Out-Null
-    if (-not $FFmpegExe -and (Test-Path -LiteralPath $cachedLicense)) {
-        Copy-Item -LiteralPath $cachedLicense -Destination (Join-Path $licenseDir 'FFmpeg-LICENSE.txt')
+    if (-not $FFmpegExe) {
+        Copy-Item -LiteralPath $vendorLicense -Destination (Join-Path $licenseDir 'FFmpeg-LICENSE.txt') -Force
     }
     @'
 FFmpeg is an independently executed program used to convert original EA EACS music.
 Upstream: https://ffmpeg.org/  License: https://ffmpeg.org/legal.html
 Binary source (LGPL build): https://github.com/BtbN/FFmpeg-Builds
-Build archive: ffmpeg-n9.0-latest-win64-lgpl-9.0.zip
+Bundled repository binary: third_party/ffmpeg/ffmpeg.exe (LGPL build)
 Any original EA game/music files must be supplied separately by the player.
 '@ | Set-Content -LiteralPath (Join-Path $licenseDir 'FFmpeg-README.txt') -Encoding UTF8
     foreach ($doc in @('readme.md','CREDITS.md')) {
