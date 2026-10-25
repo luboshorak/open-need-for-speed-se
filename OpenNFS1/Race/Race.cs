@@ -28,7 +28,10 @@ namespace OpenNFS1
         public bool Started => _started;
 		private readonly RaceGateTracker _finishGate;
         private readonly Dictionary<IDriver, TimeSpan> _racerFinishTimes = new Dictionary<IDriver, TimeSpan>();
-        private readonly Dictionary<IDriver, int> _previousRacerNodes = new Dictionary<IDriver, int>();
+        private readonly Dictionary<IDriver, RaceGateTracker> _racerGates =
+            new Dictionary<IDriver, RaceGateTracker>();
+        private readonly Dictionary<IDriver, int> _racerLapCounts =
+            new Dictionary<IDriver, int>();
         public IReadOnlyDictionary<IDriver, TimeSpan> RacerFinishTimes => _racerFinishTimes;
         public int FinishNode { get; private set; }
 		public bool Finished { get; private set; }
@@ -130,7 +133,14 @@ namespace OpenNFS1
 			}
 			Drivers.Add(d);
             if (d is RacingAIDriver || d is PlayerDriver)
-                _previousRacerNodes[d] = d.Vehicle.CurrentNode?.Number ?? 0;
+            {
+                int gateNode = Track.CheckpointNode > 1
+                    ? Math.Min(Track.CheckpointNode, Track.RoadNodes.Count - 2)
+                    : Track.RoadNodes.Count - 2;
+                _racerGates[d] = new RaceGateTracker(
+                    d.Vehicle.CurrentNode?.Number ?? 0, gateNode, Track.IsOpenRoad);
+                _racerLapCounts[d] = 0;
+            }
 		}
 
 		public void Update()
@@ -172,20 +182,25 @@ namespace OpenNFS1
             foreach (var driver in Drivers)
                 driver.Update(Drivers);
 
-            // Real per-opponent crossing times for open-road results.
-            // Unknown finish times remain unknown; never invent a ranking clock.
-            if (Track.IsOpenRoad && _started)
+            // Each competitor has an independent real finish/lap gate.
+            // This produces actual elapsed times for AI racers that crossed
+            // before the player on circuits as well as open-road segments.
+            if (_started)
             {
                 foreach (var driver in Drivers)
                 {
                     if (driver is not RacingAIDriver && driver is not PlayerDriver)
                         continue;
+                    if (!_racerGates.TryGetValue(driver, out var gate))
+                        continue;
                     int node = driver.Vehicle.CurrentNode?.Number ?? 0;
-                    int previous = _previousRacerNodes.TryGetValue(driver, out int last) ? last : node;
-                    if (!_racerFinishTimes.ContainsKey(driver) &&
-                        previous < FinishNode && node >= FinishNode)
-                        _racerFinishTimes.Add(driver, DateTime.Now - _raceStartTime);
-                    _previousRacerNodes[driver] = node;
+                    if (gate.Update(node) && !_racerFinishTimes.ContainsKey(driver))
+                    {
+                        int laps = _racerLapCounts[driver] + 1;
+                        _racerLapCounts[driver] = laps;
+                        if (Track.IsOpenRoad || laps >= _nbrLaps)
+                            _racerFinishTimes.Add(driver, DateTime.Now - _raceStartTime);
+                    }
                 }
             }
 
