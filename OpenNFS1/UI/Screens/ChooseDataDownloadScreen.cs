@@ -31,8 +31,10 @@ namespace OpenNFS1.UI.Screens
                     _error = completed.Exception.GetBaseException().Message;
                     _status = "Import failed. Press I to retry.";
                 }
-                else if (GameConfig.HasOriginalGameData())
+                else if (GameConfig.FindOriginalDataRoot(GameConfig.ImportedCdDataPath) != null)
                 {
+                    GameConfig.CdDataPath = GameConfig.ImportedCdDataPath;
+                    GameConfig.SaveUserSettings();
                     Engine.Instance.Screen = PlayerProfile.IsNamed ?
                         new GameModeScreen() : new PlayerNameScreen();
                 }
@@ -74,7 +76,7 @@ namespace OpenNFS1.UI.Screens
                 _percent = 0;
                 _status = "Reading the ISO image...";
                 _importTask = Task.Run(() =>
-                    IsoDataImporter.Import(imagePath, GameConfig.CdDataPath, (percent, status) =>
+                    IsoDataImporter.Import(imagePath, GameConfig.ImportedCdDataPath, (percent, status) =>
                     {
                         Volatile.Write(ref _percent, percent);
                         _status = status;
