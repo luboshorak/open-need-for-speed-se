@@ -50,10 +50,18 @@ namespace OpenNFS1
                         _offRoad = CreateEffect(environmentBank.GetBySlot(38)).CreateInstance();
                         _offRoad.IsLooped = true;
                     }
-                    // Real tire-slip slots in the original COLL_SW.BNK
-                    // must be determined by listening to the original CD.
-                    // 'EACS' is a *format signature*, NOT a sample type/name.
-                    // Do not play arbitrary impact sample 33 for steering.
+                    // Identified by listening to the ORIGINAL NFS SE sound
+                    // bank (user verified): COLL_SW.BNK slot 42 is tire skid.
+                    // Use only its actual BNK loop region; never replay one
+                    // of the one-shot impact samples as steering audio.
+                    BnkSample tireSkid = environmentBank.GetBySlot(42);
+                    if (tireSkid == null)
+                        throw new InvalidDataException(
+                            "Original COLL_SW.BNK tire-skid sample slot 42 is missing.");
+                    _skidEffect = CreateEffect(tireSkid);
+                    _skidLoop = _skidEffect.CreateInstance();
+                    _skidLoop.IsLooped = true;
+                    _skidLoop.Volume = 0.27f;
                 }
                 catch (Exception ex) { AudioDiagnostics.Record(ex); }
 
