@@ -193,6 +193,11 @@ namespace OpenNFS1
             SamplerState sampling = GameConfig.ScalingMode == 0
                 ? SamplerState.LinearClamp : SamplerState.PointClamp;
             Effect correction = null;
+            // WindowsDX currently renders a black frame when the optional
+            // ColorCorrection effect is bound to SpriteBatch. F8 confirms the
+            // unmodified framebuffer works. Keep native-color presentation
+            // enabled by default until this effect is ported and tested for DX.
+#if !OPENNFS_WINDOWS_DX
             if (GameConfig.VividColors || !GameConfig.OriginalColors)
             {
                 // Two distinct modes:
@@ -207,6 +212,7 @@ namespace OpenNFS1
                 _colorCorrection.Parameters["Saturation"].SetValue(vivid ? 1.18f : 1.0f);
                 correction = _colorCorrection;
             }
+#endif
 
             using (var sprite = new SpriteBatch(GraphicsDevice))
             {
