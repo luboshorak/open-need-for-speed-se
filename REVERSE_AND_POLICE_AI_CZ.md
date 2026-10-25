@@ -36,7 +36,16 @@ Nový driver:
 - když není kudy bezpečně předjet, zpomalí za překážkou;
 - drží se části silnice určené pro provoz vpřed, aby se vyhnul riskantním skokům do protisměru.
 
-Dřívější `PolicePursuitLogic` (detekce rychlosti, zastavení, pokuta, cooldown) zůstává zachována. Běží pouze v konfiguracích, ve kterých už existoval provoz a policejní pronásledování.
+Chování hlídky nyní rozlišuje historicky podstatné stavy:
+
+- **Včasné zastavení** po upozornění sirénou: varování bez pokuty, zdržení 3 sekundy a návrat do jízdy.
+- **Dopadení po skutečné honičce**: pokuta; počítadlo pokut platí pro jeden silniční úsek.
+- **Třetí pokuta** ve stejném úseku: zatčení a konec jízdy (návrat do Control Central).
+- Mezi pronásledováními zůstává cooldown. Stavová logika je testovaná bez grafiky.
+
+Tento průběh vychází z doloženého popisu původní hry v [Need for Speed Wiki](https://nfs.fandom.com/wiki/Road_%26_Track_Presents%3A_The_Need_for_Speed#Police), nikoli z úplné dekompilace DOS EXE. Přesné časové prahy, policejní manévry a sirény proto nadále vyžadují ověření.
+
+Policie se aktivuje jen v režimech, ve kterých současný engine podporuje provoz a policejní pronásledování.
 
 ### Omezení a testování
 Automatické testy kontrolují přechody automatické i manuální převodovky, obě fáze couvání, bezpečné brzdy, rychlostní odstupy pronásledování a rozhodnutí při blokovaném pruhu. Windows GitHub Actions kontroluje kompilaci a build distribučního EXE.
