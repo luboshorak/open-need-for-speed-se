@@ -1,7 +1,7 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework.Audio;
-using Microsoft.Xna.Framework;
 using GameEngine;
 using OpenNFS1.Audio;
 using OpenNFS1.Parsers.Audio;
@@ -9,172 +9,108 @@ using OpenNFS1.Physics;
 
 namespace OpenNFS1
 {
-    // Use original BNK sounds; the 2015 ConvertedAudio/*.xnb folder is not on the CD.
     class VehicleAudioProvider
     {
         private readonly DrivableVehicle _car;
-        private SoundEffectInstance _accelerating;
-        private SoundEffectInstance _coasting;
-        private SoundEffectInstance _offRoad;
-        private bool _isActive;
-        private float _engineLoadBlend;
-        private float _skidVolume;
-        private bool _firstSkidLogged;
-        private SoundEffectInstance _skidLoop;
-
+        private readonly Dictionary<string, OriginalSoundVoice> _voices = new();
+        private bool _active;
+        private float _load, _skid, _offRoad, _ambience, _gravelWait, _roadPhase;
+        private string _commonBank;
         public VehicleAudioProvider(DrivableVehicle car) { _car = car; }
-
         public void Initialize()
         {
-            if (_isActive) return;
-            try
+            if (_active) return;
+            _active = true;
+            _commonBank = OriginalAudioRules.CollisionBank(GameConfig.SelectedTrackDescription?.FileName);
+            LoadBank(_car.Descriptor.SoundBnkFile, new[] { ("power", 1, true), ("coast", 2, true),
+                ("horn", 3, true), ("gear", 32, false) });
+            LoadBank(_commonBank, new[] { ("skid", 42, true), ("offroad", 38, true),
+                ("road", 41, true), ("ambience", OriginalAudioRules.AmbienceSlot(_commonBank), true),
+                ("gravel", 80, false) });
+        }
+        private void LoadBank(string name, (string key, int slot, bool loop)[] entries)
+        {
+            BnkFile bank;
+            try { bank = new BnkFile(name); }
+            catch (Exception ex) { AudioDiagnostics.Record(ex); return; }
+            foreach (var entry in entries)
             {
-                var carBank = new BnkFile(_car.Descriptor.SoundBnkFile);
-                if (carBank.Samples.Count < 2)
-                    throw new InvalidDataException("Vehicle sound bank contains fewer than two engine samples.");
-
-                _accelerating = CreateEffect(carBank.GetBySlot(1)).CreateInstance();
-                _coasting = CreateEffect(carBank.GetBySlot(2)).CreateInstance();
-                _accelerating.IsLooped = true;
-                _coasting.IsLooped = true;
-
-                // Slot 3 was incorrectly treated as a gear-change effect;
-                // on the original CD it audibly honks. Gear transitions are
-                // already reflected by the engine RPM/pitch. Do not trigger
-                // ANY unverified discrete sound on gear shifts.
-
-                try
-                {
-                    var environmentBank = new BnkFile("COLL_SW.BNK");
-                    // Index 5 is the grass-slide effect in the original sound bank.
-                    if (environmentBank.GetBySlot(38) != null)
-                    {
-                        _offRoad = CreateEffect(environmentBank.GetBySlot(38)).CreateInstance();
-                        _offRoad.IsLooped = true;
-                    }
-                    // Identified by listening to the ORIGINAL NFS SE sound
-                    // bank (user verified): COLL_SW.BNK slot 42 is tire skid.
-                    // Use only its actual BNK loop region; never replay one
-                    // of the one-shot impact samples as steering audio.
-                    BnkSample tireSkid = environmentBank.GetBySlot(42);
-                    if (tireSkid == null)
-                        throw new InvalidDataException(
-                            "Original COLL_SW.BNK tire-skid sample slot 42 is missing.");
-                    _skidLoop = CreateEffect(tireSkid).CreateInstance();
-                    _skidLoop.IsLooped = true;
-                    _skidLoop.Volume = 0f;
-                    AudioDiagnostics.Note("Original tire skid loaded: COLL_SW.BNK slot 42 for " +
-                        _car.Descriptor.Name);
-                }
+                try { _voices.Add(entry.key, new OriginalSoundVoice(bank.GetBySlot(entry.slot),
+                    name + ":" + entry.slot + " " + entry.key, entry.loop)); }
                 catch (Exception ex) { AudioDiagnostics.Record(ex); }
-
-                _isActive = true;
-            }
-            catch (Exception ex)
-            {
-                // Missing or unknown CD sound data must not crash the race.
-                _isActive = false;
-                AudioDiagnostics.Record(ex);
             }
         }
-
         internal static SoundEffect CreateEffect(BnkSample sample, bool full = false)
         {
-            if (sample == null)
-                throw new InvalidDataException("Referenced BNK sound slot is absent.");
-            return new SoundEffect(full ? sample.FullPCMData : sample.PCMData,
-                sample.SampleRate,
+            if (sample == null) throw new InvalidDataException("Missing BNK sound slot");
+            return new SoundEffect(full ? sample.FullPCMData : sample.PCMData, sample.SampleRate,
                 sample.NbrChannels == 2 ? AudioChannels.Stereo : AudioChannels.Mono);
         }
-
-        private static void SetPlayback(SoundEffectInstance instance, bool play)
+        private void Set(string key, float volume, int bend = 64, float pan = 0)
         {
-            if (instance == null) return;
-            if (play)
-            {
-                if (instance.State == SoundState.Paused) instance.Resume();
-                else if (instance.State == SoundState.Stopped) instance.Play();
-            }
-            else if (instance.State == SoundState.Playing)
-                instance.Pause();
+            if (_active && _voices.TryGetValue(key, out var voice)) voice.Set(volume, bend, pan);
         }
-
+        private void Trigger(string key, float volume)
+        {
+            if (_active && _voices.TryGetValue(key, out var voice)) voice.Trigger(volume);
+        }
         public void UpdateEngine()
         {
-            if (!_isActive) return;
-            // Original car-specific BNK contains separate power/coasting
-            // samples. Keep both playing and crossfade by throttle; repeated
-            // Pause/Resume every key press produces pops and audible gaps.
-            SetPlayback(_accelerating, true);
-            SetPlayback(_coasting, true);
-            float dt = Math.Clamp(Engine.Instance.FrameTime, 0f, .1f);
-            float load = Math.Clamp(_car.Motor.Throttle, 0f, 1f);
-            _engineLoadBlend += (load - _engineLoadBlend) *
-                Math.Clamp(dt * 6f, 0f, 1f);
-            float redline = Math.Max(1f, _car.Motor.RedlineRpm);
-            float fraction = Math.Clamp(_car.Motor.Rpm / redline, 0f, 1f);
-            float pitch = Math.Clamp(fraction * 1.15f - .57f, -1f, 1f);
-            if (_accelerating != null)
-            {
-                _accelerating.Pitch = pitch;
-                _accelerating.Volume = Math.Clamp(0.35f * _engineLoadBlend, 0, 1);
-            }
-            if (_coasting != null)
-            {
-                _coasting.Pitch = pitch;
-                _coasting.Volume = Math.Clamp(0.35f * (1f - _engineLoadBlend), 0, 1);
-            }
+            if (!_active) return;
+            float dt = Math.Clamp(Engine.Instance.FrameTime, 0, .1f);
+            float target = _car.Motor.Gearbox.GearEngaged ? Math.Clamp(_car.Motor.Throttle, 0, 1) : 0;
+            // Original load follows throttle faster on attack than release (30 Hz physics).
+            float response = target > _load ? .5f : .125f;
+            _load += (target - _load) * (1f - MathF.Pow(1f - response, dt * 30f));
+            int bend = (int)Math.Clamp(_car.Motor.Rpm * 127f / (_car.Motor.RedlineRpm + 2f), 0, 127);
+            float level = Math.Clamp((bend + 20f) / 127f, .1f, 1f);
+            Set("power", .55f * level * MathF.Sqrt(_load), bend);
+            Set("coast", .55f * level * MathF.Sqrt(1f - _load), bend);
         }
-
         public void PlaySkid(float intensity)
         {
-            if (!_isActive || _skidLoop == null) return;
-            float dt = Math.Clamp(Engine.Instance.FrameTime, 0f, 0.1f);
-            float target = Math.Clamp(intensity, 0f, 1f);
-            // Smooth genuine tire noise instead of rapidly restarting a
-            // short sound at each steering correction.
-            float rate = target > _skidVolume ? 11f : 6f;
-            _skidVolume += (target - _skidVolume) * Math.Clamp(dt * rate, 0f, 1f);
-            _skidLoop.Volume = Math.Clamp(_skidVolume * 0.7f, 0f, 0.7f);
-            if (!_firstSkidLogged && _skidVolume > .08f)
+            float dt = Math.Clamp(Engine.Instance.FrameTime, 0, .1f);
+            _skid += (Math.Clamp(intensity, 0, 1) - _skid) * (1f - MathF.Exp(-12f * dt));
+            Set("skid", .8f * _skid, (int)(48 + 60 * _skid));
+        }
+        public void PlayOffRoad(float intensity)
+        {
+            float dt = Math.Clamp(Engine.Instance.FrameTime, 0, .1f);
+            _offRoad += (Math.Clamp(intensity, 0, 1) - _offRoad) * (1f - MathF.Exp(-10f * dt));
+            Set("offroad", .65f * _offRoad);
+        }
+        public void UpdateRoad(float speed, bool grounded, int outside, byte property)
+        {
+            float dt = Math.Clamp(Engine.Instance.FrameTime, 0, .1f);
+            bool tunnel = OriginalAudioRules.Tunnel(property);
+            bool rough = OriginalAudioRules.Rough(property);
+            float speedMps = Math.Abs(speed) / 3.6f;
+            float gain = grounded ? Math.Clamp(speedMps * 2 / 127f, 0, 1) : 0;
+            int bend = tunnel ? 94 : outside > 0 ? 24 : 64;
+            _roadPhase += dt * speedMps;
+            if (rough) bend = 64 + (int)(30 * (.5f + .5f * MathF.Sin(_roadPhase)));
+            if (grounded && speedMps > 0 && tunnel) gain = Math.Min(1, gain + 20f / 127f);
+            Set("road", gain * .65f, bend);
+            int side = OriginalAudioRules.AmbienceSide(property);
+            _ambience += ((side != 0 ? .6f : 0) - _ambience) * (1f - MathF.Exp(-6f * dt));
+            Set("ambience", _ambience, _commonBank == "COLLSWMT.BNK" ? 0 : 64, side);
+            _gravelWait -= dt;
+            bool rally = Path.GetFileNameWithoutExtension(GameConfig.SelectedTrackDescription?.FileName ?? "") == "tr5";
+            if (rally && grounded && speedMps > 4 && (rough || outside > 0) && _gravelWait <= 0)
             {
-                _firstSkidLogged = true;
-                AudioDiagnostics.Note("Tire sound activated: COLL_SW.BNK slot 42, intensity=" +
-                    target.ToString("F2") + ", speed=" + _car.Speed.ToString("F1") +
-                    ", steering=" + _car.SteeringInput.ToString("F2"));
+                Trigger("gravel", Math.Clamp(speedMps / 40, .1f, .6f));
+                _gravelWait = .25f + (float)Engine.Instance.Random.NextDouble() * .6f;
             }
-            SetPlayback(_skidLoop, _skidVolume > 0.015f);
         }
-
         public void Tick(float seconds) { }
-
-        public void ChangeGear()
-        {
-            // No verified discrete gearbox sample is mapped yet. Playing
-            // original car-bank slot 3 here produces the HORN.
-        }
-
-        public void HitGround()
-        {
-            if (!_isActive) return;
-            EnvironmentAudioProvider.Instance.PlayCollision(2);
-        }
-
-        public void PlayOffRoad(bool play)
-        {
-            if (!_isActive || _offRoad == null) return;
-            _offRoad.Volume = 0.4f;
-            SetPlayback(_offRoad, play);
-        }
-
+        public void ChangeGear() => Trigger("gear", .65f);
+        public void HitGround() { if (_active) EnvironmentAudioProvider.Instance.PlaySlot(OriginalAudioRules.Landing, .65f); }
+        public void PlayHorn(bool held) => Set("horn", held ? .7f : 0f);
         public void StopAll()
         {
-            _accelerating?.Stop();
-            _coasting?.Stop();
-            _offRoad?.Stop();
-            _skidLoop?.Stop();
-            _engineLoadBlend = 0;
-            _skidVolume = 0;
+            foreach (var voice in _voices.Values) voice.Dispose();
+            _voices.Clear(); _active = false;
+            _load = _skid = _offRoad = _ambience = _gravelWait = 0;
         }
     }
 }

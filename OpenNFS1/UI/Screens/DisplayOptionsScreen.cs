@@ -17,7 +17,8 @@ namespace OpenNFS1.UI.Screens
             (800,600), (1024,768), (1280,720), (1280,960),
             (1600,900), (1920,1080), (2560,1440)
         };
-        private const int Rows = 10;
+        private const int Rows = 11;
+        private const int RowHeight = 32;
         private readonly IGameScreen _back;
         private readonly SpriteFont _font;
         private readonly Texture2D _pixel;
@@ -29,6 +30,7 @@ namespace OpenNFS1.UI.Screens
         private readonly int _originalW, _originalH, _originalScaling, _originalDrawDistance;
         private readonly float _originalGamma, _originalBrightness, _originalContrast;
 
+        private int _defaultView;
         private bool _full;
         private int _sizeIndex, _scaling, _selected, _drawDistance;
         private float _gamma, _brightness, _contrast;
@@ -37,6 +39,7 @@ namespace OpenNFS1.UI.Screens
         public DisplayOptionsScreen(IGameScreen back)
         {
             _back = back;
+            _defaultView = GameConfig.DefaultView;
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
             _background = Engine.Instance.ContentManager.Load<Texture2D>("splash-screen");
             _pixel = new Texture2D(Engine.Instance.Device, 1, 1);
@@ -87,8 +90,9 @@ namespace OpenNFS1.UI.Screens
                     _drawDistance = distances[(index + direction + distances.Length) % distances.Length];
                     break;
                 case 7: ResetColors(); break;
-                case 8: Apply(); return;
-                case 9: Cancel(); return;
+                case 8: _defaultView = (_defaultView - 1 + direction + 3) % 3 + 1; break;
+                case 9: Apply(); return;
+                case 10: Cancel(); return;
             }
             PreviewColor();
         }
@@ -113,6 +117,7 @@ namespace OpenNFS1.UI.Screens
             try
             {
                 ((Game1)Engine.Instance.Game).ApplyDisplaySettings();
+                GameConfig.DefaultView = _defaultView;
                 GameConfig.SaveUserSettings();
                 if (_back is OriginalGraphicsScreen graphics)
                     graphics.AcceptChanges();
@@ -162,9 +167,9 @@ namespace OpenNFS1.UI.Screens
 
             if (!input.WasLeftMouseClicked) return;
             Vector2 p = input.GameMousePosition;
-            if (p.X < 30 || p.X >= 620 || p.Y < 83 || p.Y >= 443)
+            if (p.X < 30 || p.X >= 620 || p.Y < 83 || p.Y >= 83 + Rows * RowHeight)
                 return;
-            _selected = Math.Clamp(((int)p.Y - 83) / 36, 0, Rows - 1);
+            _selected = Math.Clamp(((int)p.Y - 83) / RowHeight, 0, Rows - 1);
             Change(p.X < 340 ? -1 : 1);
         }
 
@@ -182,7 +187,8 @@ namespace OpenNFS1.UI.Screens
                 case 6: return _drawDistance == 2500 ? "LOW" :
                         _drawDistance == 5000 ? "MEDIUM" : "HIGH";
                 case 7: return "RESTORE RAW COLORS";
-                case 8: return "APPLY & SAVE";
+                case 8: return new[] { "CHASE", "COCKPIT", "BUMPER" }[_defaultView - 1];
+                case 9: return "APPLY & SAVE";
                 default: return "CANCEL";
             }
         }
@@ -199,12 +205,12 @@ namespace OpenNFS1.UI.Screens
             Label(sprite, "F7: vivid  F8: raw colors  F10: window  F11: fullscreen", 30, 60, .35f, Color.LightGray);
             string[] labels = { "SCREEN", "WINDOW SIZE", "UPSCALING",
                 "GAMMA", "BRIGHTNESS", "CONTRAST",
-                "DRAW DISTANCE", "RESET", "SAVE", "BACK" };
+                "DRAW DISTANCE", "RESET", "DEFAULT CAMERA", "SAVE", "BACK" };
             for (int i = 0; i < Rows; i++)
             {
-                int y = 83 + i * 36;
+                int y = 83 + i * RowHeight;
                 if (_selected == i)
-                    sprite.Draw(_pixel, new Rectangle(25,y,590,34), Color.DarkSlateGray * 0.95f);
+                    sprite.Draw(_pixel, new Rectangle(25,y,590,RowHeight - 2), Color.DarkSlateGray * 0.95f);
                 Label(sprite, labels[i], 40, y+7, .45f,
                     _selected == i ? Color.Yellow : Color.LightGray);
                 Label(sprite, Value(i), 332, y+7, .45f,

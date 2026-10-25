@@ -1,4 +1,5 @@
 using System;
+using OpenNFS1.Audio;
 using System.Collections.Generic;
 using System.Numerics;
 using OpenNFS1.Vehicles;
@@ -14,7 +15,7 @@ namespace OpenNFS1
     /// </summary>
     internal static class VehicleCollisionResolver
     {
-        public static void Resolve(List<IDriver> drivers)
+        public static void Resolve(List<IDriver> drivers, Vehicle heldVehicle = null)
         {
             // Traffic cars and racers use the same DrivableVehicle base type.
             // Pairwise cost is modest for the 11-car race grid.
@@ -49,9 +50,11 @@ namespace OpenNFS1
 
                     // Resolve penetrations while allowing a tiny contact margin.
                     float separation = depth + 0.02f;
-                    var offset = contact * (separation * 0.5f);
-                    first.Position -= new Microsoft.Xna.Framework.Vector3(offset.X, 0, offset.Y);
-                    second.Position += new Microsoft.Xna.Framework.Vector3(offset.X, 0, offset.Y);
+                    bool heldA = ReferenceEquals(first, heldVehicle), heldB = ReferenceEquals(second, heldVehicle);
+                    var offsetA = contact * separation * (heldA ? 0 : heldB ? 1 : .5f);
+                    var offsetB = contact * separation * (heldB ? 0 : heldA ? 1 : .5f);
+                    first.Position -= new Microsoft.Xna.Framework.Vector3(offsetA.X, 0, offsetA.Y);
+                    second.Position += new Microsoft.Xna.Framework.Vector3(offsetB.X, 0, offsetB.Y);
 
                     // Simple impulse along the collision normal. Do not reverse
                     // an idle car merely because its bumper is touching another.
@@ -62,10 +65,16 @@ namespace OpenNFS1
                     if (relativeClosing <= 0)
                         continue;
 
+                    if ((first is DrivableVehicle audibleA && audibleA.AudioEnabled) ||
+                        (second is DrivableVehicle audibleB && audibleB.AudioEnabled))
+                        EnvironmentAudioProvider.Instance.PlayVehicleCollision(relativeClosing);
+
                     float massA = first is DrivableVehicle carA
                         ? Math.Max(1, carA.Descriptor.Mass) : 1500f;
                     float massB = second is DrivableVehicle carB
                         ? Math.Max(1, carB.Descriptor.Mass) : 1500f;
+                    if (heldA) massA = float.PositiveInfinity;
+                    if (heldB) massB = float.PositiveInfinity;
                     const float restitution = 0.08f;
                     float impulse = (1 + restitution) * relativeClosing /
                                     (1f / massA + 1f / massB);
@@ -83,9 +92,9 @@ namespace OpenNFS1
                     // Subtle lateral response, never a full spin just from touching.
                     float sideA = firstHeading.X * contact.Y - firstHeading.Y * contact.X;
                     float sideB = secondHeading.X * contact.Y - secondHeading.Y * contact.X;
-                    if (Math.Abs(sideA) > 0.2f && first is DrivableVehicle driveA)
+                    if (!heldA && Math.Abs(sideA) > 0.2f && first is DrivableVehicle driveA)
                         driveA.RotateCarAfterCollision = -Math.Sign(sideA) * 0.035f;
-                    if (Math.Abs(sideB) > 0.2f && second is DrivableVehicle driveB)
+                    if (!heldB && Math.Abs(sideB) > 0.2f && second is DrivableVehicle driveB)
                         driveB.RotateCarAfterCollision = Math.Sign(sideB) * 0.035f;
                 }
             }

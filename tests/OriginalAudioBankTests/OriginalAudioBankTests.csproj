@@ -6,5 +6,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../OpenNFS1/Parsers/Audio/BnkFile.cs" Link="BnkFile.cs" />
+    <Compile Include="../../OpenNFS1/Audio/DrivingAudioState.cs" Link="DrivingAudioState.cs" />
+    <Compile Include="../../OpenNFS1/Audio/OriginalAudioRules.cs" Link="OriginalAudioRules.cs" />
+    <Compile Include="../../OpenNFS1/Parsers/Audio/EacsFile.cs" Link="EacsFile.cs" />
   </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -22,8 +22,10 @@ namespace OpenNFS1.Vehicles.AI
 		TrafficDriverDirection _direction;
 
 		public TrafficDriver(string cfmFile, TrafficDriverDirection direction)
-		{
-			Vehicle = new Vehicle(cfmFile);
+            : this(new Vehicle(cfmFile), direction) { }
+        protected TrafficDriver(Vehicle vehicle, TrafficDriverDirection direction)
+        {
+            Vehicle = vehicle;
 			//Vehicle.SteeringSpeed = 7;
 			_direction = direction;
 			if (direction == TrafficDriverDirection.Forward)

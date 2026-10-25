@@ -10,5 +10,7 @@
     <Compile Include="..\..\OpenNFS1\Race\OpenRoadStageSelector.cs" Link="OpenRoadStageSelector.cs" />
     <Compile Include="..\..\OpenNFS1\Physics\ReverseDriveControl.cs" Link="ReverseDriveControl.cs" />
     <Compile Include="..\..\OpenNFS1\Vehicles\Traffic\PoliceRoadPlanner.cs" Link="PoliceRoadPlanner.cs" />
+      <Compile Include="..\..\OpenNFS1\Vehicles\AI\RacerTrafficPlanner.cs" Link="RacerTrafficPlanner.cs" />
+      <Compile Include="..\..\OpenNFS1\Vehicles\Traffic\PoliceStopPlacement.cs" Link="PoliceStopPlacement.cs" />
   </ItemGroup>
 </Project>

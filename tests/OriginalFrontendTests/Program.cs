@@ -3,6 +3,7 @@ using System.IO;
 using OpenNFS1;
 using OpenNFS1.Parsers;
 using OpenNFS1.Vehicles;
+using OpenNFS1.Vehicles.AI;
 
 static class Program
 {
@@ -68,49 +69,70 @@ static class Program
             "Identical circuit files should resolve case-insensitively.");
 
 
-        var warning = new PolicePursuitLogic();
-        bool dispatched = false;
-        for (int i = 0; i < 40; i++)
-            dispatched |= warning.Update(.1f, 145, float.MaxValue);
-        Assert(dispatched && warning.IsPursuing,
-            "Sustained speeding must trigger a patrol.");
-        warning.Update(.1f, 0, 2);
-        Assert(warning.WarningIssued && !warning.TicketIssued &&
-            !warning.IsPursuing,
-            "Immediately pulling over after the siren must produce a warning, not a ticket.");
-        warning.ClearWarning();
-
-        var officer = new PolicePursuitLogic();
-        for (int citation = 1; citation <= 3; citation++)
+        foreach (float yaw in new[] { 0f, .5f, 1.5f })
         {
-            // Wait for the prior citation's cooldown to expire.
-            for (int i = 0; i < 260; i++)
-                officer.Update(.1f, 0, float.MaxValue);
-            bool started = false;
-            for (int i = 0; i < 40; i++)
-                started |= officer.Update(.1f, 145, float.MaxValue);
-            Assert(started, "Failed to start a repeat police pursuit.");
-            // A genuine ongoing chase, not an immediately accepted warning.
-            for (int i = 0; i < 60; i++)
-                officer.Update(.1f, 80, 7);
-            for (int i = 0; i < 30; i++)
-                officer.Update(.1f, 0, 2);
-            Assert(officer.TicketIssued && officer.TicketCount == citation,
-                "Police did not record the correct citation for a caught driver.");
-            officer.ClearTicket();
-            Assert(!officer.TicketIssued, "Ticket event was not acknowledged.");
-            if (citation < 3)
-            {
-                bool repeatDuringCooldown = false;
-                for (int i = 0; i < 50; i++)
-                    repeatDuringCooldown |= officer.Update(.1f, 200, float.MaxValue);
-                Assert(!repeatDuringCooldown,
-                    "Police pursuit restarted during mandatory cooldown.");
-            }
+            var side = new System.Numerics.Vector3(MathF.Cos(yaw),0,MathF.Sin(yaw));
+            var forward = new System.Numerics.Vector3(-side.Z,0,side.X);
+            var left = -side*20; var right = side*20;
+            var original = forward*17 + side*2;
+            var pulled = PoliceStopPlacement.ToRight(original,left,right,6);
+            Assert(Math.Abs(System.Numerics.Vector3.Dot(pulled,forward)-17)<.001,
+                "Police stop must preserve longitudinal progress on rotated roads");
+            Assert(Math.Abs(System.Numerics.Vector3.Dot(pulled,side)-17)<.001,
+                "Police stop must respect half car width at verge");
         }
-        Assert(officer.IsArrested, "Third ticket must end the stage with arrest.");
-        Assert(!officer.Update(.1f, 200, float.MaxValue),
-            "Arrested driver cannot trigger another pursuit.");
+        Console.WriteLine("PASS: roadside placement preserves exact along-road progress");
+        var warning = new PolicePursuitLogic();
+        for (int i = 0; i < 100; i++) warning.Update(.03f, 180, 0, 0, 70, false);
+        Assert(!warning.IsPursuing, "Speeding without an actual patrol must not dispatch one");
+        for (int i = 0; i < 4; i++) warning.Update(.03f, 70, 50, 0, 70, true);
+        Assert(!warning.IsPursuing, "Limit equality is legal");
+        for (int i = 0; i < 4; i++) warning.Update(.03f, 90, 50, 5, 70, true);
+        Assert(!warning.IsPursuing, "Exactly five nodes is outside detection");
+        for (int i = 0; i < 4; i++) warning.Update(.03f, 90, 50, 4, 70, true);
+        Assert(warning.IsPursuing, "Nearby speeding starts the original chase");
+        for (int i = 0; i < 4; i++) warning.Update(.03f, 90, 50, 4, 70, true);
+        Assert(!warning.Caught && !warning.HasJoinedPursuit, "Patrol ahead cannot catch player merely passing it");
+        for (int i = 0; i < 4; i++) warning.Update(.03f, 90, 50, -1, 70, true);
+        Assert(warning.HasJoinedPursuit, "Patrol behind player must join actual forward pursuit");
+        for (int i = 0; i < 4; i++) warning.Update(.03f, 0, 20, 0, 70, true);
+        Assert(!warning.WarningIssued, "Stopped player alone is not a completed stop");
+        for (int i = 0; i < 4; i++) warning.Update(.03f, 0, 0, -1, 70, true);
+        Assert(!warning.WarningIssued, "Police behind the player have not caught it");
+        for (int i = 0; i < 4; i++) warning.Update(.03f, 0, 0, 0, 70, true);
+        Assert(warning.WarningIssued && warning.WarningCount == 1 && warning.TicketCount == 0,
+            "Short chase and both stopped gives a warning");
+        warning.ClearEvents();
+        Assert(!warning.WarningIssued, "Warning event acknowledgement");
+        var officer = new PolicePursuitLogic();
+        for (int citation = 1; citation <= 2; citation++)
+        {
+            for (int i = 0; i < 4; i++) officer.Update(.03f, 100, 100, -1, 70, true);
+            Assert(officer.IsPursuing, "Repeat real patrol encounter starts");
+            for (int i = 0; i < 400; i++) officer.Update(.03f, 100, 100, -1, 70, true);
+            Assert(officer.ChaseTicks == 400, "400 original ticks = 12 seconds");
+            for (int i = 0; i < 4; i++) officer.Update(.03f, 0, 0, 0, 70, true);
+            Assert(officer.TicketIssued && officer.TicketCount == citation,
+                "Long chase gives a ticket, not a warning");
+            officer.ClearEvents();
+        }
+        Assert(officer.IsArrested, "Second ticket arrests");
+        for (int i = 0; i < 4; i++) officer.Update(.03f, 200, 100, 0, 70, true);
+        Assert(!officer.IsPursuing, "Arrest prevents another pursuit");
+        foreach (float frame in new[] { 1f/30, 1f/60, 1f/144 })
+        {
+            var timed = new PolicePursuitLogic();
+            for (int i = 0; i < (int)Math.Round(1/frame); i++) timed.Update(frame, 120, 120, -1, 70, true);
+            Assert(timed.ChaseTicks == 28, "Police tick cadence must not depend on frame rate");
+        }
+        Assert(!PolicePursuitLogic.SpawnAllowed(0, 0), "Unmarked nodes never spawn police");
+        Assert(PolicePursuitLogic.SpawnAllowed(1, 32) && !PolicePursuitLogic.SpawnAllowed(1, 33), "Original inclusive odds threshold");
+        Assert(PolicePursuitLogic.SpawnAllowed(0x19, 127), "Highest category always passes odds");
+        var lost = new PolicePursuitLogic();
+        for (int i = 0; i < 4; i++) lost.Update(.03f, 120, 100, 0, 70, true);
+        for (int i = 0; i < 4; i++) lost.Update(.03f, 120, 0, 0, 70, false);
+        Assert(!lost.IsPursuing && !lost.Caught, "Disappearing patrol clears chase/caught state");
+        Assert(Math.Abs(PolicePursuitLogic.PenaltySeconds - 1.8f) < .001, "Original sixty-step hold");
 
         // Automatic Down: brake while moving forward, then shift 1st -> N
         // -> reverse and accelerate backwards with the same Down input.
@@ -140,7 +162,7 @@ static class Program
         Assert(pursuitFar.TargetSpeed > 120 && pursuitFar.TargetLane == 3,
             "Patrol must accelerate towards distant suspect without weaving.");
         var pursuitNear = PoliceRoadPlanner.Plan(0, 1, 3, false, 0, true, true);
-        Assert(pursuitNear.TargetSpeed <= 30,
+        Assert(pursuitNear.TargetSpeed > 0 && pursuitNear.TargetSpeed <= 30,
             "Patrol must slow for a stopped suspect instead of ramming the car.");
         var blocked = PoliceRoadPlanner.Plan(150, 10, 3, true, 60, true, true);
         Assert(blocked.TargetLane == 4,
@@ -151,6 +173,30 @@ static class Program
         Assert(PoliceRoadPlanner.Plan(80, 8, 2, true, 40, true, false).TargetLane == 2,
             "Patrol must not leave the right-hand carriageway into oncoming lane.");
 
+        Assert(PoliceRoadPlanner.Plan(140, 2, 3, false, 0, true, true).TargetSpeed > 140,
+            "Patrol must be able to pass a moving suspect");
+        Assert(PoliceRoadPlanner.YawStep(-1, 100, .02f) < 0, "Right turn has negative yaw in this coordinate system");
+        float slow = 1, fast = 1;
+        for (int i = 0; i < 60; i++) slow -= PoliceRoadPlanner.YawStep(slow, 100, 1f/30);
+        for (int i = 0; i < 120; i++) fast -= PoliceRoadPlanner.YawStep(fast, 100, 1f/60);
+        Assert(slow > 0 && slow < .03f && Math.Abs(slow-fast) < .01f, "Bounded steering converges without frame-dependent weaving");
+        var alert = new PolicePursuitLogic();
+        for(int i=0;i<8;i++) alert.Update(.03f,120,50,3,70,true,true,false);
+        Assert(alert.IsPursuing && !alert.Caught, "Oncoming alert must not become caught");
+        float[] offsets={-20,-10,0,10,20};
+        var oncoming=new[]{new RacerTrafficPlanner.Obstacle(150,10,7,600,10)};
+        var avoid=RacerTrafficPlanner.Plan(3,2,offsets,oncoming);
+        Assert(avoid.Lane!=3 && avoid.Brake>0, "Oncoming hazard must be handled far before contact");
+        var adjacent=new[]{new RacerTrafficPlanner.Obstacle(100,20,6,100,10)};
+        Assert(RacerTrafficPlanner.Plan(3,2,offsets,adjacent).Lane==3, "Adjacent traffic is not an obstacle in our lane");
+        var packedTraffic=new[]{new RacerTrafficPlanner.Obstacle(100,10,7,200,10),
+            new RacerTrafficPlanner.Obstacle(0,0,7,0,10),new RacerTrafficPlanner.Obstacle(0,20,7,0,10)};
+        var stop=RacerTrafficPlanner.Plan(3,2,offsets,packedTraffic);
+        Assert(stop.Lane==3 && stop.Brake>0, "Blocked adjacent lanes require braking instead of ramming");
+        var edge=RacerTrafficPlanner.Plan(2,2,offsets,new[]{new RacerTrafficPlanner.Obstacle(80,0,7,200,10)});
+        Assert(edge.Lane>=2, "Never evade into oncoming carriageway");
+        Console.WriteLine("PASS: alert vs joined pursuit; predictive oncoming avoidance, adjacent clearance and emergency braking");
+        Console.WriteLine("PASS: original patrol detection, cadence, catch, warning/ticket, second-ticket arrest, spawn odds and stable steering");
         Console.WriteLine("PASS: Huffman QFS, player name, AL/CL/CY segments, reverse gear, police gap steering and tickets");
     }
 }

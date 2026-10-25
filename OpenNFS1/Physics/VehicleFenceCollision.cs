@@ -100,7 +100,7 @@ namespace OpenNFS1.Physics
         {
 			if (car.AudioEnabled && Math.Abs(collisionAngle) > MathHelper.ToRadians(30))
 			{
-				EnvironmentAudioProvider.Instance.PlayVehicleFenceCollision();
+				EnvironmentAudioProvider.Instance.PlayVehicleFenceCollision(Math.Abs(car.Speed) * Math.Abs((float)Math.Sin(collisionAngle)));
 			}
 
             // if we hit the front wheels, change the direction to almost match the fence direction.  If we hit the back wheels this looks weird so
@@ -121,7 +121,7 @@ namespace OpenNFS1.Physics
         {
 			if (car.AudioEnabled)
 			{
-				EnvironmentAudioProvider.Instance.PlayVehicleFenceCollision();
+				EnvironmentAudioProvider.Instance.PlayVehicleFenceCollision(Math.Abs(car.Speed) * Math.Abs((float)Math.Sin(collisionAngle)));
 			}
 
 

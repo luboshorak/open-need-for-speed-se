@@ -1,55 +1,35 @@
-# Original NFS SE — sound bank forensic mapping
+# NFS SE driving audio — repair 2
 
-Source: user's original `nfs-se-original-audio.zip` with **38** original BNK files, inspected 2026-10-25. Individual samples are not distributed in this repository.
+Original recordings are read from the player's game files and are not distributed.
+BNK offsets are indexed by original slot, including aliases; EACS identifies a format, not a sound.
 
-## The crucial parser issue
-
-Each BNK begins with an array of **128 absolute file offsets indexed by the original sound slot**. Nonzero slots do NOT form a zero-based array of distinct sounds; many slots point to the **same** sound bytes. Consequently `Samples[5]` is not a durable semantic identifier. `EACS` is the constant *audio format identifier*, not a label that means "skid" or "engine".
-
-The player car banks (`911_SW.BNK`, `SUPRA_SW.BNK`, `RX7_SW.BNK`, `TR512_SW.BNK`, `VIPERSW.BNK`, etc.) have:
-
-| Original slot | Duration | Evidence / usage |
+| Bank | Slot | Use |
 |---|---|---|
-| 1 | 0.34–0.73 s | looping first engine sample (acceleration) |
-| 2 | 0.43–0.73 s | looping second engine sample (coasting) |
-| 3 | 0.19–0.37 s | short gear-shift-related sample (preserve full attack) |
-| 32 | 0.32–0.74 s | separate sound, distinct from gear sample |
+| Player car | 1 / 2 | Power / coast engine |
+| Player car | 3 / 32 | Horn (H) / gear clunk |
+| COLLSWWT.BNK; COLLSWMT.BNK on tr7 | 33 / 34 / 36 | Increasing car impact severity |
+| Common | 35 / 37 | Wall / landing |
+| Common | 38 / 41 / 42 | Offroad slip / road rolling / tire skid |
+| Common | 48 / 56 / 63 | Traffic engine / skid / horn |
+| Common | 62 (61 on tr7) / 80 | Track ambience / gravel |
+| Opponent car-specific bank | 67 / 65 | Engine / horn |
+| NFS_FMMB.BNK | 97 / 98 / 100 | Radar / siren / siren echo |
+| FRONTEND/SPEECH | BESTTIME, BESTLAST, FINALLAP.EAS | Circuit lap announcements |
 
-The `COLL_SW.BNK` common bank has:
+Playback preserves full PCM, original loop bounds, bank gain, pitch cents and bend reach. Player audio retains stereo; positional emitters are downmixed before panning. Standalone speech uses IMA ADPCM, high nibble first and zero initial state. Each voice loads independently. After stopping, recreate the instance: MonoGame/XAudio can briefly retain Playing state and ignore immediate Play on the old instance.
 
-| Original slot(s) | Sound duration | Measurable observations |
-|---|---|---|
-| 33–37 | 0.58–0.96 s | five distinct, nonlooping samples used by preexisting collision player |
-| 38, 40, 46 | 1.93 s | all three slots point to the **same stereo sound**; legacy code uses it for offroad |
-| 39, 52, 54 | 1.86 s | aliases of the same mono sound; loop length 1.55 s |
-| 41, 48, 50 | 0.95 s | aliases of the same stereo sound |
-| 42, 43, 45, 56, 58 | 2.11 s | **CONFIRMED tire skid sound (slot 42)** by original-game listener; aliases of one mono sound; loop length 1.56 s |
-| 61 | 1.66 s | separate mono loop, not yet positively classified |
-| 62 | 0.88 s | separate mono loop, not yet positively classified |
-| 63 | 0.18 s | very short separate mono sample |
-| 80 | 0.72 s | separate mono nonlooping sample |
+Road audio follows speed/contact, tunnel and rough-surface properties; track properties select directional ambience. Police pursuit drives radar/sirens. Pause, focus loss and race exit stop racing audio.
 
-**Confirmed with user audition on 2026-10-25:** `COLL_SW.BNK` **slot 42** is the original tire skid/turning sound. Runtime uses its actual 1.56-second loop. Alias slots 43/45/56/58 point to identical original data, but slot 42 is canonical. `COLL_SW` slot 33 (formerly `Samples[0]`) is instead an impact sample and must never be used for tire skid.
+## Evidence and limits
 
-## Correct data use
+Factual mappings/event research: [ReNFS racesnd.c](https://github.com/ItsDanik/ReNFS/blob/main/port/src/racesnd.c), [sndlib.c](https://github.com/ItsDanik/ReNFS/blob/main/port/src/sndlib.c), [notes](https://github.com/ItsDanik/ReNFS/blob/main/docs/NOTES.md). The C# implementation is independent.
 
-- `BnkFile.GetBySlot(slot)` preserves the original sound slot and does not confuse aliases.
-- `FullPCMData` contains the **whole** sound (for one-shot impacts or gear changes); `PCMData` contains the loop region for continuous engine/road sounds.
-- Preserve original stereo when the source contains stereo, including the car engine samples.
-- `VehicleAudioProvider` loads car-specific engine slots 1 and 2, gear slot 3 and the known offroad slot 38. Crossfade by real engine load; do not restart effects on every input change.
-- `EnvironmentAudioProvider` uses original common-bank impact slots 33–37 (whole one-shot clips).
-- `VehicleAudioProvider` uses the **verified original `COLL_SW.BNK` slot 42**, with its loop segment and continuous state-based playback, for tire slip.
-- Trigger road slip from vehicle physics once per frame. Ordinary steering without actual slip must not generate screeching.
-- Audio disabled / paused must remain disabled.
+Direct inspection of the user's original DOS NFS.EXE load image confirms slots 32/37 in the hit routine at 0x52c38, radar periods at 0x52560, and RET at the countdown beep routine 0x5257c. No countdown beep is invented for this executable.
 
-## Countdown/audio unknowns
+Mix curves, distances, Doppler, traffic horn triggers and gravel cadence are approximations adapted to this remake. Best-lap speech compares this race's laps, not a persistent original record. Slot 39 body scrape is not wired because the remake lacks the corresponding body tumbling state. Additional original voices/aliases (43, 50, 58, 69) are represented by one skid per vehicle and up to two nearby vehicles. This is not a claim of identical mixing or complete crash-animation parity.
 
-`FRONT_MW.BNK` has original slots 71 (0.06s), 72 (0.13s), 73 (0.70s), and 74 (2.37s). `NFS_FMMB.BNK` has slots 97, 98/100 aliases, 105, 106. Whether any of these are the race-start beeps is **not established** from bank structure alone.
+## Validation
 
-## Current acceptance status
+OriginalAudioBankTests checks 38 original banks, 329 populated slots, read-only access, aliases, loop bounds, signed stereo PCM, driving states, pitch and event rules. Three speech outputs match independent Python audioop decoding byte for byte.
 
-- Structural bank-slot mapping: verified from uploaded original bytes.
-- Parser fix, original stereo, full-vs-loop attack, engine/gear/impact routing: source changes made.
-- Tire-screech source sample: **VERIFIED by user (slot 42)**; in-game volume, slip thresholds, and actual output still need gameplay audition.
-- Countdown cues: **UNMAPPED** (not guessed).
-- Windows CI validates compilation and standalone tests only; it cannot audition the game or your copyrighted CD samples.
+`OpenNFS1.exe --audio-audit <CD_Data> <report>` starts, stops and restarts 80 bank/speech cases through MonoGame: 80 passed, 0 failed. Output is muted; this checks backend state, not listening quality or all gameplay triggers. Release build: zero errors. Window title identifies `[Audio repair 2]`.

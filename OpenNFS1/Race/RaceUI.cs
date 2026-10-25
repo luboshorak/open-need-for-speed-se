@@ -94,6 +94,7 @@ namespace OpenNFS1.UI
         private Color MarkerColor(OpenNFS1.Vehicles.AI.IDriver driver)
         {
             if (driver is PlayerDriver) return Color.Yellow;
+            if (driver is OpenNFS1.Vehicles.PoliceDriver) return _race.PolicePursuitActive ? Color.Red : Color.Blue;
             int index = 0;
             foreach (var rival in _race.Drivers)
             {
@@ -192,15 +193,31 @@ namespace OpenNFS1.UI
 
             int racers = _race.Drivers.Count(d => d is RacingAIDriver || d is PlayerDriver);
             DrawNumber(sprite,
-                Math.Clamp(_race.PlayerStats.Position + 1, 1, Math.Max(1, racers)),
+                Math.Clamp(_race.PlayerStats.Place, 1, Math.Max(1, racers)),
                 592, 6, 11, 16);
             DrawNumber(sprite, Math.Max(1, racers), 637, 6, 11, 16);
 
             RenderTrackMap(sprite);
             RenderRivalMarkers(sprite);
+            RenderPolicePicture(sprite);
             sprite.End();
         }
 
+        private BitmapChunk _policePicture;
+        private bool _wasWarning;
+        private void RenderPolicePicture(SpriteBatch sprite)
+        {
+            if (!_race.PoliceWarned && !_race.PoliceTicketed) { _policePicture = null; return; }
+            if (_policePicture == null || _wasWarning != _race.PoliceWarned)
+            {
+                _wasWarning = _race.PoliceWarned;
+                try { _policePicture = new QfsFile(@"SIMDATA\MISC\" +
+                    (_wasWarning ? "WARNDH.QFS" : "TICKETDH.QFS")).Content.Header; }
+                catch (System.IO.IOException error) { OpenNFS1.Audio.AudioDiagnostics.Record(error); return; }
+            }
+            var image = _policePicture.FindByName("scrn");
+            if (image?.Texture != null) sprite.Draw(image.Texture, new Rectangle(0, 0, 640, 480), Color.White);
+        }
         private void RenderStartingCountdown(SpriteBatch sprite)
         {
             // Video reference: left-to-right RED RED RED, YELLOW YELLOW,
@@ -286,7 +303,8 @@ namespace OpenNFS1.UI
 
             foreach (var driver in _race.Drivers)
             {
-                if (driver is not PlayerDriver && driver is not RacingAIDriver)
+                if (driver is not PlayerDriver && driver is not RacingAIDriver &&
+                    !(driver is OpenNFS1.Vehicles.PoliceDriver && _race.PoliceRadarNear))
                     continue;
                 int node = driver.Vehicle.CurrentNode?.Number ?? 0;
                 Vector2 point;

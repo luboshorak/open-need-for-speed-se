@@ -15,12 +15,13 @@ namespace OpenNFS1
 		const int DebugViewIndex = 0;
 		DrivableVehicle _vehicle;
 		List<IView> _views = new List<IView>();
-		int _currentView = 1;
+		int _currentView;
 
 
 		public PlayerUI(DrivableVehicle vehicle)
 		{
 			_vehicle = vehicle;
+            _currentView = System.Math.Clamp(GameConfig.DefaultView, 1, 3);
 
 			_views.Add(new DebugView(_vehicle));
 			_views.Add(new ChaseView(_vehicle, 32, 14, 0));
@@ -28,6 +29,9 @@ namespace OpenNFS1
 			_views.Add(new BumperView(_vehicle));
 			_views.Add(new DropCameraView(_vehicle));
 			_views[_currentView].Activate();
+            // Initialize camera position/look direction before the first Draw too.
+            _views[_currentView].Update(new GameTime());
+            Engine.Instance.Camera.Update(new GameTime());
 		}
 
 		public bool ShouldRenderCar { get { return _views[_currentView].ShouldRenderPlayer; } }

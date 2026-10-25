@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using Microsoft.Xna.Framework;
@@ -146,6 +146,14 @@ namespace OpenNFS1.Physics
             float power = _maxPower * MathHelper.Lerp(_powerCurve[(int)_redlineRpm], _powerCurve[(int)_redlineRpm + 1], _redlineRpm - (int)_redlineRpm);
             power *= _gearbox.Ratios[gear];
             return power;
+        }
+
+        public void ResetForPoliceStop()
+        {
+            _throttle = _currentPowerOutput = _lastCarSpeed = _rpmLimiter = 0;
+            _rpm = _prevRpm = _prevEngagedRpm = .8f;
+            WheelsSpinning = false;
+            _gearbox.ResetToNeutral();
         }
 
         public void Idle()

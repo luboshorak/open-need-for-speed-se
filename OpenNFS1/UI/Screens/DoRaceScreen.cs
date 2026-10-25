@@ -1,4 +1,5 @@
 using System;
+using OpenNFS1.Audio;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -25,6 +26,8 @@ namespace OpenNFS1
         private float _finishHoldSeconds;
         private bool _finishDriftStarted;
         private bool _silentPause;
+        private readonly TrafficAudioProvider _trafficAudio = new();
+        private readonly RaceEventAudio _eventAudio = new();
 
 		public DoRaceScreen(Track track)
 		{
@@ -58,6 +61,11 @@ namespace OpenNFS1
 
 		public void Update(GameTime gameTime)
 		{
+            if (!Engine.Instance.Game.IsActive)
+            {
+                Pause();
+                return;
+            }
             var input = Engine.Instance.Input;
             // NFS SE: ESC opens the pause menu; P freezes the current view.
             if (input.WasPressed(Keys.Escape) ||
@@ -73,7 +81,7 @@ namespace OpenNFS1
                 if (_silentPause)
                 {
                     _race.PauseClock();
-                    _car.AudioEnabled = false;
+                    StopRaceAudio();
                 }
                 else Resume();
                 return;
@@ -82,9 +90,11 @@ namespace OpenNFS1
 			Engine.Instance.Device.Viewport = _raceViewport;
 
 			_race.Update();
-            if (_race.PoliceTicketed || _race.PoliceWarned || _race.PoliceArrested)
+            _trafficAudio.Update(_race);
+            _eventAudio.Update(_race);
+            if ((_race.PoliceArrested || _race.PoliceTicketsCount >= 2) && !_race.PolicePlayerHeld)
             {
-                _car.AudioEnabled = false;
+                StopRaceAudio();
                 Engine.Instance.Screen = new PoliceTicketScreen(_race, this);
                 return;
             }
@@ -104,7 +114,7 @@ namespace OpenNFS1
                 _finishHoldSeconds += MathHelper.Clamp((float)gameTime.ElapsedGameTime.TotalSeconds, 0f, .1f);
                 if (_finishHoldSeconds >= 2.5f)
                 {
-                    _car.AudioEnabled = false;
+                    StopRaceAudio();
                     var finishMenu = new RaceFinishedScreen(_race, _track);
                     Engine.Instance.Screen = new RaceStandingsScreen(_race, _race.RaceTime, finishMenu);
                     return;
@@ -116,7 +126,7 @@ namespace OpenNFS1
 			// Esc opens the pause menu; M goes straight back to Control Central.
 			if (Engine.Instance.Input.WasPressed(Keys.M))
 			{
-				_car.AudioEnabled = false;
+				StopRaceAudio();
 				VehicleController.ForceBrake = false;
 				Engine.Instance.Device.Viewport = new Viewport(0, 0, 640, 480);
 				Engine.Instance.Screen = new HomeScreen();
@@ -132,10 +142,18 @@ namespace OpenNFS1
 			Engine.Instance.Camera.Update(gameTime);
 		}
 
+        private void StopRaceAudio()
+        {
+            _car.AudioEnabled = false;
+            EnvironmentAudioProvider.StopAll();
+            _trafficAudio.StopAll();
+            _eventAudio.StopAll();
+        }
+
 		public void Pause()
 		{
             _race.PauseClock();
-			_car.AudioEnabled = false;
+			StopRaceAudio();
 			Engine.Instance.Screen = new RacePausedScreen(this);
 		}
 

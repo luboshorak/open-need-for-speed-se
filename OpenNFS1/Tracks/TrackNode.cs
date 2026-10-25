@@ -1,4 +1,4 @@
-﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework;
 using OpenNFS1;
 using GameEngine;
 using System;
@@ -44,6 +44,8 @@ namespace OpenNFS1.Tracks
 		public float Orientation;
 		public Vector3 Up;
 		public byte[] unk1, unk2;
+        public byte PoliceFlags => unk1 != null && unk1.Length > 0 ? unk1[0] : (byte)0;
+        public byte TrafficSpeed, PoliceLimit, ChaseLimit; // original metres/second
 		public TrackNode Next, Prev;
 
 		const float SlantMultiplier = 1.028f;

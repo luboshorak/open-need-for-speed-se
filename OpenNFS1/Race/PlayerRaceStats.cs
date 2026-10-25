@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,7 +11,9 @@ namespace OpenNFS1
 		DateTime _currentLapStartTime = DateTime.MinValue;
 		public List<int> LapTimes = new List<int>();
 		public bool HasPassedLapHalfwayPoint;
-		public int Position { get; set; }
+		// Internal rank is zero-based (also used by tournament scoring).
+        public int Position { get; set; }
+        public int Place => Position + 1;
 
 		public void OnLapStarted()
 		{

@@ -9,6 +9,8 @@ namespace OpenNFS1
     static class VehicleController
     {
 
+        public static bool Horn => !ForceBrake && Engine.Instance.Input.IsKeyDown(Keys.H);
+
         public static bool ForceBrake { get; set; }
 
         public static float Acceleration

@@ -4,11 +4,13 @@ namespace OpenNFS1.Vehicles
 {
     /// <summary>
     /// Deterministic highway patrol behavior, separate from MonoGame movement.
-    /// Target closing speed falls away near the suspect, and a blocker in the
+    /// The patrol may pass the suspect, and a blocker in the
     /// current lane prompts a safe adjacent-lane choice instead of ramming it.
     /// </summary>
     internal static class PoliceRoadPlanner
     {
+        public static float YawStep(float error, float speed, float dt) => speed < .1f ? 0 :
+            Math.Clamp(error * 2, -1.4f, 1.4f) * Math.Clamp(dt, 0, .1f);
         internal readonly struct Decision
         {
             public readonly float TargetSpeed;
@@ -22,16 +24,10 @@ namespace OpenNFS1.Vehicles
         {
             float playerSpeed = Math.Abs(suspectSpeed);
             float targetSpeed;
-            if (suspectNodeGap <= 1)
-                targetSpeed = Math.Min(30, playerSpeed + 3); // hold, don't ram
-            else if (suspectNodeGap <= 3)
-                targetSpeed = Math.Min(60, playerSpeed + 9);
-            else if (suspectNodeGap <= 7)
-                targetSpeed = Math.Max(60, playerSpeed + 12);
-            else
-                targetSpeed = Math.Max(95, playerSpeed + 24);
-
-            targetSpeed = Math.Clamp(targetSpeed, 0, 175);
+            // Passing is necessary before the original caught flag can be set.
+            targetSpeed = suspectNodeGap < -3 ? playerSpeed : playerSpeed + 20;
+            if (playerSpeed < 3 && suspectNodeGap <= 0) targetSpeed = 0;
+            targetSpeed = Math.Clamp(targetSpeed, 0, 330);
             int preferredLane = Math.Clamp(lane, 0, 4);
             if (blockerAhead)
             {

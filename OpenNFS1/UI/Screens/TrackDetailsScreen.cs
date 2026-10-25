@@ -17,6 +17,7 @@ namespace OpenNFS1.UI.Screens
     /// </summary>
     internal sealed class TrackDetailsScreen : IGameScreen
     {
+        internal string Narration => OpenNFS1.Audio.NarrationRules.Track(TrackCode(_tracks[_index]));
         private readonly List<TrackDescription> _tracks;
         private readonly IGameScreen _returnScreen;
         private readonly SpriteFont _font;

@@ -1,5 +1,6 @@
 
 using System;
+using OpenNFS1.Audio;
 using System.Collections.Generic;
 using System.Diagnostics;
 using Microsoft.Xna.Framework;
@@ -30,7 +31,7 @@ namespace OpenNFS1.Physics
 		public float HandbrakePower = 40;
 
 		public Motor Motor { get; private set; }
-		public Vector3 RenderDirection;
+		public Vector3 RenderDirection = Vector3.Forward;
 		public Spring BodyPitch { get; private set; }
 		public Spring BodyRoll { get; private set; }
 
@@ -53,10 +54,11 @@ namespace OpenNFS1.Physics
 		
 		// inputs
 		public float ThrottlePedalInput, BrakePedalInput;
-		public bool GearUpInput, GearDownInput, HandbrakeInput;
-		public bool AutoDrift;  //used for ai racers
+		public bool GearUpInput, GearDownInput, HandbrakeInput, HornInput;
+		public bool CanPoliceStop => _isOnGround && Math.Abs(_rotateAfterCollision) < .01f;
+        public bool AutoDrift;  //used for ai racers
 
-		public DrivableVehicle(VehicleDescription desc)
+		public DrivableVehicle(VehicleDescription desc, bool? manualGearbox = null)
 			: base(desc.ModelFile)
 		{
 			Descriptor = desc;
@@ -70,7 +72,7 @@ namespace OpenNFS1.Physics
 			List<float> power = new List<float>(new float[] { 0.2f, 0.3f, 0.4f, 0.7f, 0.8f, 1.0f, 0.8f, 0.8f, 0.8f, 0.3f });
 			List<float> ratios = new List<float>(new float[] { 3.827f, 2.360f, 1.685f, 1.312f, 1.000f, 0.793f });
 
-			BaseGearbox gearbox = BaseGearbox.Create(GameConfig.ManualGearbox, ratios, 0.2f);
+			BaseGearbox gearbox = BaseGearbox.Create(manualGearbox ?? GameConfig.ManualGearbox, ratios, 0.2f);
 			Motor = new Motor(power, Descriptor.Horsepower, Descriptor.Redline, gearbox);
 			Motor.Gearbox.GearChangeStarted += new EventHandler(Gearbox_GearChanged);
 			_traction = (Motor.GetPowerAtRpmForGear(Motor.RedlineRpm, 2) * 30) - 30;
@@ -82,13 +84,22 @@ namespace OpenNFS1.Physics
 		}
 
 
+        public override void PlaceOnTrack(Track track, TrackNode startNode)
+        {
+            base.PlaceOnTrack(track, startNode);
+            // Countdown deliberately skips physics. The body and wheels still need
+            // a nondegenerate orientation on the very first rendered frame.
+            RenderDirection = Direction;
+        }
+
 		bool _audioEnabled;
 		public bool AudioEnabled
 		{
 			get { return _audioEnabled; }
 			set
 			{
-				if (value)
+				if (value == _audioEnabled) return;
+                if (value)
 					_audioProvider.Initialize();
 				else
 					_audioProvider.StopAll();
@@ -281,28 +292,40 @@ namespace OpenNFS1.Physics
                 _audioProvider.Tick(Engine.Instance.FrameTime);
                 _audioProvider.UpdateEngine();
 
-                // Original COLL_SW slot 42 contains tire scrub/squeal.
-                // Previously we required front slip > .13 AND steering
-                // wheel > .35, which almost never occurred in normal driving.
-                // Use steering INPUT and actual speed for audible cornering,
-                // rising in volume with effort. Strong drift, handbrake and
-                // wheelspin provide stronger tire noise.
-                float roadSpeed = Math.Abs(Speed);
-                float steering = Math.Clamp(Math.Abs(SteeringInput), 0f, 1f);
-                float cornering = Math.Clamp((steering - .12f) / .65f, 0f, 1f) *
-                    Math.Clamp((roadSpeed - 17f) / 50f, 0f, 1f);
-                float drift = Math.Clamp(Math.Abs(_rearSlipFactor) * 3.5f, 0f, 1f);
-                float brake = (BrakePedalInput > .65f || HandbrakeInput) &&
-                    roadSpeed > 16f ? 0.85f : 0f;
-                float spin = Motor.WheelsSpinning && roadSpeed < 45f ? .8f : 0f;
-                float collisionSpin = Math.Abs(_rotateAfterCollision) > .03f ? 1f : 0f;
-                float skid = _isOnGround
-                    ? Math.Max(cornering, Math.Max(drift,
-                        Math.Max(brake, Math.Max(spin, collisionSpin))))
-                    : 0f;
-                _audioProvider.PlaySkid(skid);
+                var mix = DrivingAudioState.Compute(Speed, _isOnGround, _nbrWheelsOffRoad,
+                    _steeringWheel / MaxSteeringLock, _rearSlipFactor, BrakePedalInput, GameConfig.AbsEnabled,
+                    HandbrakeInput, Motor.WheelsSpinning, _rotateAfterCollision);
+                _audioProvider.PlaySkid(mix.Skid);
+                _audioProvider.PlayOffRoad(mix.OffRoad);
+                _audioProvider.PlayHorn(HornInput);
+                _audioProvider.UpdateRoad(Speed, _isOnGround, _nbrWheelsOffRoad, CurrentNode.NodeProperty);
             }
 		}
+
+        public void HoldForPolice()
+        {
+            // Speed alone is not momentum: Update() reapplies _force on release.
+            Speed = _previousSpeed = 0;
+            _force = Vector3.Zero;
+            _rotationChange = _rotateAfterCollision = _steeringWheel = 0;
+            _frontSlipFactor = _rearSlipFactor = 0;
+            SteeringInput = ThrottlePedalInput = 0; BrakePedalInput = 1;
+            GearUpInput = GearDownInput = HandbrakeInput = HornInput = false;
+            Motor.ResetForPoliceStop();
+            if (_audioEnabled) _audioProvider.UpdateEngine();
+        }
+
+        public void ReleaseFromPolice()
+        {
+            HoldForPolice();
+            BrakePedalInput = 0;
+        }
+
+        public void UpdateGridAudio()
+        {
+            Motor.Idle();
+            if (_audioEnabled) _audioProvider.UpdateEngine();
+        }
 
 		public override void HandleExtraSteeringPhysics()
 		{
@@ -376,14 +399,9 @@ namespace OpenNFS1.Physics
 		{
 			_nbrWheelsOffRoad = VehicleFenceCollision.GetWheelsOutsideRoadVerge(this);
 
-			if (Speed > 3 && _nbrWheelsOffRoad > 0)
+			if (_isOnGround && Math.Abs(Speed) > 3 && _nbrWheelsOffRoad > 0)
 			{
-				if (_audioEnabled) _audioProvider.PlayOffRoad(true);
 				Wheels[2].IsSkidding = Wheels[3].IsSkidding = true;
-			}
-			else
-			{
-				if (_audioEnabled) _audioProvider.PlayOffRoad(false);
 			}
 			VehicleFenceCollision.Handle(this);
 		}

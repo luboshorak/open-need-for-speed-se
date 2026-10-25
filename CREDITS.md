@@ -19,3 +19,6 @@ The game data is loaded from the player's own legally obtained copy, and is not 
 
 ## Third-party libraries
 OpenNFS1 SE uses .NET, MonoGame, DiscUtils and other dependencies, subject to their own terms. The source repository currently has no separately identified root license file; contact the relevant rights holders before assuming further redistribution permissions.
+
+## Original audio research
+ItsDanik / ReNFS supplied factual research into original sound slots, bank metadata and race events used by the independent C# audio repair: https://github.com/ItsDanik/ReNFS . See docs/mappings/ingame-audio.md for evidence and limits.

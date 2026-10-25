@@ -1,83 +1,54 @@
 using System;
-
 namespace OpenNFS1.Vehicles
 {
-    /// <summary>
-    /// NFS SE-inspired patrol states: prompt compliance after a siren gives
-    /// a warning, being caught later earns a citation, and three citations
-    /// in one road stage trigger arrest. Distances are track node gaps.
-    /// </summary>
+    // Original decision cadence: every fourth 30-ms simulation step.
     internal sealed class PolicePursuitLogic
     {
-        private float _speedingSeconds, _stoppedSeconds, _cooldownSeconds, _chaseSeconds;
+        public const float TickSeconds = .12f;
+        public const float MpsToGameSpeed = 2.2369363f; // legacy HUD/physics speed is mph
+        public const float PenaltySeconds = 60 * .03f;
+        private double _pending;
+        public int ChaseTicks { get; private set; }
         public bool IsPursuing { get; private set; }
+        public bool Caught { get; private set; }
+        public bool HasJoinedPursuit { get; private set; }
         public bool TicketIssued { get; private set; }
         public bool WarningIssued { get; private set; }
         public int TicketCount { get; private set; }
-        public bool IsArrested => TicketCount >= 3;
-
-        public bool Update(float deltaSeconds, float playerSpeedKph,
-            float distanceToPoliceNodes)
+        public int WarningCount { get; private set; }
+        public bool IsArrested => TicketCount >= 2;
+        public bool RadarNear { get; private set; }
+        public bool Update(float dt, float playerSpeed, float policeSpeed, int policeMinusPlayer,
+            float limit, bool present, bool playerStable = true, bool policeFacingForward = true)
         {
-            deltaSeconds = Math.Clamp(deltaSeconds, 0, 0.1f);
-            if (_cooldownSeconds > 0)
+            bool started = false;
+            _pending += Math.Clamp(dt, 0, .1f);
+            while (_pending + .0000001 >= TickSeconds)
             {
-                _cooldownSeconds = Math.Max(0, _cooldownSeconds - deltaSeconds);
-                return false;
-            }
-            if (IsArrested)
-                return false;
-
-            if (!IsPursuing)
-            {
-                _speedingSeconds = playerSpeedKph > 110
-                    ? _speedingSeconds + deltaSeconds
-                    : Math.Max(0, _speedingSeconds - deltaSeconds * 2);
-                if (_speedingSeconds >= 3.5f)
+                _pending -= TickSeconds;
+                RadarNear = present && Math.Abs(policeMinusPlayer) < 10;
+                if (!present || IsArrested) { Drop(); continue; }
+                if (!IsPursuing)
                 {
-                    IsPursuing = true;
-                    _speedingSeconds = 0;
-                    _chaseSeconds = 0;
-                    return true;
+                    if (Math.Abs(policeMinusPlayer) < 5 && playerSpeed > limit)
+                    { IsPursuing = true; HasJoinedPursuit = policeMinusPlayer < 0 && policeFacingForward; ChaseTicks = 0; started = true; }
+                    continue;
                 }
-                return false;
+                ChaseTicks += 4;
+                if (policeMinusPlayer < 0 && policeFacingForward) HasJoinedPursuit = true;
+                if (HasJoinedPursuit && policeFacingForward && (policeMinusPlayer > 2 ||
+                    (policeMinusPlayer >= 0 && playerSpeed < 3 * MpsToGameSpeed &&
+                     policeSpeed < 3 * MpsToGameSpeed))) Caught = true;
+                if (!playerStable || !Caught || playerSpeed >= MpsToGameSpeed || policeSpeed >= MpsToGameSpeed) continue;
+                if (ChaseTicks < 400) { WarningCount++; WarningIssued = true; }
+                else { TicketCount++; TicketIssued = true; }
+                Drop();
             }
-
-            _chaseSeconds += deltaSeconds;
-            bool stopped = Math.Abs(playerSpeedKph) < 12;
-
-            // In the original game pulling over immediately after the siren
-            // leads to a warning; do not give an arbitrary speeding ticket.
-            if (stopped && _chaseSeconds < 5f &&
-                distanceToPoliceNodes <= 20)
-            {
-                WarningIssued = true;
-                EndPursuit(12);
-                return false;
-            }
-
-            _stoppedSeconds = distanceToPoliceNodes <= 4 && stopped
-                ? _stoppedSeconds + deltaSeconds : 0;
-            if (_stoppedSeconds >= 2.5f)
-            {
-                TicketCount++;
-                TicketIssued = true;
-                EndPursuit(25);
-            }
-            return false;
+            return started;
         }
-
-        private void EndPursuit(float cooldown)
-        {
-            IsPursuing = false;
-            _stoppedSeconds = 0;
-            _speedingSeconds = 0;
-            _chaseSeconds = 0;
-            _cooldownSeconds = cooldown;
-        }
-
-        public void ResetPursuit() => EndPursuit(12);
-        public void ClearTicket() => TicketIssued = false;
-        public void ClearWarning() => WarningIssued = false;
+        public void Drop() { IsPursuing = Caught = HasJoinedPursuit = false; ChaseTicks = 0; }
+        public void ClearEvents() { WarningIssued = TicketIssued = false; }
+        public static bool SpawnAllowed(byte flags, int roll) => (flags & 1) != 0 &&
+            roll <= new[] { 32, 64, 96, 128 }[(flags & 0x18) >> 3];
     }
 }

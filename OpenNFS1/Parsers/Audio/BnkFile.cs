@@ -16,6 +16,10 @@ namespace OpenNFS1.Parsers.Audio
 		public byte[] PCMData;
 		public int SampleRate;
 		public int LoopStart;
+        public int LoopLength;
+        public int PitchReach;
+        public int PitchCents;
+        public float Gain = 1f;
 	}
 
 	// Bnk files (in SOUNDBNK folder) contain audio samples
@@ -31,13 +35,14 @@ namespace OpenNFS1.Parsers.Audio
 			_filename = filename;
 			Samples = new List<BnkSample>();
 			filename = Path.Combine(GameConfig.CdDataPath, @"Simdata\Soundbnk\" + filename);
-			BinaryReader reader = new BinaryReader(File.Open(filename, FileMode.Open));
+			using var reader = new BinaryReader(File.OpenRead(filename));
 			Parse(reader);
-			reader.Close();
 		}
 
 		private void Parse(BinaryReader reader)
 		{
+            if (reader.BaseStream.Length < 512)
+                throw new InvalidDataException("Truncated BNK slot table.");
 			List<(int Slot, int Offset)> sampleOffsets = new List<(int Slot, int Offset)>();
 			for (int i = 0; i < 128; i++)
 			{
@@ -50,6 +55,8 @@ namespace OpenNFS1.Parsers.Audio
 			{
                 try
                 {
+                    if (sampleRef.Offset < 512 || (long)sampleRef.Offset + 72 > reader.BaseStream.Length)
+                        throw new InvalidDataException("Invalid BNK header offset.");
                     reader.BaseStream.Position = sampleRef.Offset;
                     ReadSample(reader, sampleRef.Slot);
                 }
@@ -67,7 +74,14 @@ namespace OpenNFS1.Parsers.Audio
 		{
 			BnkSample sample = new BnkSample();
             sample.Slot = sourceSlot;
-			reader.BaseStream.Position += 0x28;
+            long record = reader.BaseStream.Position;
+            reader.BaseStream.Position = record + 0x10;
+            sample.PitchCents = reader.ReadInt32();
+            reader.BaseStream.Position = record + 0x17;
+            sample.PitchReach = reader.ReadByte();
+            reader.ReadByte(); // pan
+            sample.Gain = Math.Clamp(reader.ReadByte() / 127f, 0f, 1f);
+            reader.BaseStream.Position = record + 0x28;
 			string id = new string(reader.ReadChars(4));
             sample.SourceId = id;
 			sample.SampleRate = reader.ReadInt32();
@@ -81,6 +95,11 @@ namespace OpenNFS1.Parsers.Audio
 			int loopLength = reader.ReadInt32();
 			int dataOffset = reader.ReadInt32();
 			int unk3 = reader.ReadInt32();
+            if (id != "EACS" || compression != 0 ||
+                sample.SampleRate < 8000 || sample.SampleRate > 48000 ||
+                (bytesPerSample != 1 && bytesPerSample != 2) ||
+                (sample.NbrChannels != 1 && sample.NbrChannels != 2))
+                throw new InvalidDataException($"Unsupported BNK format at slot {sourceSlot}.");
 
 			// HACKS to avoid popping sounds.. Not sure why we need to do this.. maybe NFS finds values near
 			// loop start/end which are the best match
@@ -103,7 +122,7 @@ namespace OpenNFS1.Parsers.Audio
             reader.BaseStream.Position = dataOffset;
             byte[] fullData = reader.ReadBytes((int)fullBytes);
 
-            int safeLoopStart = Math.Clamp(sample.LoopStart, 0, totalLength);
+            int safeLoopStart = loopLength <= 0 ? 0 : Math.Clamp(sample.LoopStart, 0, totalLength);
             int safeLoopLength = loopLength <= 0 ? totalLength : Math.Min(loopLength,
                 Math.Max(0, totalLength - safeLoopStart));
             if (safeLoopLength <= 0)
@@ -116,6 +135,8 @@ namespace OpenNFS1.Parsers.Audio
             byte[] loopData = new byte[countBytes];
             Buffer.BlockCopy(fullData, startBytes, loopData, 0, countBytes);
             sample.NbrSamples = safeLoopLength;
+            sample.LoopStart = safeLoopStart;
+            sample.LoopLength = safeLoopLength;
 
             byte[] ToMono(byte[] input)
             {

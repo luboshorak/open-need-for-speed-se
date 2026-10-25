@@ -27,7 +27,7 @@ namespace OpenNFS1
             // when an older desktop shortcut or release installation exists.
             Version productVersion = typeof(Game1).Assembly.GetName().Version;
             Window.Title = "Need for Speed SE Reloaded v" +
-                (productVersion == null ? "unknown" : productVersion.ToString(3));
+                (productVersion == null ? "unknown" : productVersion.ToString(3)) + " [Police & AI repair 2]";
 
 
 			GameConfig.Load(Environment.GetCommandLineArgs());
@@ -169,6 +169,7 @@ namespace OpenNFS1
                     Engine.Instance.Screen is RacePausedScreen);
                 // Original FRONT_MW.BNK menu clicks, independent of AS4 music.
                 MenuSoundPlayer.Instance.Update();
+                OpenNFS1.Audio.NarrationPlayer.Instance.Update(Engine.Instance.Screen, IsActive);
             }
 		}
 

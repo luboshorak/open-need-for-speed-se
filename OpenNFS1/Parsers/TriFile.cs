@@ -1,4 +1,4 @@
-﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using OpenNFS1;
 using OpenNFS1.Parsers.Track;
@@ -65,7 +65,7 @@ namespace OpenNFS1.Parsers
 		{
 			FileName = Path.GetFileName(filename);
 			filename = Path.Combine(GameConfig.CdDataPath, filename);
-			BinaryReader reader = new BinaryReader(File.Open(filename, FileMode.Open));
+			using BinaryReader reader = new BinaryReader(File.OpenRead(filename));
 
 			byte trackVersion = reader.ReadByte();
 			if (trackVersion != 0x11)
@@ -78,7 +78,15 @@ namespace OpenNFS1.Parsers
 			Scenery = new List<SceneryObject>();
 			Segments = new List<TerrainSegment>();
 
-			ParseTrackNodesBlock(reader);
+            ParseTrackNodesBlock(reader);
+            // TRI: three speed bytes per four road nodes, after the 2400 nodes.
+            foreach (var node in Nodes)
+            {
+                reader.BaseStream.Position = 0x15b0c + (node.Number >> 2) * 3;
+                node.TrafficSpeed = reader.ReadByte();
+                node.PoliceLimit = reader.ReadByte();
+                node.ChaseLimit = reader.ReadByte();
+            }
 			ParseSceneryObjectsBlock(reader);
 			ParseTerrainBlock(reader);
 			ComputeAbsoluteTerrainPoints();

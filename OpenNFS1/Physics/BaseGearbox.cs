@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Diagnostics;
@@ -87,6 +87,13 @@ namespace OpenNFS1.Physics
             _ratios = ratios;
             _changeTime = changeTime;
 			_currentGear = GEAR_NEUTRAL;
+        }
+
+        public void ResetToNeutral()
+        {
+            _gearChange = null;
+            _currentGear = GEAR_NEUTRAL;
+            _clutch = 1;
         }
 
         public void GearUp()

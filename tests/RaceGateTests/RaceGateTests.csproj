@@ -5,5 +5,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\..\OpenNFS1\Race\RaceGateTracker.cs" Link="RaceGateTracker.cs" />
+    <Compile Include="..\..\OpenNFS1\Race\RaceRanking.cs" Link="RaceRanking.cs" />
+    <Compile Include="..\..\OpenNFS1\Audio\NarrationRules.cs" Link="NarrationRules.cs" />
+    <Compile Include="..\..\OpenNFS1\Race\PlayerRaceStats.cs" Link="PlayerRaceStats.cs" />
   </ItemGroup>
 </Project>

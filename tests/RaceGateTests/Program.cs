@@ -11,6 +11,25 @@ static class Program
 
     static void Main()
     {
+        double lap1 = RaceRanking.Progress(1, 10, 1024, 1022, false);
+        Check(lap1 > RaceRanking.Progress(0, 1021, 1024, 1022, false), "Completed lap beats end of prior lap");
+        Check(lap1 > RaceRanking.Progress(1, 1023, 1024, 1022, false), "Finish gate before wrap does not add extra lap");
+        var racers = new[] { "player", "winner", "third" };
+        var times = new System.Collections.Generic.Dictionary<string, TimeSpan?> {
+            ["player"] = TimeSpan.FromSeconds(101), ["winner"] = TimeSpan.FromSeconds(100), ["third"] = null };
+        var positions = new System.Collections.Generic.Dictionary<string, double> {
+            ["player"] = 1, ["winner"] = 0, ["third"] = 1021 };
+        var frozen = RaceRanking.Order(racers, r => times[r], r => positions[r]);
+        Check(frozen[0] == "winner" && frozen[1] == "player", "Finish order beats wrapped node positions");
+        positions["third"] = 99999; positions["player"] = -10;
+        Check(frozen[1] == "player", "Captured result survives finish drift");
+        var stats = new PlayerRaceStats { Position = frozen.IndexOf("player") };
+        Check(stats.Place == 2 && OpenNFS1.Audio.NarrationRules.Place(stats.Place) == "SECOND.EAS", "Second place display and spoken result agree");
+        stats.Position = 0;
+        Check(stats.Place == 1 && OpenNFS1.Audio.NarrationRules.Place(stats.Place) == "FIRST.EAS", "Winner mapping");
+        stats.Position = 7;
+        Check(stats.Place == 8 && OpenNFS1.Audio.NarrationRules.Place(stats.Place) == "EIGHTH.EAS", "Eighth mapping");
+        Console.WriteLine("PASS: lap-aware ranking, finish snapshot, second/first/eighth display and narration mapping");
         var circuit = new RaceGateTracker(1, 300, false);
         Check(!circuit.Update(120), "No finish before midpoint");
         Check(!circuit.Update(158), "Passing midpoint is not the finish");

@@ -26,6 +26,13 @@ namespace OpenNFS1
         public void ResumeClock() { if (_pausedAt.HasValue) { var delta = DateTime.Now - _pausedAt.Value; _raceStartTime += delta; _countdownStartTime += delta; _pausedAt = null; } }
         private TimeSpan _completedRaceTime;
         public bool Started => _started;
+        private List<IDriver> _finalOrder;
+        public IReadOnlyList<IDriver> RankedDrivers => _finalOrder ?? BuildRacingOrder();
+        private List<IDriver> BuildRacingOrder() => RaceRanking.Order(
+            Drivers.Where(d => d is RacingAIDriver || d is PlayerDriver),
+            d => _racerFinishTimes.TryGetValue(d, out var time) ? time : (TimeSpan?)null,
+            d => RaceRanking.Progress(_racerLapCounts.TryGetValue(d, out var laps) ? laps : 0,
+                d.Vehicle.TrackPosition, Track.RoadNodes.Count, FinishNode, Track.IsOpenRoad));
 		private readonly RaceGateTracker _finishGate;
         private readonly Dictionary<IDriver, TimeSpan> _racerFinishTimes = new Dictionary<IDriver, TimeSpan>();
         private readonly Dictionary<IDriver, RaceGateTracker> _racerGates =
@@ -36,10 +43,19 @@ namespace OpenNFS1
         public int FinishNode { get; private set; }
 		public bool Finished { get; private set; }
         public bool PolicePursuitActive { get; internal set; }
+        public bool PolicePlayerHeld { get; internal set; }
+        public bool PoliceRadarNear { get; internal set; }
         public bool PoliceTicketed { get; internal set; }
         public bool PoliceWarned { get; internal set; }
         public bool PoliceArrested { get; internal set; }
-        public int PoliceTicketsCount { get; internal set; }
+        public int PoliceTicketsCount { get; private set; }
+        public int PoliceWarningsCount { get; private set; }
+        internal void RegisterPoliceStop(bool ticket)
+        {
+            PoliceWarned = !ticket; PoliceTicketed = ticket;
+            if (ticket) PoliceTicketsCount++; else PoliceWarningsCount++;
+            PoliceArrested = PoliceTicketsCount >= 2;
+        }
         public float PeakPlayerSpeed { get; private set; }
         public float AveragePlayerSpeed => _speedSampleSeconds > 0 ?
             _accumulatedSpeed / _speedSampleSeconds : 0;
@@ -65,7 +81,7 @@ namespace OpenNFS1
             _finishGate = new RaceGateTracker(
 				player.Vehicle.CurrentNode.Number, checkpoint, track.IsOpenRoad);
 			// In NFS SE open-road traffic belongs to Head to Head only.
-            // No Mercy suppresses traffic; cops still require separate AI work.
+            // No Mercy suppresses roadside traffic and police encounters.
             if (track.Description.IsOpenRoad &&
                 GameConfig.CurrentRaceMode == RaceMode.HeadToHead &&
                 !GameConfig.NoMercy)
@@ -164,6 +180,7 @@ namespace OpenNFS1
                     {
                         car.ThrottlePedalInput = 0;
                         car.BrakePedalInput = 1;
+                        car.UpdateGridAudio();
                     }
                 }
                 Track.Update();
@@ -180,7 +197,13 @@ namespace OpenNFS1
                 VehicleController.ForceBrake = false;
             }
             foreach (var driver in Drivers)
-                driver.Update(Drivers);
+            {
+                if (driver != Player || !PolicePlayerHeld) driver.Update(Drivers);
+                else if (driver.Vehicle is DrivableVehicle waiting)
+                {
+                    waiting.HoldForPolice();
+                }
+            }
 
             // Each competitor has an independent real finish/lap gate.
             // This produces actual elapsed times for AI racers that crossed
@@ -206,7 +229,7 @@ namespace OpenNFS1
 
             // Resolve contacts after every vehicle has moved this frame.
             // Previously cars could drive straight through one another.
-            VehicleCollisionResolver.Resolve(Drivers);
+            VehicleCollisionResolver.Resolve(Drivers, PolicePlayerHeld ? Player.Vehicle : null);
 
 			Track.Update();
 
@@ -225,9 +248,13 @@ namespace OpenNFS1
 				}
 			}
 
-			var racingDrivers = new List<IDriver>(Drivers.Where(a => a is RacingAIDriver || a is PlayerDriver));
-			racingDrivers.Sort((a1, a2) => a2.Vehicle.TrackPosition.CompareTo(a1.Vehicle.TrackPosition));
-			PlayerStats.Position = racingDrivers.FindIndex(a => a == Player);
+            // Capture before the finish drift can move cars or wrap circuit nodes.
+            if (_finalOrder == null)
+            {
+                var order = BuildRacingOrder();
+                PlayerStats.Position = order.IndexOf(Player);
+                if (Finished) _finalOrder = order;
+            }
 
 
 			if (_trafficController != null) _trafficController.Update();

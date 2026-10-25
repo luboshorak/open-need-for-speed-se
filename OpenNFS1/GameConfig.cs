@@ -14,6 +14,7 @@ namespace OpenNFS1
         public const float TerrainScale = 0.000080f;
         public static readonly float FOV = MathHelper.ToRadians(65);
         public const float MaxSegmentRenderCount = 50;
+        public static int DefaultView { get; set; } = 1; // 1 chase, 2 cockpit, 3 bumper
         public static int TextureQuality { get; set; } = 2; // Point, Linear, Anisotropic
         public static bool HighCarDetail { get; set; } = true;
         public static bool HorizonEnabled { get; set; } = true;
@@ -42,6 +43,7 @@ namespace OpenNFS1
         public static bool TractionControlEnabled { get; set; } = true;
         public static bool MusicEnabled { get; set; } = true;
         public static bool MenuMusicEnabled { get; set; } = true;
+        public static bool SpeechEnabled { get; set; } = true;
         public static bool SoundEffectsEnabled { get; set; } = true;
         public static bool RockMusic { get; set; } = true;
         public static float MusicVolume { get; set; } = 0.45f;
@@ -141,6 +143,7 @@ namespace OpenNFS1
                 if (cfg.TryGetProperty("fullScreen", out var value)) FullScreen = value.GetBoolean();
                 if (cfg.TryGetProperty("windowWidth", out value)) WindowWidth = Math.Clamp(value.GetInt32(), 640, 3840);
                 if (cfg.TryGetProperty("windowHeight", out value)) WindowHeight = Math.Clamp(value.GetInt32(), 480, 2160);
+                if (cfg.TryGetProperty("defaultView", out value)) DefaultView = Math.Clamp(value.GetInt32(), 1, 3);
                 if (cfg.TryGetProperty("scalingMode", out value)) ScalingMode = Math.Clamp(value.GetInt32(), 0, 2);
                 if (cfg.TryGetProperty("originalColors", out value)) OriginalColors = value.GetBoolean();
                 if (cfg.TryGetProperty("vividColors", out value)) VividColors = value.GetBoolean();
@@ -149,6 +152,7 @@ namespace OpenNFS1
                 if (cfg.TryGetProperty("contrast", out value)) Contrast = Math.Clamp(value.GetSingle(), 0.6f, 1.6f);
                 if (cfg.TryGetProperty("musicEnabled", out value)) MusicEnabled = value.GetBoolean();
                 if (cfg.TryGetProperty("menuMusicEnabled", out value)) MenuMusicEnabled = value.GetBoolean();
+                if (cfg.TryGetProperty("speechEnabled", out var speechValue)) SpeechEnabled = speechValue.GetBoolean();
                 if (cfg.TryGetProperty("soundEffectsEnabled", out value)) SoundEffectsEnabled = value.GetBoolean();
                 if (cfg.TryGetProperty("rockMusic", out value)) RockMusic = value.GetBoolean();
                 if (cfg.TryGetProperty("musicVolume", out value)) MusicVolume = Math.Clamp(value.GetSingle(), 0, 1);
@@ -212,6 +216,7 @@ namespace OpenNFS1
                     musicEnabled = MusicEnabled,
                     menuMusicEnabled = MenuMusicEnabled,
                     cdDataPath = CdDataPath,
+                    speechEnabled = SpeechEnabled,
                     soundEffectsEnabled = SoundEffectsEnabled,
                     rockMusic = RockMusic,
                     musicVolume = MusicVolume,
@@ -220,6 +225,7 @@ namespace OpenNFS1
                     absEnabled = AbsEnabled,
                     tractionControlEnabled = TractionControlEnabled,
                     drawDistance = DrawDistance,
+                    defaultView = DefaultView,
                     textureQuality = TextureQuality,
                     highCarDetail = HighCarDetail,
                     horizonEnabled = HorizonEnabled,

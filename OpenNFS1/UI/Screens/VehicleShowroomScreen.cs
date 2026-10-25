@@ -15,6 +15,8 @@ namespace OpenNFS1.UI.Screens
     /// </summary>
     internal sealed class VehicleShowroomScreen : IGameScreen
     {
+        internal string Narration => _previewFallback || _nav.CurrentPage == ShowroomNavigator.Page.Index ? null :
+            PageFile(_nav.CarName, _nav.CurrentPage).Replace(".QFS", "16.EAS");
         private readonly ShowroomNavigator _nav;
         private readonly IGameScreen _returnScreen;
         private readonly SpriteFont _font;

@@ -19,6 +19,9 @@ namespace OpenNFS1.UI.Screens
     /// </summary>
     internal sealed class RaceStandingsScreen : IGameScreen
     {
+        internal string Narration => !_race.Finished ? null : _page == 0 ?
+            (_race.PlayerStats.Position == 0 && !GameConfig.TimeTrial ? "CON5_A16.EAS" : null) :
+            OpenNFS1.Audio.NarrationRules.Place(_race.PlayerStats.Place);
         private readonly Race _race;
         private readonly TimeSpan _finishedTime;
         private readonly IGameScreen _back;
@@ -82,7 +85,7 @@ namespace OpenNFS1.UI.Screens
             // Captions CURRENT STANDING / SEGMENT TIME / TOTAL TRACK TIME /
             // AVERAGE SPEED / TOP SPEED and the two RECORD rows are printed
             // into STANDSEG/STANDTRK bgnd. Never write them a second time.
-            Value((_race.PlayerStats.Position + 1).ToString(), 307, 153, .48f);
+            Value(_race.PlayerStats.Place.ToString(), 307, 153, .48f);
             Value(Clock(_finishedTime), 307, 176, .48f);
             Value(Clock(_finishedTime), 307, 196, .48f);
             Value(_race.AveragePlayerSpeed.ToString("0.0", CultureInfo.InvariantCulture) + " MPH", 307, 227, .42f);
@@ -127,13 +130,7 @@ namespace OpenNFS1.UI.Screens
 
             // The SGMTSTND / FINSTND source background already has
             // RANK, NAME, TOTAL TIME and SEGMENT TIME headings.
-            var drivers = _race.Drivers
-                .Where(d => d is PlayerDriver || d is RacingAIDriver)
-                .OrderBy(d => _race.RacerFinishTimes.ContainsKey(d) ? 0 : 1)
-                .ThenBy(d => _race.RacerFinishTimes.TryGetValue(d, out var finish)
-                    ? finish.TotalSeconds : double.MaxValue)
-                .ThenByDescending(d => d.Vehicle.TrackPosition)
-                .Take(8).ToList();
+            var drivers = _race.RankedDrivers.Take(8).ToList();
             for (int i = 0; i < drivers.Count; i++)
             {
                 var driver = drivers[i];

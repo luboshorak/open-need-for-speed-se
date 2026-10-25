@@ -8,6 +8,12 @@ namespace OpenNFS1
         [STAThread]
         static void Main()
         {
+            string[] args = Environment.GetCommandLineArgs();
+            if (args.Length == 4 && args[1] == "--audio-audit")
+            {
+                Environment.ExitCode = Audio.AudioAudit.Run(args[2], args[3]);
+                return;
+            }
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             try
             {

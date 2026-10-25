@@ -1,4 +1,4 @@
-﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using OpenNFS1;
 using OpenNFS1.Dashboards;
@@ -84,10 +84,12 @@ namespace OpenNFS1.Vehicles
 			Up = Vector3.Up;
 		}
 
-		public void PlaceOnTrack(Track t, TrackNode startNode)
+		public virtual void PlaceOnTrack(Track t, TrackNode startNode)
 		{
 			Track = t;
 			CurrentNode = startNode;
+            Direction = Vector3.Transform(Vector3.Forward,
+                Matrix.CreateRotationY(MathHelper.ToRadians(startNode.Orientation)));
 			Position = Vector3.Lerp(startNode.GetLeftVerge(), startNode.GetRightVerge2(), 0.5f);  //center of node
 		}
 

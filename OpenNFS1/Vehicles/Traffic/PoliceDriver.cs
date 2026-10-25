@@ -3,142 +3,105 @@ using System.Collections.Generic;
 using GameEngine;
 using Microsoft.Xna.Framework;
 using OpenNFS1.Vehicles.AI;
+using OpenNFS1.Tracks;
 
 namespace OpenNFS1.Vehicles
 {
-    /// <summary>
-    /// Road-following patrol Mustang from the original NFS SE COPMUST.CFM.
-    /// Uses stable look-ahead steering and traffic gap planning instead of
-    /// inheriting civilian car's immediate 90-degree direction snapping.
-    /// </summary>
     internal sealed class PoliceDriver : TrafficDriver
     {
         private readonly IDriver _suspect;
-        private float _laneChangeCooldown;
-        private int _preferredLane = 3;
-        private float _filteredSteering;
-
-        public PoliceDriver(IDriver suspect)
-            : base(@"SIMDATA\CARFAMS\copmust.CFM", TrafficDriverDirection.Forward)
+        private readonly PolicePursuitLogic _pursuit;
+        private readonly PatrolVehicle _car;
+        public bool Parked { get; set; }
+        public bool Oncoming { get; set; }
+        private float _lane = 3;
+        public PoliceDriver(IDriver suspect, PolicePursuitLogic pursuit)
+            : base(new PatrolVehicle(), TrafficDriverDirection.Forward)
         {
-            _suspect = suspect;
-            VirtualLane = 3; // Same carriageway as forward-moving traffic.
-            Vehicle.SteeringSpeed = 5.5f;
+            _suspect = suspect; _pursuit = pursuit;
+            // Reuse the already loaded mesh through CarModelCache.
+            _car = (PatrolVehicle)Vehicle; VirtualLane = 3;
         }
-
+        public void ResetHeading() { _car.ClearTurn(); _lane = Oncoming ? 1 : 3; }
         public override void Update(List<IDriver> others)
         {
             var node = Vehicle.CurrentNode;
             if (node?.Next?.Next == null || node.Prev == null)
+            { Vehicle.Speed = 0; AtEndOfTrack = true; return; }
+            float dt = Math.Clamp(Engine.Instance.FrameTime, 0, .1f);
+            int gap = _suspect.Vehicle.CurrentNode.Number - node.Number;
+            if (_pursuit.IsPursuing && gap > 0) Parked = false;
+            if (Parked) { Vehicle.Speed = 0; return; }
+            int lane = (int)Math.Round(_lane);
+            bool blocked = false, left = true, right = true;
+            float blockerSpeed = float.MaxValue;
+            foreach (var other in others)
             {
-                Vehicle.Speed = 0;
-                AtEndOfTrack = true;
-                return;
+                if (other == this || other == _suspect || other.Vehicle?.CurrentNode == null) continue;
+                int separation = other.Vehicle.CurrentNode.Number - node.Number;
+                if (separation < -2 || separation > 9) continue;
+                int otherLane = EstimateLane(other.Vehicle.Position, node);
+                if (otherLane == lane && separation >= 0)
+                { blocked = true; blockerSpeed = Math.Min(blockerSpeed, Math.Abs(other.Vehicle.Speed)); }
+                if (otherLane == lane - 1) left = false;
+                if (otherLane == lane + 1) right = false;
             }
-
-            int gap = (_suspect.Vehicle.CurrentNode?.Number ?? node.Number) - node.Number;
-            if (gap < -8)
+            var decision = PoliceRoadPlanner.Plan(_suspect.Vehicle.Speed, gap, lane,
+                blocked, blockerSpeed, left, right);
+            float speed = node.TrafficSpeed * PolicePursuitLogic.MpsToGameSpeed;
+            int targetLane = Oncoming ? 1 : 3;
+            if (_pursuit.IsPursuing)
             {
-                // We've passed the suspect; slow down, never circle violently
-                // trying to aim backwards on a one-way path-following AI.
-                Vehicle.Speed = Math.Max(0, Vehicle.Speed - 65 * Engine.Instance.FrameTime);
-                FollowRoadAhead();
-                Vehicle.Update();
-                return;
+                speed = decision.TargetSpeed;
+                targetLane = decision.TargetLane;
+                // Once alongside/ahead early in a high-speed chase, match speed.
+                if (gap <= -4 || (gap <= 2 && _pursuit.ChaseTicks < 900 &&
+                    _suspect.Vehicle.Speed > node.ChaseLimit * PolicePursuitLogic.MpsToGameSpeed))
+                    speed = Math.Abs(_suspect.Vehicle.Speed);
+                if (_pursuit.Caught) { speed = 0; targetLane = 4; }
+                // Choose an adjacent passing lane when occupying the suspect's lane.
+                else if (gap > 0 && gap < 8 && lane == EstimateLane(_suspect.Vehicle.Position, node))
+                    targetLane = lane < 4 && right ? lane + 1 : lane > 2 && left ? lane - 1 : lane;
             }
-
-            // Near the suspect, move into its lane only when the adjacent
-            // lane is safe. Unlike the old patrol, never weave at random.
-            int suspectLane = Math.Clamp(EstimateLane(_suspect.Vehicle.Position,
-                _suspect.Vehicle.CurrentNode ?? node), 2, 4);
-            bool blocked = false;
-            float blockedSpeed = 0;
-            bool leftClear = true, rightClear = true;
-            foreach (var driver in others)
+            _lane += Math.Clamp(targetLane - _lane, -dt * .8f, dt * .8f);
+            VirtualLane = Math.Clamp((int)Math.Round(_lane), 0, 4);
+            var ahead = node;
+            int look = Math.Clamp(2 + (int)(Vehicle.Speed / 30), 2, 7);
+            for (int i = 0; i < look; i++)
+            { var next = Oncoming ? ahead.Prev : ahead.Next; if (next == null) break; ahead = next; }
+            Vector3 target = Vector3.Lerp(ahead.GetLeftVerge2(), ahead.GetRightVerge2(), _lane / 4);
+            Vector3 delta = target - Vehicle.Position; delta.Y = 0;
+            if (delta.LengthSquared() > .01f)
             {
-                if (driver == this || driver.Vehicle?.CurrentNode == null)
-                    continue;
-
-                int separation = driver.Vehicle.CurrentNode.Number - node.Number;
-                if (separation < -2 || separation >= 12)
-                    continue;
-
-                int otherLane = driver is AIDriver ai ? ai.VirtualLane :
-                    EstimateLane(driver.Vehicle.Position, node);
-                if (otherLane == _preferredLane && separation >= 0 && separation < 9)
-                {
-                    blocked = true;
-                    blockedSpeed = driver.Vehicle.Speed;
-                }
-                if (otherLane == _preferredLane - 1) leftClear = false;
-                if (otherLane == _preferredLane + 1) rightClear = false;
+                float angle = Utility.GetSignedAngleBetweenVectors(Vehicle.Direction, delta, true);
+                // Curves limit speed; this is adapted to the remake's physical scale.
+                speed = Math.Min(speed, 35 + 180 / (1 + Math.Abs(angle) * 6));
+                _car.TurnError = angle;
             }
-
-            _laneChangeCooldown = Math.Max(0, _laneChangeCooldown - Engine.Instance.FrameTime);
-            var decision = PoliceRoadPlanner.Plan(_suspect.Vehicle.Speed, gap,
-                _preferredLane, blocked, blockedSpeed, leftClear, rightClear);
-            int chosenLane = decision.TargetLane;
-            if (!blocked && gap > 0 && gap <= 9 && _preferredLane != suspectLane)
-            {
-                // Close behind the suspect, merge one lane at a time.
-                // Clearance flags also cover the target lane's nearby traffic.
-                int step = Math.Sign(suspectLane - _preferredLane);
-                if ((step < 0 && leftClear) || (step > 0 && rightClear))
-                    chosenLane = _preferredLane + step;
-            }
-            if (_laneChangeCooldown <= 0 && chosenLane != _preferredLane)
-            {
-                _preferredLane = chosenLane;
-                _laneChangeCooldown = 2.4f;
-            }
-            VirtualLane = _preferredLane;
-
-            // Speed cannot teleport from 0 to 200 each frame after contact.
-            float blend = MathHelper.Clamp(Engine.Instance.FrameTime * 1.6f, 0, 1);
-            Vehicle.Speed = MathHelper.Lerp(Math.Max(0, Vehicle.Speed),
-                decision.TargetSpeed, blend);
-            if (Vehicle.Speed < 0.3f) Vehicle.Speed = 0;
-            FollowRoadAhead();
+            float rate = speed < Vehicle.Speed ? 70 : 35;
+            Vehicle.Speed += Math.Clamp(speed - Vehicle.Speed, -rate * dt, rate * dt);
+            Vehicle.SteeringInput = 0;
             Vehicle.Update();
         }
-
-        private static int EstimateLane(Vector3 position, Tracks.TrackNode node)
+        private static int EstimateLane(Vector3 position, TrackNode node)
         {
-            Vector3 left = node.GetLeftVerge2();
-            Vector3 right = node.GetRightVerge2();
-            Vector3 cross = right - left;
-            float lengthSq = cross.X * cross.X + cross.Z * cross.Z;
-            if (lengthSq < 0.0001f) return 3;
-            float t = ((position.X - left.X) * cross.X +
-                       (position.Z - left.Z) * cross.Z) / lengthSq;
-            return Math.Clamp((int)Math.Round(t * 4), 0, 4);
+            var left = node.GetLeftVerge2(); var across = node.GetRightVerge2() - left;
+            float length = across.X * across.X + across.Z * across.Z;
+            return length < .001f ? 3 : Math.Clamp((int)Math.Round(
+                ((position.X - left.X) * across.X + (position.Z - left.Z) * across.Z) / length * 4), 0, 4);
         }
-
-        private void FollowRoadAhead()
+        private sealed class PatrolVehicle : Vehicle
         {
-            var ahead = Vehicle.CurrentNode;
-            for (int i = 0; i < 4 && ahead.Next != null; i++)
-                ahead = ahead.Next;
-            Vector3 target = Vector3.Lerp(ahead.GetLeftVerge2(),
-                ahead.GetRightVerge2(), VirtualLane / 4f);
-            Vector3 heading = Vehicle.Direction;
-            heading.Y = 0;
-            Vector3 targetDirection = target - Vehicle.Position;
-            targetDirection.Y = 0;
-            if (targetDirection.LengthSquared() < 0.1f ||
-                heading.LengthSquared() < 0.1f)
+            public float TurnError;
+            public PatrolVehicle() : base(@"SIMDATA\CARFAMS\copmust.CFM") { }
+            public void ClearTurn() { _rotationChange = 0; _steeringWheel = 0; TurnError = 0; }
+            public override void HandleExtraSteeringPhysics()
             {
-                Vehicle.SteeringInput = 0;
-                return;
+                // Base traffic steering accumulates a binary wheel input per frame.
+                // Use bounded yaw per second for this path follower instead.
+                _rotationChange = PoliceRoadPlanner.YawStep(TurnError, Speed, Engine.Instance.FrameTime);
+                if (Speed < .1f) _rotationChange = 0;
             }
-            float angle = Utility.GetSignedAngleBetweenVectors(
-                heading, targetDirection, true);
-            // Continuous proportional steering, never a binary left/right
-            // snap and never an instant 180-degree heading reset.
-            float desiredSteering = MathHelper.Clamp(-angle / 0.85f, -1f, 1f);
-            float response = MathHelper.Clamp(Engine.Instance.FrameTime * 3.5f, 0, 1);
-            _filteredSteering = MathHelper.Lerp(_filteredSteering, desiredSteering, response);
-            Vehicle.SteeringInput = _filteredSteering;
         }
     }
 }

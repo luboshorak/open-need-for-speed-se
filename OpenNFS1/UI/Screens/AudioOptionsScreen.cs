@@ -13,7 +13,7 @@ namespace OpenNFS1.UI.Screens
         private readonly BitmapChunk _art;
         private readonly IGameScreen _parent;
         private readonly SpriteFont _font;
-        private readonly bool _musicBefore, _menuBefore, _soundBefore, _rockBefore;
+        private readonly bool _musicBefore, _menuBefore, _soundBefore, _rockBefore, _speechBefore;
         private readonly float _volumeBefore;
         private int _selected;
 
@@ -24,6 +24,7 @@ namespace OpenNFS1.UI.Screens
         public AudioOptionsScreen(IGameScreen parent)
         {
             _parent = parent;
+            _speechBefore = GameConfig.SpeechEnabled;
             _art = new QfsFile(@"FRONTEND\ART\OPTION\AUDIO.QFS").Content.Header;
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
             _musicBefore = GameConfig.MusicEnabled;
@@ -55,7 +56,7 @@ namespace OpenNFS1.UI.Screens
                 case 2: GameConfig.MenuMusicEnabled = !GameConfig.MenuMusicEnabled; break;
                 case 3: GameConfig.SoundEffectsEnabled = !GameConfig.SoundEffectsEnabled; break;
                 case 4:
-                    GameConfig.MusicVolume = Math.Clamp(GameConfig.MusicVolume + direction * 0.1f, 0f, 1f);
+                    GameConfig.SpeechEnabled = !GameConfig.SpeechEnabled;
                     break;
                 // Sound card and surround effects remain unsupported by MonoGame.
             }
@@ -73,6 +74,7 @@ namespace OpenNFS1.UI.Screens
             GameConfig.SoundEffectsEnabled = _soundBefore;
             GameConfig.RockMusic = _rockBefore;
             GameConfig.MusicVolume = _volumeBefore;
+            GameConfig.SpeechEnabled = _speechBefore;
             Engine.Instance.Screen = _parent;
         }
 
@@ -120,7 +122,7 @@ namespace OpenNFS1.UI.Screens
             Label(GameConfig.RockMusic ? "ROCK" : "TECHNO", 149);
             Label(GameConfig.MenuMusicEnabled ? "ON" : "OFF", 192);
             Label(GameConfig.SoundEffectsEnabled ? "ON" : "OFF", 235);
-            Label(((int)(GameConfig.MusicVolume * 100)).ToString() + "%", 279);
+            Label(GameConfig.SpeechEnabled ? "ON" : "OFF", 279);
             Label("AUTO", 321, 0.31f);
             Label("STEREO", 365, 0.31f);
 

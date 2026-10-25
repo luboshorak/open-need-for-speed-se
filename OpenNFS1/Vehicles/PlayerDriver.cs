@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -29,6 +29,7 @@ namespace OpenNFS1.Vehicles.AI
             _vehicle.GearDownInput = !VehicleController.ForceBrake && drive.ShiftDown;
             _vehicle.GearUpInput = !VehicleController.ForceBrake && drive.ShiftUp;
 			_vehicle.HandbrakeInput = VehicleController.Handbrake;
+            _vehicle.HornInput = VehicleController.Horn;
 			_vehicle.Update();
 		}
 
