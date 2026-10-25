@@ -393,8 +393,17 @@ namespace OpenNFS1.UI.Screens
 
         private void OpenTrackDetails()
         {
-            GameConfig.SelectedTrackDescription = _tracks[_currentTrack].Descriptor;
-            Engine.Instance.Screen = new TrackDetailsScreen(GameConfig.SelectedTrackDescription, this);
+            // Preserve AL2/AL3 (CL/CY) when reopening the details of the
+            // SAME selected road. Switching to another road selects its first
+            // segment instead of retaining an unrelated prior road.
+            TrackDescription course = _tracks[_currentTrack].Descriptor;
+            TrackDescription selected = GameConfig.SelectedTrackDescription;
+            if (selected == null || !OpenRoadStageSelector.SameFamily(
+                    course.FileName, course.IsOpenRoad,
+                    selected.FileName, selected.IsOpenRoad))
+                GameConfig.SelectedTrackDescription = course;
+            Engine.Instance.Screen = new TrackDetailsScreen(
+                GameConfig.SelectedTrackDescription, this);
         }
 
         private void OpenRaceOptions()
