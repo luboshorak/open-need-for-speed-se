@@ -20,6 +20,8 @@ namespace OpenNFS1
 		int _nbrLaps;
 		DateTime _countdownStartTime, _raceStartTime;
 		bool _started;
+        private TimeSpan _completedRaceTime;
+        public bool Started => _started;
 		private readonly RaceGateTracker _finishGate;
 		public bool Finished { get; private set; }
         public bool PolicePursuitActive { get; internal set; }
@@ -65,7 +67,7 @@ namespace OpenNFS1
 
 		public TimeSpan RaceTime
 		{
-			get { return new TimeSpan(DateTime.Now.Ticks - _raceStartTime.Ticks); }
+			get { return Finished ? _completedRaceTime : _started ? DateTime.Now - _raceStartTime : TimeSpan.Zero; }
 		}
 
 		public int SecondsTillStart
@@ -76,7 +78,7 @@ namespace OpenNFS1
 
 		public void StartCountdown()
 		{
-			VehicleController.ForceBrake = false;
+			VehicleController.ForceBrake = true;
 			_countdownStartTime = DateTime.Now;
 		}
 
@@ -115,8 +117,32 @@ namespace OpenNFS1
             if (_started && !Finished)
                 PeakPlayerSpeed = Math.Max(PeakPlayerSpeed,
                     Math.Abs(Player.Vehicle.Speed));
-			foreach (var driver in Drivers)
-				driver.Update(Drivers);
+            if (!_started && SecondsTillStart > 0)
+            {
+                foreach (var driver in Drivers)
+                {
+                    driver.Vehicle.Speed = 0;
+                    if (driver.Vehicle is DrivableVehicle car)
+                    {
+                        car.ThrottlePedalInput = 0;
+                        car.BrakePedalInput = 1;
+                    }
+                }
+                Track.Update();
+                return;
+            }
+            if (!_started)
+            {
+                var racers = Drivers.Where(d => d is RacingAIDriver || d is PlayerDriver);
+                foreach (var d in racers)
+                    ((DrivableVehicle)d.Vehicle).Motor.Gearbox.CurrentGear = 1;
+                _raceStartTime = DateTime.Now;
+                PlayerStats.OnLapStarted();
+                _started = true;
+                VehicleController.ForceBrake = false;
+            }
+            foreach (var driver in Drivers)
+                driver.Update(Drivers);
 
             // Resolve contacts after every vehicle has moved this frame.
             // Previously cars could drive straight through one another.
@@ -133,25 +159,15 @@ namespace OpenNFS1
 				if (PlayerStats.CurrentLap > _nbrLaps)
 				{
 					// Waiting for exact Speed == 0 left some races unfinished forever.
-					Finished = true;
-					VehicleController.ForceBrake = true;
+					_completedRaceTime = DateTime.Now - _raceStartTime;
+                    Finished = true;
+                    VehicleController.ForceBrake = true;
 				}
 			}
 
 			var racingDrivers = new List<IDriver>(Drivers.Where(a => a is RacingAIDriver || a is PlayerDriver));
 			racingDrivers.Sort((a1, a2) => a2.Vehicle.TrackPosition.CompareTo(a1.Vehicle.TrackPosition));
 			PlayerStats.Position = racingDrivers.FindIndex(a => a == Player);
-
-			if (SecondsTillStart <= 0 && !_started)
-			{
-				foreach (var d in racingDrivers)
-				{
-					((DrivableVehicle)d.Vehicle).Motor.Gearbox.CurrentGear = 1;
-				}
-				_raceStartTime = DateTime.Now;
-				PlayerStats.OnLapStarted();
-				_started = true;
-			}
 
 
 			if (_trafficController != null) _trafficController.Update();
