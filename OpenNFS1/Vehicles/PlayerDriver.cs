@@ -22,7 +22,8 @@ namespace OpenNFS1.Vehicles.AI
                 _vehicle.Motor.Gearbox.CurrentGear, _vehicle.Speed,
                 VehicleController.Acceleration, VehicleController.Brake,
                 VehicleController.GearUp, VehicleController.GearDown);
-            _vehicle.ThrottlePedalInput = drive.Throttle;
+            // A forced stop (countdown/pause) must never become reverse throttle.
+            _vehicle.ThrottlePedalInput = VehicleController.ForceBrake ? 0 : drive.Throttle;
             _vehicle.BrakePedalInput = drive.Brake;
             _vehicle.SteeringInput = VehicleController.Turn;
             _vehicle.GearDownInput = drive.ShiftDown;
