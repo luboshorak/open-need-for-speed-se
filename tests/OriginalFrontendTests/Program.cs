@@ -48,22 +48,49 @@ static class Program
         Assert(OpenRoadStageSelector.Family(@"SIMDATA\MISC\TR1.TRI", false) == null,
             "Closed circuits may not be treated as multistage roads.");
 
-        var officer = new PolicePursuitLogic();
+        var warning = new PolicePursuitLogic();
         bool dispatched = false;
         for (int i = 0; i < 40; i++)
-            dispatched |= officer.Update(.1f, 145, float.MaxValue);
-        Assert(dispatched && officer.IsPursuing, "Sustained speeding did not trigger pursuit.");
+            dispatched |= warning.Update(.1f, 145, float.MaxValue);
+        Assert(dispatched && warning.IsPursuing,
+            "Sustained speeding must trigger a patrol.");
+        warning.Update(.1f, 0, 2);
+        Assert(warning.WarningIssued && !warning.TicketIssued &&
+            !warning.IsPursuing,
+            "Immediately pulling over after the siren must produce a warning, not a ticket.");
+        warning.ClearWarning();
 
-        // Only a real pull-over near the cop results in a ticket.
-        for (int i = 0; i < 30; i++)
-            officer.Update(.1f, 0, 2);
-        Assert(officer.TicketIssued, "Stopping close to pursuing police did not issue a ticket.");
-        officer.ClearTicket();
-        Assert(!officer.TicketIssued, "Acknowledging police ticket did not clear the event.");
-        bool immediateRepeat = false;
-        for (int i = 0; i < 50; i++)
-            immediateRepeat |= officer.Update(.1f, 200, float.MaxValue);
-        Assert(!immediateRepeat, "Police pursuit restarted during mandatory cooldown.");
+        var officer = new PolicePursuitLogic();
+        for (int citation = 1; citation <= 3; citation++)
+        {
+            // Wait for the prior citation's cooldown to expire.
+            for (int i = 0; i < 260; i++)
+                officer.Update(.1f, 0, float.MaxValue);
+            bool started = false;
+            for (int i = 0; i < 40; i++)
+                started |= officer.Update(.1f, 145, float.MaxValue);
+            Assert(started, "Failed to start a repeat police pursuit.");
+            // A genuine ongoing chase, not an immediately accepted warning.
+            for (int i = 0; i < 60; i++)
+                officer.Update(.1f, 80, 7);
+            for (int i = 0; i < 30; i++)
+                officer.Update(.1f, 0, 2);
+            Assert(officer.TicketIssued && officer.TicketCount == citation,
+                "Police did not record the correct citation for a caught driver.");
+            officer.ClearTicket();
+            Assert(!officer.TicketIssued, "Ticket event was not acknowledged.");
+            if (citation < 3)
+            {
+                bool repeatDuringCooldown = false;
+                for (int i = 0; i < 50; i++)
+                    repeatDuringCooldown |= officer.Update(.1f, 200, float.MaxValue);
+                Assert(!repeatDuringCooldown,
+                    "Police pursuit restarted during mandatory cooldown.");
+            }
+        }
+        Assert(officer.IsArrested, "Third ticket must end the stage with arrest.");
+        Assert(!officer.Update(.1f, 200, float.MaxValue),
+            "Arrested driver cannot trigger another pursuit.");
 
         // Automatic Down: brake while moving forward, then shift 1st -> N
         // -> reverse and accelerate backwards with the same Down input.
