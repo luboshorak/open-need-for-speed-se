@@ -71,7 +71,7 @@ namespace OpenNFS1.UI.Screens
             // the top-level track list. Map the selected segment back to
             // its visible COURSE rather than silently opening Alpine.
             _index = Math.Max(0, _tracks.FindIndex(t => t == selected ||
-                OpenRoadStageSelector.SameFamily(
+                OpenRoadStageSelector.IsVisibleCourseForSelection(
                     t.FileName, t.IsOpenRoad,
                     selected?.FileName, selected?.IsOpenRoad ?? false)));
             Load();
