@@ -14,3 +14,4 @@ packages/
 # Logs
 exception.txt
 crash.log
+dist/
