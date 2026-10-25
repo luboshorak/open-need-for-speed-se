@@ -55,6 +55,9 @@ namespace OpenNFS1.Vehicles.AI
 	{		
 		private float _firstLaneChangeAllowed;  //avoid all racers changing lanes immediately
 		private DrivableVehicle _vehicle;
+        private float _blockedSeconds;
+        private float _reverseSeconds;
+        private float _previousProgress;
         public bool AtEndOfTrack;
 
 		public RacingAIDriver(VehicleDescription vehicleDescriptor)
@@ -66,57 +69,79 @@ namespace OpenNFS1.Vehicles.AI
 			_firstLaneChangeAllowed = Engine.Instance.Random.Next(5, 40);
 		}
 
-		public override void Update(List<IDriver> otherDrivers)
-		{
-			_vehicle.ThrottlePedalInput = 0.9f;
-			_vehicle.BrakePedalInput = 0;
-
-			var node = _vehicle.CurrentNode;
-			var pos = _vehicle.Position;
-
-			if (node.Next == null || node.Next.Next == null)
-			{
-				_vehicle.ThrottlePedalInput = 0;
-				_vehicle.BrakePedalInput = 1;
+        public override void Update(List<IDriver> otherDrivers)
+        {
+            float dt = MathHelper.Clamp(Engine.Instance.FrameTime, 0, 0.1f);
+            var node = _vehicle.CurrentNode;
+            if (node?.Next?.Next == null)
+            {
+                _vehicle.ThrottlePedalInput = 0;
+                _vehicle.BrakePedalInput = 1;
                 AtEndOfTrack = true;
-				return;
-			}
+                return;
+            }
 
-			FollowTrack();
-			
-			foreach (var otherDriver in otherDrivers)
-			{
-				if (otherDriver == this) continue;
-				//if (!(otherDriver is AIDriver)) continue;
-				// if I am not in the same lane, ignore
-				if (otherDriver is AIDriver && ((AIDriver)otherDriver).VirtualLane != VirtualLane) continue;
-				// Treat the player's vehicle as real traffic as well. The old
-				// code explicitly ignored it and let AI drive into the player.
-				
-				// if I am going slower than the other driver, ignore
-				if (Vehicle.Speed < otherDriver.Vehicle.Speed) continue;
+            // Recovery for bumper-to-bumper pileups: a racing AI must not
+            // indefinitely hold the throttle against a stationary vehicle.
+            if (_reverseSeconds > 0)
+            {
+                _reverseSeconds -= dt;
+                _vehicle.ThrottlePedalInput = 0;
+                _vehicle.BrakePedalInput = 0;
+                _vehicle.Speed = -Math.Max(8f, Math.Min(14f, Math.Abs(_vehicle.Speed)));
+                _vehicle.SteeringInput = 0;
+                _vehicle.Update();
+                if (_reverseSeconds <= 0)
+                {
+                    _vehicle.Speed = 0;
+                    _blockedSeconds = 0;
+                    VirtualLane = (VirtualLane + 1) % (MaxVirtualLanes + 1);
+                }
+                return;
+            }
 
-				var progressDist = otherDriver.Vehicle.TrackPosition - _vehicle.TrackPosition;
-				// if we are only slightly behind another driver (less than 2 nodes back) then consider them a possible danger
-				if (progressDist > 0 && progressDist < 2f)
-				{
-					// pick a new lane if we're far enough from the start of the race.
-					if (Vehicle.CurrentNode.Number > _firstLaneChangeAllowed)
-					{
-						if (Engine.Instance.Random.Next() % 2 == 0)
-							VirtualLane = Math.Max(0, VirtualLane - 1);
-						else
-							VirtualLane = Math.Min(MaxVirtualLanes, VirtualLane + 1);
-					}
-					else
-					{
-						Vehicle.Speed = Math.Max(0, otherDriver.Vehicle.Speed * 0.8f);
-					}
-				}
-			}
+            bool blockedAhead = false;
+            float nearest = float.MaxValue;
+            foreach (var driver in otherDrivers)
+            {
+                if (driver == this || driver.Vehicle?.CurrentNode == null) continue;
+                Vector3 delta = driver.Vehicle.Position - _vehicle.Position;
+                delta.Y = 0;
+                float distance = delta.Length();
+                // Geometric detection also includes the player, rather than
+                // relying on possibly stale virtual lane indices.
+                if (distance < 24f && distance > 0.01f &&
+                    Vector3.Dot(delta, _vehicle.Direction) > 0 &&
+                    distance < nearest)
+                {
+                    nearest = distance;
+                    blockedAhead = true;
+                }
+            }
 
-			_vehicle.Update();
-		}		
+            FollowTrack();
+            _vehicle.ThrottlePedalInput = blockedAhead ? 0 : 0.9f;
+            _vehicle.BrakePedalInput = blockedAhead && nearest < 17f ? 0.65f : 0;
+            if (blockedAhead && nearest < 18f)
+            {
+                // A stationary blocker should eventually cause a cautious
+                // reversal instead of trapping both cars forever.
+                bool stationary = Math.Abs(_vehicle.Speed) < 10f;
+                _blockedSeconds = stationary ? _blockedSeconds + dt : 0f;
+                if (_blockedSeconds >= 1.5f)
+                {
+                    _reverseSeconds = 1.3f;
+                    _blockedSeconds = 0;
+                    _vehicle.ThrottlePedalInput = 0;
+                    _vehicle.BrakePedalInput = 0;
+                }
+            }
+            else
+            {
+                _blockedSeconds = 0;
+            }
+            _vehicle.Update();
+        }
 
 		public void Render()
 		{
