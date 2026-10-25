@@ -67,7 +67,13 @@ namespace OpenNFS1.UI.Screens
                  RaceModeRules.TournamentClass(t) != 0)).ToList();
             if (_tracks.Count == 0)
                 throw new InvalidOperationException("No original track selection screens are available.");
-            _index = Math.Max(0, _tracks.FindIndex(t => t == selected));
+            // AL2/AL3, CL2/CL3, CY2/CY3 are intentionally hidden from
+            // the top-level track list. Map the selected segment back to
+            // its visible COURSE rather than silently opening Alpine.
+            _index = Math.Max(0, _tracks.FindIndex(t => t == selected ||
+                OpenRoadStageSelector.SameFamily(
+                    t.FileName, t.IsOpenRoad,
+                    selected?.FileName, selected?.IsOpenRoad ?? false)));
             Load();
         }
 
@@ -173,12 +179,27 @@ namespace OpenNFS1.UI.Screens
                 GameConfig.AlternativeTimeOfDay = !GameConfig.AlternativeTimeOfDay;
                 return;
             }
-            // Segment arrows on the right-hand photo are separate from the
-            // bottom ROAD/TRACK arrows, which choose another entire course.
-            if (_segments.Count > 1 && p.Y >= 335 && p.Y < 380)
+            // The original bsg1/2/3 photo and ssg1/2/3 small map are
+            // actual different stage images, not synthesized backgrounds.
+            // Make their original image regions clickable. The left half
+            // selects the previous segment, the right half the next.
+            // Bottom pred/nex buttons continue to choose a DIFFERENT road.
+            if (_segments.Count > 1)
             {
-                if (p.X >= 320 && p.X < 370) { ChangeSegment(-1); return; }
-                if (p.X >= 530 && p.X < 590) { ChangeSegment(1); return; }
+                BitmapEntry photo = Entry("bsg" + _photo);
+                BitmapEntry map = Entry("ssg" + _photo);
+                foreach (var art in new[] { photo, map })
+                {
+                    if (art?.Texture == null) continue;
+                    Vector2 origin = art.GetDisplayAt();
+                    Rectangle bounds = new Rectangle((int)origin.X, (int)origin.Y,
+                        art.Texture.Width, art.Texture.Height);
+                    if (bounds.Contains((int)p.X, (int)p.Y))
+                    {
+                        ChangeSegment(p.X < origin.X + art.Texture.Width / 2f ? -1 : 1);
+                        return;
+                    }
+                }
             }
             // Native track selection uses a small number of click targets.
             // No arbitrary "click on the map changes photos" behavior.
