@@ -59,7 +59,7 @@ internal static class Program
                 WriteSample(writer, 1, 728, 2200, 1, 2, 4, 1, 2,
                     new byte[8] {255,0,1,128,127,129,0,127});
             }
-            GameConfig.CdDataPath = root;
+            OpenNFS1.GameConfig.CdDataPath = root;
             var bank = new BnkFile("COLL_SW.BNK");
 
             var tire = bank.GetBySlot(42);
