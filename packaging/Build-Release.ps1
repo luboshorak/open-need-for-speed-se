@@ -157,7 +157,7 @@ if (-not $SkipBuild) {
         if ($RunTests) {
             foreach ($name in @('IsoImporterSmokeTests','RaceGateTests','TournamentTests',
                 'VehicleCollisionTests','RaceModeTests','ShowroomNavigationTests',
-                'DisplayPresentationTests','OriginalFrontendTests')) {
+                'DisplayPresentationTests','OriginalFrontendTests','OriginalAudioBankTests')) {
                 $testProj = Join-Path $root ("tests\$name\$name.csproj")
                 Assert-File $testProj
                 Invoke-DotNet @('run','--project',$testProj,'--configuration','Release')
