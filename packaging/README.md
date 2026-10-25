@@ -38,11 +38,11 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 .\packaging\Build-Release.ps1
 ```
 
-Verze se čte přímo z `OpenNFS1\OpenNFS1.csproj` (např. `<Version>1.10.0</Version>`). Při vydání 1.10.1 změníš toto číslo ve zdrojáku a skript bez další editace vytvoří:
+Verze se čte přímo z `OpenNFS1\OpenNFS1.csproj` (např. `<Version>2.0.2</Version>`). Při vydání 2.0.2 změníš toto číslo ve zdrojáku a skript bez další editace vytvoří:
 
 ```text
-dist\Need_For_Speed_SE_v1.10.1_win-x64.zip
-dist\Need_For_Speed_SE_v1.10.1_win-x64_Setup.exe
+dist\Need_For_Speed_SE_v2.0.2_win-x64.zip
+dist\Need_For_Speed_SE_v2.0.2_win-x64_Setup.exe
 ```
 
 Pokud WinRAR není instalovaný, vznikne ZIP a skript vypíše upozornění. Archivy používají **stejnou staging složku**; `OpenNFS1.exe` je přímo v kořeni ZIPu i po instalaci SFX.
