@@ -24,6 +24,23 @@ namespace OpenNFS1
                 ? family : null;
         }
 
+        /// <summary>
+        /// Resolve a selected hidden segment to the visible entry for its
+        /// course, without accidentally falling back to Alpine.
+        /// </summary>
+        public static bool IsVisibleCourseForSelection(
+            string visibleFile, bool visibleOpenRoad,
+            string selectedFile, bool selectedOpenRoad)
+        {
+            if (string.IsNullOrWhiteSpace(visibleFile) ||
+                string.IsNullOrWhiteSpace(selectedFile))
+                return false;
+            string visible = visibleFile.Replace('\\', '/');
+            string selected = selectedFile.Replace('\\', '/');
+            return string.Equals(visible, selected, StringComparison.OrdinalIgnoreCase)
+                || SameFamily(visibleFile, visibleOpenRoad, selectedFile, selectedOpenRoad);
+        }
+
         public static bool SameFamily(string leftFile, bool leftOpenRoad,
             string rightFile, bool rightOpenRoad)
         {
