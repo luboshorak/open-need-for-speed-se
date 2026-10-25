@@ -3,6 +3,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
+    <DefineConstants>$(DefineConstants);OPENNFS_WINDOWS_DX</DefineConstants>
     <AssemblyName>OpenNFS1</AssemblyName>
     <RootNamespace>OpenNFS1</RootNamespace>
     <ApplicationIcon>Icon.ico</ApplicationIcon>
@@ -12,7 +13,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Engine\GameEngine.csproj" />
-    <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.5.1" />
+    <PackageReference Include="MonoGame.Framework.WindowsDX" Version="3.8.5.1" />
     <PackageReference Include="DiscUtils.Iso9660" Version="0.16.13" />
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.5.1" />
     <MonoGameContentReference Include="Content\Content.mgcb" />
