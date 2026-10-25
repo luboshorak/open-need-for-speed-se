@@ -46,7 +46,6 @@ namespace OpenNFS1.Parsers.Audio
 					sampleOffsets.Add((i, sampleOffset));
 			}
 
-			int count = 0;
 			foreach (var sampleRef in sampleOffsets)
 			{
                 try
