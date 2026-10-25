@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Globalization;
 using GameEngine;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -84,12 +85,27 @@ namespace OpenNFS1.UI.Screens
             Value((_race.PlayerStats.Position + 1).ToString(), 307, 153, .48f);
             Value(Clock(_finishedTime), 307, 176, .48f);
             Value(Clock(_finishedTime), 307, 196, .48f);
-            Value(_race.AveragePlayerSpeed.ToString("0.0") + " MPH", 307, 227, .42f);
-            Value(_race.PeakPlayerSpeed.ToString("0.0") + " MPH", 307, 250, .42f);
+            Value(_race.AveragePlayerSpeed.ToString("0.0", CultureInfo.InvariantCulture) + " MPH", 307, 227, .42f);
+            Value(_race.PeakPlayerSpeed.ToString("0.0", CultureInfo.InvariantCulture) + " MPH", 307, 250, .42f);
 
-            // Recorded historical bests must come from the record database,
-            // not arbitrary invented times or names. Empty original record
-            // fields are preferable to made-up benchmark holders.
+            // Original BEST SEGMENT TIME and TOP SEGMENT SPEED rows.
+            // Fill from locally recorded real achievements, not fictional
+            // benchmark names/times from the classic game.
+            string trackFile = GameConfig.SelectedTrackDescription?.FileName;
+            var best = TrackRecords.Get(trackFile, 1).FirstOrDefault();
+            if (best != null)
+            {
+                Value(best.Player?.ToUpperInvariant() ?? "", 9, 319, .41f);
+                Value(Clock(TimeSpan.FromMilliseconds(best.Milliseconds)), 307, 319, .41f);
+                Value(best.Car?.ToUpperInvariant() ?? "", 474, 319, .41f);
+            }
+            var fastest = TrackRecords.FastestSpeed(trackFile);
+            if (fastest != null)
+            {
+                Value(fastest.Player?.ToUpperInvariant() ?? "", 9, 394, .41f);
+                Value(fastest.TopSpeed.ToString("0.0", CultureInfo.InvariantCulture) + " MPH", 307, 394, .41f);
+                Value(fastest.Car?.ToUpperInvariant() ?? "", 474, 394, .41f);
+            }
             DrawArt(_personalArt, "dond");
         }
 
