@@ -48,6 +48,26 @@ static class Program
         Assert(OpenRoadStageSelector.Family(@"SIMDATA\MISC\TR1.TRI", false) == null,
             "Closed circuits may not be treated as multistage roads.");
 
+        // Hidden AL2/AL3, CL2/CL3 and CY2/CY3 must reopen their own
+        // visible course, not default to the first Alpine menu entry.
+        foreach (string stage in new[] { "2", "3" })
+        {
+            foreach (string family in new[] { "AL", "CL", "CY" })
+            {
+                Assert(OpenRoadStageSelector.IsVisibleCourseForSelection(
+                        @"SIMDATA\MISC\" + family + "1.TRI", true,
+                        @"SIMDATA\MISC\" + family + stage + ".TRI", true),
+                    "Hidden " + family + stage + " did not resolve to visible " + family + "1.");
+            }
+        }
+        Assert(!OpenRoadStageSelector.IsVisibleCourseForSelection(
+                @"SIMDATA\MISC\AL1.TRI", true, @"SIMDATA\MISC\CL2.TRI", true),
+            "Alpine incorrectly matched a different road's hidden Coastal segment.");
+        Assert(OpenRoadStageSelector.IsVisibleCourseForSelection(
+                @"SIMDATA\MISC\TR2.TRI", false, @"simdata\misc\tr2.tri", false),
+            "Identical circuit files should resolve case-insensitively.");
+
+
         var warning = new PolicePursuitLogic();
         bool dispatched = false;
         for (int i = 0; i < 40; i++)
