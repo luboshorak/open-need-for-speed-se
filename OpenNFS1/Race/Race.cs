@@ -23,6 +23,10 @@ namespace OpenNFS1
         private TimeSpan _completedRaceTime;
         public bool Started => _started;
 		private readonly RaceGateTracker _finishGate;
+        private readonly Dictionary<IDriver, TimeSpan> _racerFinishTimes = new Dictionary<IDriver, TimeSpan>();
+        private readonly Dictionary<IDriver, int> _previousRacerNodes = new Dictionary<IDriver, int>();
+        public IReadOnlyDictionary<IDriver, TimeSpan> RacerFinishTimes => _racerFinishTimes;
+        public int FinishNode { get; private set; }
 		public bool Finished { get; private set; }
         public bool PolicePursuitActive { get; internal set; }
         public bool PoliceTicketed { get; internal set; }
@@ -47,7 +51,8 @@ namespace OpenNFS1
 			int checkpoint = track.CheckpointNode > 1
 				? Math.Min(track.CheckpointNode, track.RoadNodes.Count - 2)
 				: track.RoadNodes.Count - 2;
-			_finishGate = new RaceGateTracker(
+			FinishNode = checkpoint;
+            _finishGate = new RaceGateTracker(
 				player.Vehicle.CurrentNode.Number, checkpoint, track.IsOpenRoad);
 			// In NFS SE open-road traffic belongs to Head to Head only.
             // No Mercy suppresses traffic; cops still require separate AI work.
@@ -108,6 +113,8 @@ namespace OpenNFS1
 				d.Vehicle.Position = pos;
 			}
 			Drivers.Add(d);
+            if (d is RacingAIDriver || d is PlayerDriver)
+                _previousRacerNodes[d] = d.Vehicle.CurrentNode?.Number ?? 0;
 		}
 
 		public void Update()
@@ -143,6 +150,23 @@ namespace OpenNFS1
             }
             foreach (var driver in Drivers)
                 driver.Update(Drivers);
+
+            // Real per-opponent crossing times for open-road results.
+            // Unknown finish times remain unknown; never invent a ranking clock.
+            if (Track.IsOpenRoad && _started)
+            {
+                foreach (var driver in Drivers)
+                {
+                    if (driver is not RacingAIDriver && driver is not PlayerDriver)
+                        continue;
+                    int node = driver.Vehicle.CurrentNode?.Number ?? 0;
+                    int previous = _previousRacerNodes.TryGetValue(driver, out int last) ? last : node;
+                    if (!_racerFinishTimes.ContainsKey(driver) &&
+                        previous < FinishNode && node >= FinishNode)
+                        _racerFinishTimes.Add(driver, DateTime.Now - _raceStartTime);
+                    _previousRacerNodes[driver] = node;
+                }
+            }
 
             // Resolve contacts after every vehicle has moved this frame.
             // Previously cars could drive straight through one another.
