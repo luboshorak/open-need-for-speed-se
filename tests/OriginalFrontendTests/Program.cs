@@ -65,6 +65,45 @@ static class Program
             immediateRepeat |= officer.Update(.1f, 200, float.MaxValue);
         Assert(!immediateRepeat, "Police pursuit restarted during mandatory cooldown.");
 
-        Console.WriteLine("PASS: Huffman QFS, player name, AL/CL/CY segments, police chase and ticket cooldown");
+        // Automatic Down: brake while moving forward, then shift 1st -> N
+        // -> reverse and accelerate backwards with the same Down input.
+        var brakingForward = ReverseDriveControl.Compute(false, 1, 45, 0, 1, false, false);
+        Assert(brakingForward.Brake == 1 && brakingForward.Throttle == 0 &&
+            !brakingForward.ShiftDown, "Down during forward motion must BRAKE.");
+        var shiftFirst = ReverseDriveControl.Compute(false, 1, 0, 0, 1, false, false);
+        Assert(shiftFirst.ShiftDown && shiftFirst.Throttle == 0,
+            "Stopped automatic should select neutral before reverse.");
+        var shiftNeutral = ReverseDriveControl.Compute(false, 0, 0, 0, 1, false, false);
+        Assert(shiftNeutral.ShiftDown, "Stopped neutral must shift into reverse.");
+        var reversing = ReverseDriveControl.Compute(false, -1, -10, 0, 1, false, false);
+        Assert(reversing.Throttle == 1 && reversing.Brake == 0,
+            "Down should accelerate once reverse gear is engaged.");
+        var stopReverse = ReverseDriveControl.Compute(false, -1, -10, 1, 0, false, false);
+        Assert(stopReverse.Brake == 1 && !stopReverse.ShiftUp,
+            "Up must brake reverse motion before shifting into first.");
+        var leaveReverse = ReverseDriveControl.Compute(false, -1, 0, 1, 0, false, false);
+        Assert(leaveReverse.ShiftUp, "At rest, Up must leave reverse and return to forward.");
+        var manualReverse = ReverseDriveControl.Compute(true, -1, -8, 0, 1, false, false);
+        Assert(manualReverse.Throttle == 1 && manualReverse.Brake == 0,
+            "Manual transmission must allow throttle in explicitly selected reverse.");
+        var manualShift = ReverseDriveControl.Compute(true, 0, 0, 0, 0, false, true);
+        Assert(manualShift.ShiftDown, "Manual Z must engage reverse from neutral.");
+
+        var pursuitFar = PoliceRoadPlanner.Plan(120, 15, 3, false, 0, true, true);
+        Assert(pursuitFar.TargetSpeed > 120 && pursuitFar.TargetLane == 3,
+            "Patrol must accelerate towards distant suspect without weaving.");
+        var pursuitNear = PoliceRoadPlanner.Plan(0, 1, 3, false, 0, true, true);
+        Assert(pursuitNear.TargetSpeed <= 30,
+            "Patrol must slow for a stopped suspect instead of ramming the car.");
+        var blocked = PoliceRoadPlanner.Plan(150, 10, 3, true, 60, true, true);
+        Assert(blocked.TargetLane == 4,
+            "Patrol should choose an available passing lane around slower traffic.");
+        var trapped = PoliceRoadPlanner.Plan(150, 10, 3, true, 60, false, false);
+        Assert(trapped.TargetSpeed <= 60,
+            "Patrol unable to change lanes must brake for traffic.");
+        Assert(PoliceRoadPlanner.Plan(80, 8, 2, true, 40, true, false).TargetLane == 2,
+            "Patrol must not leave the right-hand carriageway into oncoming lane.");
+
+        Console.WriteLine("PASS: Huffman QFS, player name, AL/CL/CY segments, reverse gear, police gap steering and tickets");
     }
 }
