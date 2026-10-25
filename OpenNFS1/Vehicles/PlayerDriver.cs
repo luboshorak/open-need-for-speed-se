@@ -24,10 +24,10 @@ namespace OpenNFS1.Vehicles.AI
                 VehicleController.GearUp, VehicleController.GearDown);
             // A forced stop (countdown/pause) must never become reverse throttle.
             _vehicle.ThrottlePedalInput = VehicleController.ForceBrake ? 0 : drive.Throttle;
-            _vehicle.BrakePedalInput = drive.Brake;
+            _vehicle.BrakePedalInput = VehicleController.ForceBrake ? 1 : drive.Brake;
             _vehicle.SteeringInput = VehicleController.Turn;
-            _vehicle.GearDownInput = drive.ShiftDown;
-            _vehicle.GearUpInput = drive.ShiftUp;
+            _vehicle.GearDownInput = !VehicleController.ForceBrake && drive.ShiftDown;
+            _vehicle.GearUpInput = !VehicleController.ForceBrake && drive.ShiftUp;
 			_vehicle.HandbrakeInput = VehicleController.Handbrake;
 			_vehicle.Update();
 		}
