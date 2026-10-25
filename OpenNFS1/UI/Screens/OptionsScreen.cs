@@ -14,6 +14,7 @@ namespace OpenNFS1.UI.Screens
     internal sealed class OptionsScreen : IGameScreen
     {
         private readonly BitmapChunk _art;
+        private readonly IGameScreen _returnScreen;
         private readonly SpriteFont _font;
         private readonly bool _manualBefore, _absBefore, _tractionBefore;
         private readonly int _distanceBefore;
@@ -28,8 +29,9 @@ namespace OpenNFS1.UI.Screens
         private static readonly string[] Active =
             { "Tral", "Absl", "Trcl", "Audl", "Gral", "Conl", "Loal", "Crel", "Donl" };
 
-        public OptionsScreen()
+        public OptionsScreen(IGameScreen returnScreen = null)
         {
+            _returnScreen = returnScreen;
             _art = new QfsFile(@"FRONTEND\ART\OPTION\OPTIONS.QFS").Content.Header;
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
             _manualBefore = GameConfig.ManualGearbox;
@@ -67,13 +69,13 @@ namespace OpenNFS1.UI.Screens
             GameConfig.SoundEffectsEnabled = _soundBefore;
             GameConfig.RockMusic = _rockBefore;
             GameConfig.MusicVolume = _volumeBefore;
-            Engine.Instance.Screen = new HomeScreen();
+            Engine.Instance.Screen = _returnScreen ?? new HomeScreen();
         }
 
         private void Done()
         {
             GameConfig.SaveUserSettings();
-            Engine.Instance.Screen = new HomeScreen();
+            Engine.Instance.Screen = _returnScreen ?? new HomeScreen();
         }
 
         private void Change(int direction)

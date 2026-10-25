@@ -34,6 +34,8 @@ jobs:
         run: dotnet run --project tests/DisplayPresentationTests/DisplayPresentationTests.csproj --configuration Release
       - name: Original EA QFS and player profile regression tests
         run: dotnet run --project tests/OriginalFrontendTests/OriginalFrontendTests.csproj --configuration Release
+      - name: Original BNK slot 42 and audio decode regression tests
+        run: dotnet run --project tests/OriginalAudioBankTests/OriginalAudioBankTests.csproj --configuration Release
       - name: Publish Windows x64
         run: dotnet publish OpenNFS1/OpenNFS1.csproj --configuration Release --runtime win-x64 --self-contained false -p:PublishSingleFile=false --output publish
       - uses: actions/upload-artifact@v4

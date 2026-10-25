@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Microsoft.Xna.Framework.Audio;
+using Microsoft.Xna.Framework;
 using GameEngine;
 using OpenNFS1.Audio;
 using OpenNFS1.Parsers.Audio;
@@ -18,7 +19,8 @@ namespace OpenNFS1
         private SoundEffect _gearChange;
         private SoundEffect _skidEffect;
         private bool _isActive;
-        private bool _skidding;
+        private float _engineLoadBlend;
+        private SoundEffectInstance _skidLoop;
 
         public VehicleAudioProvider(DrivableVehicle car) { _car = car; }
 
@@ -31,25 +33,35 @@ namespace OpenNFS1
                 if (carBank.Samples.Count < 2)
                     throw new InvalidDataException("Vehicle sound bank contains fewer than two engine samples.");
 
-                _accelerating = CreateEffect(carBank.Samples[0]).CreateInstance();
-                _coasting = CreateEffect(carBank.Samples[1]).CreateInstance();
+                _accelerating = CreateEffect(carBank.GetBySlot(1)).CreateInstance();
+                _coasting = CreateEffect(carBank.GetBySlot(2)).CreateInstance();
                 _accelerating.IsLooped = true;
                 _coasting.IsLooped = true;
 
-                if (carBank.Samples.Count > 3)
-                    _gearChange = CreateEffect(carBank.Samples[3]);
+                if (carBank.GetBySlot(3) != null)
+                    _gearChange = CreateEffect(carBank.GetBySlot(3), full: true);
 
                 try
                 {
                     var environmentBank = new BnkFile("COLL_SW.BNK");
                     // Index 5 is the grass-slide effect in the original sound bank.
-                    if (environmentBank.Samples.Count > 5)
+                    if (environmentBank.GetBySlot(38) != null)
                     {
-                        _offRoad = CreateEffect(environmentBank.Samples[5]).CreateInstance();
+                        _offRoad = CreateEffect(environmentBank.GetBySlot(38)).CreateInstance();
                         _offRoad.IsLooped = true;
                     }
-                    if (environmentBank.Samples.Count > 0)
-                        _skidEffect = CreateEffect(environmentBank.Samples[0]);
+                    // Identified by listening to the ORIGINAL NFS SE sound
+                    // bank (user verified): COLL_SW.BNK slot 42 is tire skid.
+                    // Use only its actual BNK loop region; never replay one
+                    // of the one-shot impact samples as steering audio.
+                    BnkSample tireSkid = environmentBank.GetBySlot(42);
+                    if (tireSkid == null)
+                        throw new InvalidDataException(
+                            "Original COLL_SW.BNK tire-skid sample slot 42 is missing.");
+                    _skidEffect = CreateEffect(tireSkid);
+                    _skidLoop = _skidEffect.CreateInstance();
+                    _skidLoop.IsLooped = true;
+                    _skidLoop.Volume = 0.27f;
                 }
                 catch (Exception ex) { AudioDiagnostics.Record(ex); }
 
@@ -63,9 +75,12 @@ namespace OpenNFS1
             }
         }
 
-        internal static SoundEffect CreateEffect(BnkSample sample)
+        internal static SoundEffect CreateEffect(BnkSample sample, bool full = false)
         {
-            return new SoundEffect(sample.PCMData, sample.SampleRate,
+            if (sample == null)
+                throw new InvalidDataException("Referenced BNK sound slot is absent.");
+            return new SoundEffect(full ? sample.FullPCMData : sample.PCMData,
+                sample.SampleRate,
                 sample.NbrChannels == 2 ? AudioChannels.Stereo : AudioChannels.Mono);
         }
 
@@ -84,33 +99,39 @@ namespace OpenNFS1
         public void UpdateEngine()
         {
             if (!_isActive) return;
-            var acceleration = _car.Motor.Throttle != 0 || _car.Motor.AtRedline;
-            SetPlayback(_accelerating, acceleration);
-            SetPlayback(_coasting, !acceleration);
-            float pitch = (_car.Motor.Rpm / Math.Max(1f, _car.Motor.RedlineRpm)) - 0.5f;
-            pitch = Math.Clamp(pitch, -1f, 1f);
-            if (_accelerating != null) { _accelerating.Pitch = pitch; _accelerating.Volume = 0.3f; }
-            if (_coasting != null) { _coasting.Pitch = pitch; _coasting.Volume = 0.3f; }
+            // Original car-specific BNK contains separate power/coasting
+            // samples. Keep both playing and crossfade by throttle; repeated
+            // Pause/Resume every key press produces pops and audible gaps.
+            SetPlayback(_accelerating, true);
+            SetPlayback(_coasting, true);
+            float dt = Math.Clamp(Engine.Instance.FrameTime, 0f, .1f);
+            float load = Math.Clamp(_car.Motor.Throttle, 0f, 1f);
+            _engineLoadBlend += (load - _engineLoadBlend) *
+                Math.Clamp(dt * 6f, 0f, 1f);
+            float redline = Math.Max(1f, _car.Motor.RedlineRpm);
+            float fraction = Math.Clamp(_car.Motor.Rpm / redline, 0f, 1f);
+            float pitch = Math.Clamp(fraction * 1.15f - .57f, -1f, 1f);
+            if (_accelerating != null)
+            {
+                _accelerating.Pitch = pitch;
+                _accelerating.Volume = Math.Clamp(0.35f * _engineLoadBlend, 0, 1);
+            }
+            if (_coasting != null)
+            {
+                _coasting.Pitch = pitch;
+                _coasting.Volume = Math.Clamp(0.35f * (1f - _engineLoadBlend), 0, 1);
+            }
         }
 
         public void PlaySkid(bool play)
         {
-            if (!_isActive || _skidEffect == null) return;
-            // A brief contact sound when a skid BEGINS, not an unrelated
-            // one-shot repeated every 0.45s while holding the steering key.
-            if (play && !_skidding && _skidDelay <= 0f)
-            {
-                _skidEffect.Play(0.25f, 0f, 0f);
-                _skidDelay = 0.4f;
-            }
-            _skidding = play;
+            if (!_isActive || _skidLoop == null) return;
+            // The original effect is a continuous tire sound, not a single
+            // transient fired only on the first slip frame.
+            SetPlayback(_skidLoop, play);
         }
-        private float _skidDelay;
 
-        public void Tick(float seconds)
-        {
-            if (_skidDelay > 0f) _skidDelay -= seconds;
-        }
+        public void Tick(float seconds) { }
 
         public void ChangeGear() { if (_isActive && _gearChange != null) _gearChange.Play(0.5f, 0f, 0f); }
 
@@ -132,7 +153,8 @@ namespace OpenNFS1
             _accelerating?.Stop();
             _coasting?.Stop();
             _offRoad?.Stop();
-            _skidding = false;
+            _skidLoop?.Stop();
+            _engineLoadBlend = 0;
         }
     }
 }

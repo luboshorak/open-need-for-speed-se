@@ -27,6 +27,13 @@ namespace OpenNFS1.UI
         private readonly BitmapEntry[] _yellowDigits = new BitmapEntry[10];
         private readonly BitmapEntry _yellowReverse;
         private readonly BitmapEntry _yellowNeutral;
+        // Five original 120x28 HUD light states from MASKHI.FSH:
+        // sgrn / srdd / srdl / syld / syll, verified in original CD manifest.
+        private readonly BitmapEntry _startGreen;
+        private readonly BitmapEntry _startRedDark;
+        private readonly BitmapEntry _startRedLit;
+        private readonly BitmapEntry _startYellowDark;
+        private readonly BitmapEntry _startYellowLit;
         private readonly Texture2D _pixel;
         private readonly Vector2[] _circuitMap;
 
@@ -49,6 +56,17 @@ namespace OpenNFS1.UI
             }
             _yellowReverse = images.FindByName("yelr");
             _yellowNeutral = images.FindByName("yeln");
+            _startGreen = images.FindByName("sgrn");
+            _startRedDark = images.FindByName("srdd");
+            _startRedLit = images.FindByName("srdl");
+            _startYellowDark = images.FindByName("syld");
+            _startYellowLit = images.FindByName("syll");
+            if (_startGreen?.Texture == null || _startRedDark?.Texture == null ||
+                _startRedLit?.Texture == null || _startYellowDark?.Texture == null ||
+                _startYellowLit?.Texture == null)
+                throw new InvalidOperationException(
+                    "Original NFS SE start-light bitmaps missing from SIMDATA/MISC/MASKHI.FSH.");
+
 
             // Precompute the real circuit outline only once, not every frame.
             if (!race.Track.IsOpenRoad && race.Track.RoadNodes.Count > 1)
@@ -119,6 +137,18 @@ namespace OpenNFS1.UI
             sprite.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied,
                 SamplerState.PointClamp);
 
+            // On the original CD, the five start-light tiles REPLACE the
+            // upper 32px status bar during the grid sequence. The normal
+            // counters do not appear behind the traffic lights.
+            if (_race.StartLightsVisible)
+            {
+                RenderTrackMap(sprite);
+                RenderRivalMarkers(sprite);
+                RenderStartingCountdown(sprite);
+                sprite.End();
+                return;
+            }
+
             if (_statusBar?.Texture != null)
                 sprite.Draw(_statusBar.Texture, _statusBar.GetDisplayAt(), Color.White);
             else
@@ -169,6 +199,21 @@ namespace OpenNFS1.UI
             RenderTrackMap(sprite);
             RenderRivalMarkers(sprite);
             sprite.End();
+        }
+
+        private void RenderStartingCountdown(SpriteBatch sprite)
+        {
+            // Video reference: left-to-right RED RED RED, YELLOW YELLOW,
+            // then all GREEN. Original 120x28 bitmap tiles occupy five
+            // 128px HUD slots (120px artwork + 8px transparent interval).
+            int stage = _race.StartLightStage;
+            for (int index = 0; index < 5; index++)
+            {
+                BitmapEntry tile = stage >= 5 ? _startGreen :
+                    index < 3 ? (index <= stage ? _startRedLit : _startRedDark) :
+                    (index <= stage ? _startYellowLit : _startYellowDark);
+                sprite.Draw(tile.Texture, new Vector2(index * 128, 0), Color.White);
+            }
         }
 
         private void DrawClock(SpriteBatch sprite, TimeSpan time, int clock)

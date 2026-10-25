@@ -1,0 +1,40 @@
+name: Remove merged fix branches
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove merged fix branches only
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin master --prune
+          git fetch origin '+refs/heads/fix/*:refs/remotes/origin/fix/*'
+          while IFS= read -r branch; do
+            [[ "$branch" == origin/fix/* ]] || continue
+            ref="$(printf '%s' "$branch" | sed 's|^origin/||')"
+            # Delete only when the remote branch tip is already reachable
+            # from master. Preserve all other branches without exceptions.
+            if git merge-base --is-ancestor "$branch" origin/master; then
+              echo "Pruning merged branch $ref"
+              gh api -X DELETE "repos/$GH_REPO/git/refs/heads/$ref" || {
+                echo "::warning::Could not remove $ref; check branch protection."
+              }
+            else
+              echo "Keeping unmerged branch $ref"
+            fi
+          done < <(git for-each-ref --format='%(refname:short)' refs/remotes/origin/fix/)

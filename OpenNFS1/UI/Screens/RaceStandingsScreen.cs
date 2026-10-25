@@ -1,18 +1,21 @@
 using System;
 using System.Linq;
-using OpenNFS1.Vehicles.AI;
-using OpenNFS1.Physics;
+using System.Globalization;
 using GameEngine;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using OpenNFS1.Parsers;
+using OpenNFS1.Physics;
+using OpenNFS1.Vehicles.AI;
 
 namespace OpenNFS1.UI.Screens
 {
     /// <summary>
-    /// Original track/segment standings artwork. Shown from FINMENU Game
-    /// Standings without re-recording championship points or auto-saving.
+    /// Two distinct original 1996 results screens: STANDSEG/STANDTRK
+    /// (personal result) followed by SGMTSTND/FINSTND (all competitors).
+    /// The original images ALREADY contain titles, captions and column
+    /// headers. Only variable numeric/text fields may be rendered over them.
     /// </summary>
     internal sealed class RaceStandingsScreen : IGameScreen
     {
@@ -20,27 +23,147 @@ namespace OpenNFS1.UI.Screens
         private readonly TimeSpan _finishedTime;
         private readonly IGameScreen _back;
         private readonly SpriteFont _font;
-        private readonly BitmapChunk _art;
-        private int _page; // 0: personal segment results, 1: complete standings
+        private readonly BitmapChunk _personalArt;
+        private readonly BitmapChunk _standingsArt;
+        private int _page;
 
-        public RaceStandingsScreen(Race race, TimeSpan finishedTime, IGameScreen back)
+        public RaceStandingsScreen(Race race, TimeSpan finishedTime, IGameScreen back,
+            bool showStandingsFirst = false)
         {
             _race = race;
             _finishedTime = finishedTime;
             _back = back;
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
-            string asset = race.Track.IsOpenRoad ? "STANDSEG.QFS" : "STANDTRK.QFS";
-            _art = new QfsFile(@"FRONTEND\ART\STATS\" + asset).Content.Header;
+            _personalArt = new QfsFile(@"FRONTEND\ART\STATS\" +
+                (race.Track.IsOpenRoad ? "STANDSEG.QFS" : "STANDTRK.QFS")).Content.Header;
+            _standingsArt = new QfsFile(@"FRONTEND\ART\STATS\" +
+                (race.Track.IsOpenRoad ? "SGMTSTND.QFS" : "FINSTND.QFS")).Content.Header;
+            _page = showStandingsFirst ? 1 : 0;
         }
 
-        private void Art(string id)
+        private static void DrawArt(BitmapChunk art, string id)
         {
-            var entry = _art.FindByName(id);
-            if (entry?.Texture != null)
-                Engine.Instance.SpriteBatch.Draw(entry.Texture, entry.GetDisplayAt(), Color.White);
+            var image = art.FindByName(id);
+            if (image?.Texture != null)
+                Engine.Instance.SpriteBatch.Draw(image.Texture, image.GetDisplayAt(), Color.White);
         }
 
-        public void Update(GameTime time)
+        private void Value(string text, int x, int y, float scale = .37f)
+        {
+            Engine.Instance.SpriteBatch.DrawString(_font, text,
+                new Vector2(x, y), Color.Yellow, 0f, Vector2.Zero,
+                scale, SpriteEffects.None, 0f);
+        }
+
+        private static string Clock(TimeSpan value)
+        {
+            if (value < TimeSpan.Zero) value = TimeSpan.Zero;
+            return ((int)value.TotalMinutes) + ":" + value.Seconds.ToString("00") +
+                "." + (value.Milliseconds / 100);
+        }
+
+        private void DrawPersonal()
+        {
+            DrawArt(_personalArt, "bgnd");
+
+            string track = GameConfig.SelectedTrackDescription?.Name ?? "";
+            string courseArt = track.ToLowerInvariant() switch
+            {
+                "coastal" => "coas", "alpine" => "alpi", "city" => "city",
+                _ => null
+            };
+            // The original course-specific 562x31 bitmap includes its own
+            // text. Print only names lacking the source bitmap.
+            if (courseArt != null && _personalArt.FindByName(courseArt)?.Texture != null)
+                DrawArt(_personalArt, courseArt);
+            else if (!string.IsNullOrEmpty(track))
+                Value(track.ToUpperInvariant(), 8, 61, .65f);
+
+            // Captions CURRENT STANDING / SEGMENT TIME / TOTAL TRACK TIME /
+            // AVERAGE SPEED / TOP SPEED and the two RECORD rows are printed
+            // into STANDSEG/STANDTRK bgnd. Never write them a second time.
+            Value((_race.PlayerStats.Position + 1).ToString(), 307, 153, .48f);
+            Value(Clock(_finishedTime), 307, 176, .48f);
+            Value(Clock(_finishedTime), 307, 196, .48f);
+            Value(_race.AveragePlayerSpeed.ToString("0.0", CultureInfo.InvariantCulture) + " MPH", 307, 227, .42f);
+            Value(_race.PeakPlayerSpeed.ToString("0.0", CultureInfo.InvariantCulture) + " MPH", 307, 250, .42f);
+
+            // Original BEST SEGMENT TIME and TOP SEGMENT SPEED rows.
+            // Fill from locally recorded real achievements, not fictional
+            // benchmark names/times from the classic game.
+            string trackFile = GameConfig.SelectedTrackDescription?.FileName;
+            var best = TrackRecords.Get(trackFile, 1).FirstOrDefault();
+            if (best != null)
+            {
+                Value(best.Player?.ToUpperInvariant() ?? "", 9, 319, .41f);
+                Value(Clock(TimeSpan.FromMilliseconds(best.Milliseconds)), 307, 319, .41f);
+                Value(best.Car?.ToUpperInvariant() ?? "", 474, 319, .41f);
+            }
+            var fastest = TrackRecords.FastestSpeed(trackFile);
+            if (fastest != null)
+            {
+                Value(fastest.Player?.ToUpperInvariant() ?? "", 9, 394, .41f);
+                Value(fastest.TopSpeed.ToString("0.0", CultureInfo.InvariantCulture) + " MPH", 307, 394, .41f);
+                Value(fastest.Car?.ToUpperInvariant() ?? "", 474, 394, .41f);
+            }
+            DrawArt(_personalArt, "dond");
+        }
+
+        private void DrawStandings()
+        {
+            DrawArt(_standingsArt, "bgnd");
+            string track = GameConfig.SelectedTrackDescription?.Name ?? "";
+            string trackArt = track.ToLowerInvariant() switch
+            {
+                "coastal" => "coas", "alpine" => "alpi", "city" => "city",
+                "autumn valley" => "autu", "burnt sienna" => "burn",
+                "rusty springs" => "rust", "transpolis" => "trop",
+                _ => null
+            };
+            if (trackArt != null && _standingsArt.FindByName(trackArt)?.Texture != null)
+                DrawArt(_standingsArt, trackArt);
+            else if (!string.IsNullOrEmpty(track))
+                Value(track.ToUpperInvariant(), 8, 61, .65f);
+
+            // The SGMTSTND / FINSTND source background already has
+            // RANK, NAME, TOTAL TIME and SEGMENT TIME headings.
+            var drivers = _race.Drivers
+                .Where(d => d is PlayerDriver || d is RacingAIDriver)
+                .OrderBy(d => _race.RacerFinishTimes.ContainsKey(d) ? 0 : 1)
+                .ThenBy(d => _race.RacerFinishTimes.TryGetValue(d, out var finish)
+                    ? finish.TotalSeconds : double.MaxValue)
+                .ThenByDescending(d => d.Vehicle.TrackPosition)
+                .Take(8).ToList();
+            for (int i = 0; i < drivers.Count; i++)
+            {
+                var driver = drivers[i];
+                string name = driver is PlayerDriver
+                    ? (PlayerProfile.IsNamed ? PlayerProfile.Name : "DRIVER")
+                    : (driver.Vehicle as DrivableVehicle)?.Descriptor?.Name ?? "OPPONENT";
+                bool hasTime = _race.RacerFinishTimes.TryGetValue(driver, out TimeSpan elapsed);
+                if (!hasTime && driver is PlayerDriver)
+                {
+                    hasTime = true;
+                    elapsed = _finishedTime;
+                }
+                string segment = hasTime ? Clock(elapsed) : "--:--.-";
+                // Cumulative open-road totals for later segments are not
+                // known from an individual Race, so leave them unknown.
+                bool firstStage = !_race.Track.IsOpenRoad ||
+                    GameConfig.SelectedTrackDescription?.FileName?.ToUpperInvariant()
+                        .EndsWith("1.TRI") == true;
+                string total = firstStage ? segment : "--:--.-";
+                int y = 166 + i * 29;
+                Value((i + 1).ToString(), 30, y, .37f);
+                Value(name.ToUpperInvariant(), 123, y, .35f);
+                Value(total, 309, y, .37f);
+                if (_race.Track.IsOpenRoad)
+                    Value(segment, 484, y, .37f);
+            }
+            DrawArt(_standingsArt, "Dond");
+        }
+
+        public void Update(GameTime gameTime)
         {
             var input = Engine.Instance.Input;
             if (input.WasPressed(Keys.Escape) || input.WasPressed(Keys.Enter) ||
@@ -51,66 +174,13 @@ namespace OpenNFS1.UI.Screens
             }
         }
 
-        private void Value(string value, int x, int y, float scale = 0.42f)
-        {
-            Engine.Instance.SpriteBatch.DrawString(_font, value, new Vector2(x,y),
-                Color.Yellow, 0, Vector2.Zero, scale, SpriteEffects.None, 0);
-        }
-
         public void Draw()
         {
             Engine.Instance.Device.Viewport = new Viewport(0, 0, 640, 480);
             var sprite = Engine.Instance.SpriteBatch;
             sprite.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied,
                 SamplerState.PointClamp);
-            Art("bgnd");
-            if (_page == 0)
-            {
-                Value((GameConfig.SelectedTrackDescription?.Name ?? "RACE").ToUpperInvariant(), 12, 108, .65f);
-                Value(_race.Track.IsOpenRoad ? "SEGMENT RESULTS" : "RACE RESULTS", 12, 142, .43f);
-                Value("CURRENT STANDING", 20, 206, .38f);
-                Value((_race.PlayerStats.Position + 1).ToString(), 360, 206, .46f);
-                Value("SEGMENT TIME", 20, 243, .38f);
-                Value(_finishedTime.ToString(@"m\:ss\.f"), 360, 243, .46f);
-                Value("TOP SPEED", 20, 280, .38f);
-                Value(_race.PeakPlayerSpeed.ToString("0.0"), 360, 280, .46f);
-                Value("DONE - VIEW STANDINGS", 20, 422, .37f);
-                Art("Dond");
-                sprite.End();
-                return;
-            }
-            // Standings show real race participants. The original game displays
-            // names and per-racer times, not a one-line player position label.
-            string course = GameConfig.SelectedTrackDescription?.Name ?? "RACE";
-            Value(course.ToUpperInvariant(), 12, 104, .65f);
-            Value(_race.Track.IsOpenRoad ? "SEGMENT RESULTS" : "RACE RESULTS", 12, 132, .43f);
-            Value("RANK", 18, 183, .36f);
-            Value("NAME / CAR", 126, 183, .36f);
-            Value("TOTAL TIME", 316, 183, .36f);
-            Value("SEGMENT TIME", 485, 183, .36f);
-
-            var racers = _race.Drivers.Where(d => d is PlayerDriver || d is RacingAIDriver)
-                .OrderBy(d => _race.RacerFinishTimes.ContainsKey(d) ? 0 : 1)
-                .ThenBy(d => _race.RacerFinishTimes.TryGetValue(d, out var finish)
-                    ? finish.TotalSeconds : double.MaxValue)
-                .ThenByDescending(d => d.Vehicle.TrackPosition)
-                .ToList();
-            for (int i = 0; i < racers.Count && i < 8; i++)
-            {
-                var driver = racers[i];
-                bool player = driver is PlayerDriver;
-                string name = player ? "PLAYER" :
-                    (driver.Vehicle as DrivableVehicle)?.Descriptor?.Name ?? "OPPONENT";
-                string time = _race.RacerFinishTimes.TryGetValue(driver, out var elapsed)
-                    ? elapsed.ToString(@"m\\:ss\\.f")
-                    : (player ? _finishedTime.ToString(@"m\\:ss\\.f") : "--:--.-");
-                int y = 224 + i * 33;
-                Value((i + 1).ToString(), 30, y, .40f);
-                Value(name.ToUpperInvariant(), 122, y, .34f);
-                Value(time, 323, y, .40f);
-                Value(time, 504, y, .40f);
-            }
-            Art("Dond");
+            if (_page == 0) DrawPersonal(); else DrawStandings();
             sprite.End();
         }
     }

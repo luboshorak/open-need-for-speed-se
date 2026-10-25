@@ -16,13 +16,15 @@ namespace OpenNFS1.UI.Screens
     internal sealed class VehicleShowroomScreen : IGameScreen
     {
         private readonly ShowroomNavigator _nav;
+        private readonly IGameScreen _returnScreen;
         private readonly SpriteFont _font;
         private BitmapChunk _art;
         private string _message;
         private bool _previewFallback;
 
-        public VehicleShowroomScreen(VehicleDescription selectedCar)
+        public VehicleShowroomScreen(VehicleDescription selectedCar, IGameScreen returnScreen = null)
         {
+            _returnScreen = returnScreen;
             _nav = new ShowroomNavigator(selectedCar?.Name);
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
             // Warrior has no original FRONTEND/SHOW artwork. A temporary RX7
@@ -114,7 +116,10 @@ namespace OpenNFS1.UI.Screens
         private void Back()
         {
             if (_nav.Back())
-                Engine.Instance.Screen = new HomeScreen();
+                {
+                    if (_returnScreen is HomeScreen home) home.RefreshFromGameConfig();
+                    Engine.Instance.Screen = _returnScreen ?? new HomeScreen();
+                }
             else
                 LoadArt();
         }

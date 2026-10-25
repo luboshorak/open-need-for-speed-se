@@ -8,6 +8,9 @@ namespace OpenNFS1.Parsers.Audio
 {
 	class BnkSample
 	{
+        public string SourceId;
+        public int Slot;
+        public byte[] FullPCMData;
 		public int NbrSamples;
 		public Int16 NbrChannels;
 		public byte[] PCMData;
@@ -19,8 +22,9 @@ namespace OpenNFS1.Parsers.Audio
 	class BnkFile
 	{
 		string _filename;
-		public bool ForceMono = true;
+		public bool ForceMono = false;
 		public List<BnkSample> Samples { get; private set; }
+        public BnkSample GetBySlot(int slot) => Samples.Find(s => s.Slot == slot);
 
 		public BnkFile(string filename)
 		{
@@ -34,27 +38,38 @@ namespace OpenNFS1.Parsers.Audio
 
 		private void Parse(BinaryReader reader)
 		{
-			List<int> sampleOffsets = new List<int>();
+			List<(int Slot, int Offset)> sampleOffsets = new List<(int Slot, int Offset)>();
 			for (int i = 0; i < 128; i++)
 			{
 				int sampleOffset = reader.ReadInt32();
 				if (sampleOffset != 0)
-					sampleOffsets.Add(sampleOffset);
+					sampleOffsets.Add((i, sampleOffset));
 			}
 
-			int count = 0;
-			foreach (int sampleOffset in sampleOffsets)
+			foreach (var sampleRef in sampleOffsets)
 			{
-				reader.BaseStream.Position = sampleOffset;
-				ReadSample(reader, count++);
+                try
+                {
+                    reader.BaseStream.Position = sampleRef.Offset;
+                    ReadSample(reader, sampleRef.Slot);
+                }
+                catch (InvalidDataException exception)
+                {
+                    // Original CD banks contain a few malformed alias entries
+                    // with an incorrect sample-byte depth (e.g. COLL_SB slots
+                    // 43/45/56/58). Keep the other real sounds playable.
+                    Trace.WriteLine($"Invalid original BNK slot {_filename}:{sampleRef.Slot}: {exception.Message}");
+                }
 			}
 		}
 
-		private void ReadSample(BinaryReader reader, int sampleIndex)
+		private void ReadSample(BinaryReader reader, int sourceSlot)
 		{
 			BnkSample sample = new BnkSample();
+            sample.Slot = sourceSlot;
 			reader.BaseStream.Position += 0x28;
 			string id = new string(reader.ReadChars(4));
+            sample.SourceId = id;
 			sample.SampleRate = reader.ReadInt32();
 			byte bytesPerSample = reader.ReadByte();
 			sample.NbrChannels = reader.ReadByte();
@@ -75,74 +90,64 @@ namespace OpenNFS1.Parsers.Audio
 			//Debug.WriteLine(String.Format("{0}: sampleRate:{5} bps: {1} loopStart: {2} loopLen: {3} totalLen: {4}, offset: {6}, channels: {7}",
 			//	headerIndex, bytesPerSample, sample.LoopStart, loopLength, sample.NbrSamples, sample.SampleRate, dataOffset, sample.NbrChannels));
 
-			reader.BaseStream.Position = dataOffset + (bytesPerSample * sample.NbrChannels * sample.LoopStart);
-			sample.NbrSamples = loopLength == 0 ? totalLength : loopLength;
-			byte[] soundData = reader.ReadBytes(bytesPerSample * sample.NbrChannels * sample.NbrSamples);
+			            // BNK contains a full source sound AND a loop segment. Event
+            // samples (shifts, collision, horn) must use the entire sound;
+            // looped motors / rolling noise use the provided loop region.
+            // The old parser discarded the attack of EVERY sound and even
+            // read out of bounds if a source encoded a bad loop length.
+            int channelCount = sample.NbrChannels;
+            long fullBytes = (long)totalLength * bytesPerSample * channelCount;
+            if (totalLength <= 0 || fullBytes <= 0 || fullBytes > 60 * 1024 * 1024 ||
+                dataOffset < 0 || dataOffset + fullBytes > reader.BaseStream.Length)
+                throw new InvalidDataException($"Invalid BNK sample at slot {sourceSlot}.");
+            reader.BaseStream.Position = dataOffset;
+            byte[] fullData = reader.ReadBytes((int)fullBytes);
 
-			// Original BNK 8-bit samples are signed. MonoGame SoundEffect expects
-			// 16-bit signed little-endian PCM, so expand them before playback.
+            int safeLoopStart = Math.Clamp(sample.LoopStart, 0, totalLength);
+            int safeLoopLength = loopLength <= 0 ? totalLength : Math.Min(loopLength,
+                Math.Max(0, totalLength - safeLoopStart));
+            if (safeLoopLength <= 0)
+            {
+                safeLoopStart = 0;
+                safeLoopLength = totalLength;
+            }
+            int startBytes = safeLoopStart * channelCount * bytesPerSample;
+            int countBytes = safeLoopLength * channelCount * bytesPerSample;
+            byte[] loopData = new byte[countBytes];
+            Buffer.BlockCopy(fullData, startBytes, loopData, 0, countBytes);
+            sample.NbrSamples = safeLoopLength;
 
-			if (ForceMono && sample.NbrChannels == 2)
-			{
-				MemoryStream ms = new MemoryStream();
-				for (int i = 0; i < soundData.Length; i += bytesPerSample * 2)
-				{
-					ms.Write(soundData, i, bytesPerSample);
-				}
-				soundData = ms.ToArray();
-				sample.NbrChannels = 1;
-			}
+            byte[] ToMono(byte[] input)
+            {
+                if (!ForceMono || channelCount != 2)
+                    return input;
+                byte[] mono = new byte[input.Length / 2];
+                int frameBytes = bytesPerSample * 2;
+                for (int frame = 0; frame < mono.Length / bytesPerSample; frame++)
+                    Buffer.BlockCopy(input, frame * frameBytes, mono,
+                        frame * bytesPerSample, bytesPerSample);
+                return mono;
+            }
 
-			/*
-			if (sample.NbrChannels == 2)
-			{
-				MemoryStream ms = new MemoryStream();
-				for (int i = 0; i < soundData.Length - 4; i += 4)
-				{
-					ms.Write(soundData, i, 2);
-				}
-				soundData = ms.ToArray();
-				sample.NbrChannels = 1;
+            byte[] ConvertPcm(byte[] input)
+            {
+                if (bytesPerSample == 2) return input;
+                if (bytesPerSample != 1)
+                    throw new InvalidDataException("Unsupported BNK sample bit depth");
+                byte[] pcm16 = new byte[input.Length * 2];
+                for (int i = 0; i < input.Length; i++)
+                {
+                    short value = (short)(unchecked((sbyte)input[i]) << 8);
+                    pcm16[i * 2] = (byte)value;
+                    pcm16[i * 2 + 1] = (byte)(value >> 8);
+                }
+                return pcm16;
+            }
 
-				short[] sdata = new short[soundData.Length / 2];
-				Buffer.BlockCopy(soundData, 0, sdata, 0, soundData.Length);
-				soundData = new byte[sdata.Length * 2];
-				Buffer.BlockCopy(sdata, 0, soundData, 0, loopLength * 2);
-			}
-			
-			if (sample.NbrChannels == 3)
-			{
-				short lowestValue = short.MaxValue;
-				int lowestValueSample = 0;
-				short[] sdata = new short[soundData.Length / 2];
-				Buffer.BlockCopy(soundData, 0, sdata, 0, soundData.Length);
-				for (int i = loopLength; i < loopLength + 20; i++)
-				{
-					if (Math.Abs(sdata[i]) < Math.Abs(lowestValue))
-					{
-						lowestValue = sdata[i];
-						lowestValueSample = i;
-					}
-					Debug.WriteLine(sdata[i]);
-				}
-				Debug.WriteLine("was " + loopLength + ", now " + lowestValueSample);
-				loopLength = lowestValueSample;
-				soundData = new byte[lowestValueSample * 2];
-				Buffer.BlockCopy(sdata, 0, soundData, 0, lowestValueSample * 2);
-			}*/
-
-			if (bytesPerSample == 1)
-			{
-				byte[] pcm16 = new byte[soundData.Length * 2];
-				for (int i = 0; i < soundData.Length; i++)
-				{
-					short value = (short)(unchecked((sbyte)soundData[i]) << 8);
-					pcm16[i * 2] = (byte)value;
-					pcm16[i * 2 + 1] = (byte)(value >> 8);
-				}
-				soundData = pcm16;
-			}
-			sample.PCMData = soundData;
+            sample.FullPCMData = ConvertPcm(ToMono(fullData));
+            sample.PCMData = ConvertPcm(ToMono(loopData));
+            if (ForceMono && channelCount == 2)
+                sample.NbrChannels = 1;
 			Samples.Add(sample);
 			
 			//WavWriter.Write(String.Format("c:\\temp\\test{0}.wav", headerIndex),

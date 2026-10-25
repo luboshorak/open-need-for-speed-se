@@ -24,6 +24,7 @@ namespace OpenNFS1
 		PlayerDriver _playerDriver;
         private float _finishHoldSeconds;
         private bool _finishDriftStarted;
+        private bool _silentPause;
 
 		public DoRaceScreen(Track track)
 		{
@@ -57,6 +58,27 @@ namespace OpenNFS1
 
 		public void Update(GameTime gameTime)
 		{
+            var input = Engine.Instance.Input;
+            // NFS SE: ESC opens the pause menu; P freezes the current view.
+            if (input.WasPressed(Keys.Escape) ||
+                input.WasPressed(Buttons.Start))
+            {
+                _silentPause = false;
+                Pause();
+                return;
+            }
+            if (input.WasPressed(Keys.P))
+            {
+                _silentPause = !_silentPause;
+                if (_silentPause)
+                {
+                    _race.PauseClock();
+                    _car.AudioEnabled = false;
+                }
+                else Resume();
+                return;
+            }
+            if (_silentPause) return;
 			Engine.Instance.Device.Viewport = _raceViewport;
 
 			_race.Update();
@@ -89,11 +111,6 @@ namespace OpenNFS1
                 }
             }
 
-			if (UIController.Pause)
-			{
-				Pause();
-				return;
-			}
 
 			// Always provide an escape hatch when debugging unfinished races.
 			// Esc opens the pause menu; M goes straight back to Control Central.
@@ -117,12 +134,15 @@ namespace OpenNFS1
 
 		public void Pause()
 		{
+            _race.PauseClock();
 			_car.AudioEnabled = false;
 			Engine.Instance.Screen = new RacePausedScreen(this);
 		}
 
 		public void Resume()
 		{
+            _race.ResumeClock();
+            _silentPause = false;
 			_car.AudioEnabled = GameConfig.SoundEffectsEnabled;
 		}
 

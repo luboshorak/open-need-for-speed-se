@@ -20,11 +20,18 @@ namespace OpenNFS1
 		int _nbrLaps;
 		DateTime _countdownStartTime, _raceStartTime;
 		bool _started;
+        private DateTime? _pausedAt;
+        public bool IsPaused => _pausedAt.HasValue;
+        public void PauseClock() { if (!_pausedAt.HasValue) _pausedAt = DateTime.Now; }
+        public void ResumeClock() { if (_pausedAt.HasValue) { var delta = DateTime.Now - _pausedAt.Value; _raceStartTime += delta; _countdownStartTime += delta; _pausedAt = null; } }
         private TimeSpan _completedRaceTime;
         public bool Started => _started;
 		private readonly RaceGateTracker _finishGate;
         private readonly Dictionary<IDriver, TimeSpan> _racerFinishTimes = new Dictionary<IDriver, TimeSpan>();
-        private readonly Dictionary<IDriver, int> _previousRacerNodes = new Dictionary<IDriver, int>();
+        private readonly Dictionary<IDriver, RaceGateTracker> _racerGates =
+            new Dictionary<IDriver, RaceGateTracker>();
+        private readonly Dictionary<IDriver, int> _racerLapCounts =
+            new Dictionary<IDriver, int>();
         public IReadOnlyDictionary<IDriver, TimeSpan> RacerFinishTimes => _racerFinishTimes;
         public int FinishNode { get; private set; }
 		public bool Finished { get; private set; }
@@ -34,6 +41,9 @@ namespace OpenNFS1
         public bool PoliceArrested { get; internal set; }
         public int PoliceTicketsCount { get; internal set; }
         public float PeakPlayerSpeed { get; private set; }
+        public float AveragePlayerSpeed => _speedSampleSeconds > 0 ?
+            _accumulatedSpeed / _speedSampleSeconds : 0;
+        private float _accumulatedSpeed, _speedSampleSeconds;
 		public PlayerDriver Player { get; private set; }
 		TrafficController _trafficController;
 		public List<IDriver> Drivers { get; private set; }
@@ -72,13 +82,22 @@ namespace OpenNFS1
 
 		public TimeSpan RaceTime
 		{
-			get { return Finished ? _completedRaceTime : _started ? DateTime.Now - _raceStartTime : TimeSpan.Zero; }
+			get { return Finished ? _completedRaceTime : _started ? (_pausedAt ?? DateTime.Now) - _raceStartTime : TimeSpan.Zero; }
 		}
 
-		public int SecondsTillStart
-		{
-			get { return 3 - (int)new TimeSpan(DateTime.Now.Ticks - _countdownStartTime.Ticks).TotalSeconds; }
-		}
+        // Original NFS SE starting lights (verified against DOSBox recording):
+        // 0..2 = three red lights, 3..4 = two yellow lights,
+        // 5 = green; after stage 5 the normal racing HUD returns.
+        // The vehicle releases when the green phase begins, not when it ends.
+        public double StartLightsElapsedSeconds =>
+            _countdownStartTime == default ? 0 :
+            Math.Max(0, ((_pausedAt ?? DateTime.Now) - _countdownStartTime).TotalSeconds);
+
+        public int StartLightStage => Math.Clamp((int)StartLightsElapsedSeconds, 0, 5);
+        public bool StartLightsVisible =>
+            _countdownStartTime != default && StartLightsElapsedSeconds < 6.0;
+
+        public int SecondsTillStart => Math.Max(0, 5 - (int)StartLightsElapsedSeconds);
 
 
 		public void StartCountdown()
@@ -114,7 +133,14 @@ namespace OpenNFS1
 			}
 			Drivers.Add(d);
             if (d is RacingAIDriver || d is PlayerDriver)
-                _previousRacerNodes[d] = d.Vehicle.CurrentNode?.Number ?? 0;
+            {
+                int gateNode = Track.CheckpointNode > 1
+                    ? Math.Min(Track.CheckpointNode, Track.RoadNodes.Count - 2)
+                    : Track.RoadNodes.Count - 2;
+                _racerGates[d] = new RaceGateTracker(
+                    d.Vehicle.CurrentNode?.Number ?? 0, gateNode, Track.IsOpenRoad);
+                _racerLapCounts[d] = 0;
+            }
 		}
 
 		public void Update()
@@ -122,8 +148,13 @@ namespace OpenNFS1
             // Measured on each racing frame; used for authentic Best Times
             // speed records rather than an invented default table.
             if (_started && !Finished)
-                PeakPlayerSpeed = Math.Max(PeakPlayerSpeed,
-                    Math.Abs(Player.Vehicle.Speed));
+            {
+                float speed = Math.Abs(Player.Vehicle.Speed);
+                PeakPlayerSpeed = Math.Max(PeakPlayerSpeed, speed);
+                float dt = Math.Clamp(Engine.Instance.FrameTime, 0f, .1f);
+                _accumulatedSpeed += speed * dt;
+                _speedSampleSeconds += dt;
+            }
             if (!_started && SecondsTillStart > 0)
             {
                 foreach (var driver in Drivers)
@@ -151,20 +182,25 @@ namespace OpenNFS1
             foreach (var driver in Drivers)
                 driver.Update(Drivers);
 
-            // Real per-opponent crossing times for open-road results.
-            // Unknown finish times remain unknown; never invent a ranking clock.
-            if (Track.IsOpenRoad && _started)
+            // Each competitor has an independent real finish/lap gate.
+            // This produces actual elapsed times for AI racers that crossed
+            // before the player on circuits as well as open-road segments.
+            if (_started)
             {
                 foreach (var driver in Drivers)
                 {
                     if (driver is not RacingAIDriver && driver is not PlayerDriver)
                         continue;
+                    if (!_racerGates.TryGetValue(driver, out var gate))
+                        continue;
                     int node = driver.Vehicle.CurrentNode?.Number ?? 0;
-                    int previous = _previousRacerNodes.TryGetValue(driver, out int last) ? last : node;
-                    if (!_racerFinishTimes.ContainsKey(driver) &&
-                        previous < FinishNode && node >= FinishNode)
-                        _racerFinishTimes.Add(driver, DateTime.Now - _raceStartTime);
-                    _previousRacerNodes[driver] = node;
+                    if (gate.Update(node) && !_racerFinishTimes.ContainsKey(driver))
+                    {
+                        int laps = _racerLapCounts[driver] + 1;
+                        _racerLapCounts[driver] = laps;
+                        if (Track.IsOpenRoad || laps >= _nbrLaps)
+                            _racerFinishTimes.Add(driver, DateTime.Now - _raceStartTime);
+                    }
                 }
             }
 

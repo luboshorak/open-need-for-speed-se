@@ -18,6 +18,7 @@ namespace OpenNFS1.UI.Screens
     internal sealed class TrackDetailsScreen : IGameScreen
     {
         private readonly List<TrackDescription> _tracks;
+        private readonly IGameScreen _returnScreen;
         private readonly SpriteFont _font;
         private int _index, _photo = 1;
         private readonly List<TrackDescription> _segments = new List<TrackDescription>();
@@ -56,8 +57,9 @@ namespace OpenNFS1.UI.Screens
             };
         }
 
-        public TrackDetailsScreen(TrackDescription selected)
+        public TrackDetailsScreen(TrackDescription selected, IGameScreen returnScreen = null)
         {
+            _returnScreen = returnScreen;
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
             _tracks = TrackDescription.Descriptions.Where(t =>
                 !t.HideFromMenu && TrackCode(t) != null &&
@@ -102,7 +104,11 @@ namespace OpenNFS1.UI.Screens
 
         private void NextTrack(int direction) => CycleTrack(direction);
 
-        private void Back() => Engine.Instance.Screen = new HomeScreen();
+        private void Back()
+        {
+            if (_returnScreen is HomeScreen home) home.RefreshFromGameConfig();
+            Engine.Instance.Screen = _returnScreen ?? new HomeScreen();
+        }
         private BitmapEntry Entry(string id) => _art?.FindByName(id);
         private void Art(string id)
         {

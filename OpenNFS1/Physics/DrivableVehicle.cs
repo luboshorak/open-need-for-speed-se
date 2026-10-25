@@ -123,20 +123,20 @@ namespace OpenNFS1.Physics
 				{
 					Wheels[0].IsSkidding = Wheels[1].IsSkidding = Wheels[2].IsSkidding = Wheels[3].IsSkidding = true;
 				}
-				_audioProvider.PlaySkid(true);
+				// Tire sound is resolved once after all physics for this frame.
 			}
 			else if (_isOnGround && Math.Abs(_rearSlipFactor) > 0.12f && Math.Abs(Speed) > 20f)
 			{
 				Wheels[2].IsSkidding = Wheels[3].IsSkidding = true;
-				_audioProvider.PlaySkid(true);
+				// Tire sound is resolved once after all physics for this frame.
 			}
 			else if (_isOnGround && Math.Abs(_steeringWheel) > 0.25f && _frontSlipFactor > 0.43f && Math.Abs(Speed) > 35f)
 			{
-				_audioProvider.PlaySkid(true);
+				// Tire sound is resolved once after all physics for this frame.
 			}
 			else
 			{
-				_audioProvider.PlaySkid(false);
+				// Tire sound is resolved once after all physics for this frame.
 			}
 
 			foreach (VehicleWheel wheel in Wheels)
@@ -216,7 +216,7 @@ namespace OpenNFS1.Physics
                 }
 				if (Motor.WheelsSpinning)
 				{
-					_audioProvider.PlaySkid(true);
+					// Tire sound is resolved once after all physics for this frame.
 					Wheels[2].IsSkidding = Wheels[3].IsSkidding = true;
 				}
 				else if (!_isOnGround)
@@ -272,10 +272,28 @@ namespace OpenNFS1.Physics
 			BodyPitch.Simulate(Engine.Instance.FrameTime * 2.5f);
 			BodyRoll.Simulate(Engine.Instance.FrameTime * 2.5f);
 
-			_audioProvider.Tick(Engine.Instance.FrameTime);
-			_audioProvider.UpdateEngine();
-
 			base.Update();
+
+            // Never restart stopped sounds when game audio is disabled
+            // (including silent pause and disabled SFX).
+            if (_audioEnabled)
+            {
+                _audioProvider.Tick(Engine.Instance.FrameTime);
+                _audioProvider.UpdateEngine();
+
+                // Steering alone is not a tire screech. Centralize the actual
+                // physics events so one frame cannot Play then Stop a sample.
+                float roadSpeed = Math.Abs(Speed);
+                bool brakeSlip = _isOnGround && !GameConfig.AbsEnabled &&
+                    BrakePedalInput > 0.5f && roadSpeed > 12f;
+                bool lateralSlip = _isOnGround && roadSpeed > 30f &&
+                    ((Math.Abs(_rearSlipFactor) > .08f) ||
+                     (Math.Abs(_steeringWheel) > .35f && _frontSlipFactor > .13f));
+                bool skidding = (brakeSlip || lateralSlip ||
+                    (_isOnGround && Motor.WheelsSpinning && roadSpeed < 40f) ||
+                    (_isOnGround && _rotateAfterCollision != 0));
+                _audioProvider.PlaySkid(skidding);
+            }
 		}
 
 		public override void HandleExtraSteeringPhysics()
@@ -285,7 +303,7 @@ namespace OpenNFS1.Physics
 			// Handle car rotation after collision
 			if (_rotateAfterCollision != 0)
 			{
-				_audioProvider.PlaySkid(true);
+				// Tire sound is resolved once after all physics for this frame.
 
 				if (_rotateAfterCollision > maxRot)
 				{
@@ -352,12 +370,12 @@ namespace OpenNFS1.Physics
 
 			if (Speed > 3 && _nbrWheelsOffRoad > 0)
 			{
-				_audioProvider.PlayOffRoad(true);
+				if (_audioEnabled) _audioProvider.PlayOffRoad(true);
 				Wheels[2].IsSkidding = Wheels[3].IsSkidding = true;
 			}
 			else
 			{
-				_audioProvider.PlayOffRoad(false);
+				if (_audioEnabled) _audioProvider.PlayOffRoad(false);
 			}
 			VehicleFenceCollision.Handle(this);
 		}
@@ -413,12 +431,12 @@ namespace OpenNFS1.Physics
 
 		protected void Gearbox_GearChanged(object sender, EventArgs e)
 		{
-			_audioProvider.ChangeGear();
+			if (_audioEnabled) _audioProvider.ChangeGear();
 		}
 
 		public override void OnGroundHit()
 		{
-			_audioProvider.HitGround();
+			if (_audioEnabled) _audioProvider.HitGround();
 		}
 	}
 }
