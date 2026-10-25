@@ -21,6 +21,7 @@ namespace OpenNFS1.UI.Screens
         private readonly IGameScreen _back;
         private readonly SpriteFont _font;
         private readonly BitmapChunk _art;
+        private int _page; // 0: personal segment results, 1: complete standings
 
         public RaceStandingsScreen(Race race, TimeSpan finishedTime, IGameScreen back)
         {
@@ -44,7 +45,10 @@ namespace OpenNFS1.UI.Screens
             var input = Engine.Instance.Input;
             if (input.WasPressed(Keys.Escape) || input.WasPressed(Keys.Enter) ||
                 input.WasPressed(Keys.Space) || input.WasLeftMouseClicked)
-                Engine.Instance.Screen = _back;
+            {
+                if (_page == 0) _page = 1;
+                else Engine.Instance.Screen = _back;
+            }
         }
 
         private void Value(string value, int x, int y, float scale = 0.42f)
@@ -60,6 +64,21 @@ namespace OpenNFS1.UI.Screens
             sprite.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied,
                 SamplerState.PointClamp);
             Art("bgnd");
+            if (_page == 0)
+            {
+                Value((GameConfig.SelectedTrackDescription?.Name ?? "RACE").ToUpperInvariant(), 12, 108, .65f);
+                Value(_race.Track.IsOpenRoad ? "SEGMENT RESULTS" : "RACE RESULTS", 12, 142, .43f);
+                Value("CURRENT STANDING", 20, 206, .38f);
+                Value((_race.PlayerStats.Position + 1).ToString(), 360, 206, .46f);
+                Value("SEGMENT TIME", 20, 243, .38f);
+                Value(_finishedTime.ToString(@"m\:ss\.f"), 360, 243, .46f);
+                Value("TOP SPEED", 20, 280, .38f);
+                Value(_race.PeakPlayerSpeed.ToString("0.0"), 360, 280, .46f);
+                Value("DONE - VIEW STANDINGS", 20, 422, .37f);
+                Art("Dond");
+                sprite.End();
+                return;
+            }
             // Standings show real race participants. The original game displays
             // names and per-racer times, not a one-line player position label.
             string course = GameConfig.SelectedTrackDescription?.Name ?? "RACE";
