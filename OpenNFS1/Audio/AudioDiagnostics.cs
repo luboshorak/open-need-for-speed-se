@@ -5,14 +5,21 @@ namespace OpenNFS1.Audio
 {
     internal static class AudioDiagnostics
     {
-        public static void Record(Exception ex)
+        private static void Append(string message)
         {
             try
             {
-                File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "audio.log"),
-                    DateTime.Now.ToString("O") + " " + ex + Environment.NewLine);
+                string folder = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "OpenNFS1");
+                Directory.CreateDirectory(folder);
+                File.AppendAllText(Path.Combine(folder, "audio.log"),
+                    DateTime.Now.ToString("O") + " " + message + Environment.NewLine);
             }
-            catch { /* audio errors are nonfatal */ }
+            catch { /* Sound diagnostics must never interrupt a race. */ }
         }
+
+        public static void Record(Exception ex) => Append("ERROR " + ex);
+        public static void Note(string message) => Append("INFO " + message);
     }
 }
