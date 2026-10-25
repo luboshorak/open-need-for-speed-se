@@ -22,6 +22,8 @@ namespace OpenNFS1
 		PlayerUI _playerUI;
 		Viewport _raceViewport, _uiViewport;
 		PlayerDriver _playerDriver;
+        private float _finishHoldSeconds;
+        private bool _finishDriftStarted;
 
 		public DoRaceScreen(Track track)
 		{
@@ -68,12 +70,24 @@ namespace OpenNFS1
 			
 			_playerUI.Update(gameTime);
 
-			if (_race.Finished)
-			{
-				_car.AudioEnabled = false;
-				Engine.Instance.Screen = new RaceFinishedScreen(_race, _track);
-				return;
-			}
+            if (_race.Finished)
+            {
+                // Original game holds the road camera for a short finish drift
+                // before showing STANDSEG/STANDTRK results, NOT FINMENU first.
+                if (!_finishDriftStarted)
+                {
+                    _finishDriftStarted = true;
+                    _car.RotateCarAfterCollision = 0.30f;
+                }
+                _finishHoldSeconds += MathHelper.Clamp((float)gameTime.ElapsedGameTime.TotalSeconds, 0f, .1f);
+                if (_finishHoldSeconds >= 2.5f)
+                {
+                    _car.AudioEnabled = false;
+                    var finishMenu = new RaceFinishedScreen(_race, _track);
+                    Engine.Instance.Screen = new RaceStandingsScreen(_race, _race.RaceTime, finishMenu);
+                    return;
+                }
+            }
 
 			if (UIController.Pause)
 			{
