@@ -33,46 +33,27 @@ namespace OpenNFS1
                 if (carBank.Samples.Count < 2)
                     throw new InvalidDataException("Vehicle sound bank contains fewer than two engine samples.");
 
-                _accelerating = CreateEffect(carBank.Samples[0]).CreateInstance();
-                _coasting = CreateEffect(carBank.Samples[1]).CreateInstance();
+                _accelerating = CreateEffect(carBank.GetBySlot(1)).CreateInstance();
+                _coasting = CreateEffect(carBank.GetBySlot(2)).CreateInstance();
                 _accelerating.IsLooped = true;
                 _coasting.IsLooped = true;
 
-                if (carBank.Samples.Count > 3)
-                    _gearChange = CreateEffect(carBank.Samples[3]);
+                if (carBank.GetBySlot(3) != null)
+                    _gearChange = CreateEffect(carBank.GetBySlot(3), full: true);
 
                 try
                 {
                     var environmentBank = new BnkFile("COLL_SW.BNK");
                     // Index 5 is the grass-slide effect in the original sound bank.
-                    if (environmentBank.Samples.Count > 5)
+                    if (environmentBank.GetBySlot(38) != null)
                     {
-                        _offRoad = CreateEffect(environmentBank.Samples[5]).CreateInstance();
+                        _offRoad = CreateEffect(environmentBank.GetBySlot(38)).CreateInstance();
                         _offRoad.IsLooped = true;
                     }
-                    // COLL_SW sample 0 is already used for vehicle COLLISIONS.
-                    // It was mistakenly reused as road tire squeal, making
-                    // steering sound like a collision. Only use a sample with
-                    // an actual tire/skid identity verified from its BNK header.
-                    BnkSample actualSkid = environmentBank.Samples.Find(sample =>
-                    {
-                        string id = (sample.SourceId ?? "").Trim();
-                        return id.Equals("SKID", StringComparison.OrdinalIgnoreCase) ||
-                               id.Equals("TIRE", StringComparison.OrdinalIgnoreCase);
-                    });
-                    if (actualSkid != null)
-                    {
-                        _skidEffect = CreateEffect(actualSkid);
-                        _skidLoop = _skidEffect.CreateInstance();
-                        _skidLoop.IsLooped = true;
-                        _skidLoop.Volume = 0.24f;
-                    }
-                    else
-                    {
-                        AudioDiagnostics.Record(new InvalidDataException(
-                            "Original tire skid sample has not been mapped. " +
-                            "Not reusing collision sample 0 as a fake tire sound."));
-                    }
+                    // Real tire-slip slots in the original COLL_SW.BNK
+                    // must be determined by listening to the original CD.
+                    // 'EACS' is a *format signature*, NOT a sample type/name.
+                    // Do not play arbitrary impact sample 33 for steering.
                 }
                 catch (Exception ex) { AudioDiagnostics.Record(ex); }
 
@@ -86,9 +67,12 @@ namespace OpenNFS1
             }
         }
 
-        internal static SoundEffect CreateEffect(BnkSample sample)
+        internal static SoundEffect CreateEffect(BnkSample sample, bool full = false)
         {
-            return new SoundEffect(sample.PCMData, sample.SampleRate,
+            if (sample == null)
+                throw new InvalidDataException("Referenced BNK sound slot is absent.");
+            return new SoundEffect(full ? sample.FullPCMData : sample.PCMData,
+                sample.SampleRate,
                 sample.NbrChannels == 2 ? AudioChannels.Stereo : AudioChannels.Mono);
         }
 
