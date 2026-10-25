@@ -20,3 +20,4 @@ dist/
 research/audio-bank-inventory/
 # Local extraction of copyrighted original NFS SE art (research only)
 research/local-art-inventory/
+*.zip
