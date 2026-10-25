@@ -20,6 +20,10 @@ namespace OpenNFS1
 		int _nbrLaps;
 		DateTime _countdownStartTime, _raceStartTime;
 		bool _started;
+        private DateTime? _pausedAt;
+        public bool IsPaused => _pausedAt.HasValue;
+        public void PauseClock() { if (!_pausedAt.HasValue) _pausedAt = DateTime.Now; }
+        public void ResumeClock() { if (_pausedAt.HasValue) { var delta = DateTime.Now - _pausedAt.Value; _raceStartTime += delta; _countdownStartTime += delta; _pausedAt = null; } }
         private TimeSpan _completedRaceTime;
         public bool Started => _started;
 		private readonly RaceGateTracker _finishGate;
@@ -72,12 +76,12 @@ namespace OpenNFS1
 
 		public TimeSpan RaceTime
 		{
-			get { return Finished ? _completedRaceTime : _started ? DateTime.Now - _raceStartTime : TimeSpan.Zero; }
+			get { return Finished ? _completedRaceTime : _started ? (_pausedAt ?? DateTime.Now) - _raceStartTime : TimeSpan.Zero; }
 		}
 
 		public int SecondsTillStart
 		{
-			get { return 3 - (int)new TimeSpan(DateTime.Now.Ticks - _countdownStartTime.Ticks).TotalSeconds; }
+			get { return 3 - (int)new TimeSpan((_pausedAt ?? DateTime.Now).Ticks - _countdownStartTime.Ticks).TotalSeconds; }
 		}
 
 
