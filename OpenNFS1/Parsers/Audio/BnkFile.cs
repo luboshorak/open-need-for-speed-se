@@ -24,6 +24,7 @@ namespace OpenNFS1.Parsers.Audio
 		string _filename;
 		public bool ForceMono = false;
 		public List<BnkSample> Samples { get; private set; }
+        public BnkSample GetBySlot(int slot) => Samples.Find(s => s.Slot == slot);
 
 		public BnkFile(string filename)
 		{
