@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Microsoft.Xna.Framework.Audio;
+using Microsoft.Xna.Framework;
 using GameEngine;
 using OpenNFS1.Audio;
 using OpenNFS1.Parsers.Audio;
@@ -18,6 +19,7 @@ namespace OpenNFS1
         private SoundEffect _gearChange;
         private SoundEffect _skidEffect;
         private bool _isActive;
+        private float _engineLoadBlend;
         private SoundEffectInstance _skidLoop;
 
         public VehicleAudioProvider(DrivableVehicle car) { _car = car; }
@@ -89,13 +91,28 @@ namespace OpenNFS1
         public void UpdateEngine()
         {
             if (!_isActive) return;
-            var acceleration = _car.Motor.Throttle != 0 || _car.Motor.AtRedline;
-            SetPlayback(_accelerating, acceleration);
-            SetPlayback(_coasting, !acceleration);
-            float pitch = (_car.Motor.Rpm / Math.Max(1f, _car.Motor.RedlineRpm)) - 0.5f;
-            pitch = Math.Clamp(pitch, -1f, 1f);
-            if (_accelerating != null) { _accelerating.Pitch = pitch; _accelerating.Volume = 0.3f; }
-            if (_coasting != null) { _coasting.Pitch = pitch; _coasting.Volume = 0.3f; }
+            // Original car-specific BNK contains separate power/coasting
+            // samples. Keep both playing and crossfade by throttle; repeated
+            // Pause/Resume every key press produces pops and audible gaps.
+            SetPlayback(_accelerating, true);
+            SetPlayback(_coasting, true);
+            float dt = Math.Clamp(Engine.Instance.FrameTime, 0f, .1f);
+            float load = Math.Clamp(_car.Motor.Throttle, 0f, 1f);
+            _engineLoadBlend += (load - _engineLoadBlend) *
+                Math.Clamp(dt * 6f, 0f, 1f);
+            float redline = Math.Max(1f, _car.Motor.RedlineRpm);
+            float fraction = Math.Clamp(_car.Motor.Rpm / redline, 0f, 1f);
+            float pitch = Math.Clamp(fraction * 1.15f - .57f, -1f, 1f);
+            if (_accelerating != null)
+            {
+                _accelerating.Pitch = pitch;
+                _accelerating.Volume = Math.Clamp(0.35f * _engineLoadBlend, 0, 1);
+            }
+            if (_coasting != null)
+            {
+                _coasting.Pitch = pitch;
+                _coasting.Volume = Math.Clamp(0.35f * (1f - _engineLoadBlend), 0, 1);
+            }
         }
 
         public void PlaySkid(bool play)
@@ -129,6 +146,7 @@ namespace OpenNFS1
             _coasting?.Stop();
             _offRoad?.Stop();
             _skidLoop?.Stop();
+            _engineLoadBlend = 0;
         }
     }
 }
