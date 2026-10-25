@@ -49,8 +49,18 @@ namespace OpenNFS1.Parsers.Audio
 			int count = 0;
 			foreach (var sampleRef in sampleOffsets)
 			{
-				reader.BaseStream.Position = sampleRef.Offset;
-				ReadSample(reader, sampleRef.Slot);
+                try
+                {
+                    reader.BaseStream.Position = sampleRef.Offset;
+                    ReadSample(reader, sampleRef.Slot);
+                }
+                catch (InvalidDataException exception)
+                {
+                    // Original CD banks contain a few malformed alias entries
+                    // with an incorrect sample-byte depth (e.g. COLL_SB slots
+                    // 43/45/56/58). Keep the other real sounds playable.
+                    Trace.WriteLine($"Invalid original BNK slot {_filename}:{sampleRef.Slot}: {exception.Message}");
+                }
 			}
 		}
 
