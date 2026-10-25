@@ -168,7 +168,26 @@ namespace OpenNFS1.UI
 
             RenderTrackMap(sprite);
             RenderRivalMarkers(sprite);
+            RenderStartingCountdown(sprite);
             sprite.End();
+        }
+
+        private void RenderStartingCountdown(SpriteBatch sprite)
+        {
+            if (_race.Started) return;
+            int current = Math.Clamp(_race.SecondsTillStart, 1, 3);
+            // Draw actual digits sourced from the game's MASKHI.FSH.
+            // Keep visible while the race grid is held before green.
+            for (int n = 3; n >= 1; n--)
+            {
+                int x = 279 + (3 - n) * 31;
+                sprite.Draw(_pixel, new Rectangle(x - 2, 41, 28, 30), Color.Black);
+                sprite.Draw(_pixel, new Rectangle(x, 43, 24, 26),
+                    n == current ? Color.Yellow : Color.DarkGray);
+                var glyph = _yellowDigits[n];
+                if (glyph?.Texture != null)
+                    sprite.Draw(glyph.Texture, new Rectangle(x + 5, 46, 14, 19), Color.White);
+            }
         }
 
         private void DrawClock(SpriteBatch sprite, TimeSpan time, int clock)
