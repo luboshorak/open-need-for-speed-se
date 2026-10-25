@@ -11,7 +11,7 @@ namespace OpenNFS1.UI.Screens
     internal sealed class AudioOptionsScreen : IGameScreen
     {
         private readonly BitmapChunk _art;
-        private readonly OptionsScreen _parent;
+        private readonly IGameScreen _parent;
         private readonly SpriteFont _font;
         private readonly bool _musicBefore, _menuBefore, _soundBefore, _rockBefore;
         private readonly float _volumeBefore;
@@ -21,7 +21,7 @@ namespace OpenNFS1.UI.Screens
         private static readonly string[] Off = { "Sond", "Racd", "Mend", "Soud", "Sped", "Audd", "3ded", "Dond" };
         private static readonly string[] On = { "Sonl", "Racl", "Menl", "Soul", "Spel", "Audl", "3del", "Donl" };
 
-        public AudioOptionsScreen(OptionsScreen parent)
+        public AudioOptionsScreen(IGameScreen parent)
         {
             _parent = parent;
             _art = new QfsFile(@"FRONTEND\ART\OPTION\AUDIO.QFS").Content.Header;
