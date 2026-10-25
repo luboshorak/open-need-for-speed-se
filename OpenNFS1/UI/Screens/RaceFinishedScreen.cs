@@ -158,7 +158,7 @@ namespace OpenNFS1.UI.Screens
                     Engine.Instance.Screen = new OptionsScreen();
                     break;
                 case 4:
-                    Engine.Instance.Screen = new RaceStandingsScreen(_race, _finishedTime, this);
+                    Engine.Instance.Screen = new RaceStandingsScreen(_race, _finishedTime, this, showStandingsFirst: true);
                     break;
                 case 5:
                     _notice = "CHAT MODE IS NOT AVAILABLE IN SINGLE PLAYER.";
