@@ -48,23 +48,89 @@ static class Program
         Assert(OpenRoadStageSelector.Family(@"SIMDATA\MISC\TR1.TRI", false) == null,
             "Closed circuits may not be treated as multistage roads.");
 
-        var officer = new PolicePursuitLogic();
+        var warning = new PolicePursuitLogic();
         bool dispatched = false;
         for (int i = 0; i < 40; i++)
-            dispatched |= officer.Update(.1f, 145, float.MaxValue);
-        Assert(dispatched && officer.IsPursuing, "Sustained speeding did not trigger pursuit.");
+            dispatched |= warning.Update(.1f, 145, float.MaxValue);
+        Assert(dispatched && warning.IsPursuing,
+            "Sustained speeding must trigger a patrol.");
+        warning.Update(.1f, 0, 2);
+        Assert(warning.WarningIssued && !warning.TicketIssued &&
+            !warning.IsPursuing,
+            "Immediately pulling over after the siren must produce a warning, not a ticket.");
+        warning.ClearWarning();
 
-        // Only a real pull-over near the cop results in a ticket.
-        for (int i = 0; i < 30; i++)
-            officer.Update(.1f, 0, 2);
-        Assert(officer.TicketIssued, "Stopping close to pursuing police did not issue a ticket.");
-        officer.ClearTicket();
-        Assert(!officer.TicketIssued, "Acknowledging police ticket did not clear the event.");
-        bool immediateRepeat = false;
-        for (int i = 0; i < 50; i++)
-            immediateRepeat |= officer.Update(.1f, 200, float.MaxValue);
-        Assert(!immediateRepeat, "Police pursuit restarted during mandatory cooldown.");
+        var officer = new PolicePursuitLogic();
+        for (int citation = 1; citation <= 3; citation++)
+        {
+            // Wait for the prior citation's cooldown to expire.
+            for (int i = 0; i < 260; i++)
+                officer.Update(.1f, 0, float.MaxValue);
+            bool started = false;
+            for (int i = 0; i < 40; i++)
+                started |= officer.Update(.1f, 145, float.MaxValue);
+            Assert(started, "Failed to start a repeat police pursuit.");
+            // A genuine ongoing chase, not an immediately accepted warning.
+            for (int i = 0; i < 60; i++)
+                officer.Update(.1f, 80, 7);
+            for (int i = 0; i < 30; i++)
+                officer.Update(.1f, 0, 2);
+            Assert(officer.TicketIssued && officer.TicketCount == citation,
+                "Police did not record the correct citation for a caught driver.");
+            officer.ClearTicket();
+            Assert(!officer.TicketIssued, "Ticket event was not acknowledged.");
+            if (citation < 3)
+            {
+                bool repeatDuringCooldown = false;
+                for (int i = 0; i < 50; i++)
+                    repeatDuringCooldown |= officer.Update(.1f, 200, float.MaxValue);
+                Assert(!repeatDuringCooldown,
+                    "Police pursuit restarted during mandatory cooldown.");
+            }
+        }
+        Assert(officer.IsArrested, "Third ticket must end the stage with arrest.");
+        Assert(!officer.Update(.1f, 200, float.MaxValue),
+            "Arrested driver cannot trigger another pursuit.");
 
-        Console.WriteLine("PASS: Huffman QFS, player name, AL/CL/CY segments, police chase and ticket cooldown");
+        // Automatic Down: brake while moving forward, then shift 1st -> N
+        // -> reverse and accelerate backwards with the same Down input.
+        var brakingForward = ReverseDriveControl.Compute(false, 1, 45, 0, 1, false, false);
+        Assert(brakingForward.Brake == 1 && brakingForward.Throttle == 0 &&
+            !brakingForward.ShiftDown, "Down during forward motion must BRAKE.");
+        var shiftFirst = ReverseDriveControl.Compute(false, 1, 0, 0, 1, false, false);
+        Assert(shiftFirst.ShiftDown && shiftFirst.Throttle == 0,
+            "Stopped automatic should select neutral before reverse.");
+        var shiftNeutral = ReverseDriveControl.Compute(false, 0, 0, 0, 1, false, false);
+        Assert(shiftNeutral.ShiftDown, "Stopped neutral must shift into reverse.");
+        var reversing = ReverseDriveControl.Compute(false, -1, -10, 0, 1, false, false);
+        Assert(reversing.Throttle == 1 && reversing.Brake == 0,
+            "Down should accelerate once reverse gear is engaged.");
+        var stopReverse = ReverseDriveControl.Compute(false, -1, -10, 1, 0, false, false);
+        Assert(stopReverse.Brake == 1 && !stopReverse.ShiftUp,
+            "Up must brake reverse motion before shifting into first.");
+        var leaveReverse = ReverseDriveControl.Compute(false, -1, 0, 1, 0, false, false);
+        Assert(leaveReverse.ShiftUp, "At rest, Up must leave reverse and return to forward.");
+        var manualReverse = ReverseDriveControl.Compute(true, -1, -8, 0, 1, false, false);
+        Assert(manualReverse.Throttle == 1 && manualReverse.Brake == 0,
+            "Manual transmission must allow throttle in explicitly selected reverse.");
+        var manualShift = ReverseDriveControl.Compute(true, 0, 0, 0, 0, false, true);
+        Assert(manualShift.ShiftDown, "Manual Z must engage reverse from neutral.");
+
+        var pursuitFar = PoliceRoadPlanner.Plan(120, 15, 3, false, 0, true, true);
+        Assert(pursuitFar.TargetSpeed > 120 && pursuitFar.TargetLane == 3,
+            "Patrol must accelerate towards distant suspect without weaving.");
+        var pursuitNear = PoliceRoadPlanner.Plan(0, 1, 3, false, 0, true, true);
+        Assert(pursuitNear.TargetSpeed <= 30,
+            "Patrol must slow for a stopped suspect instead of ramming the car.");
+        var blocked = PoliceRoadPlanner.Plan(150, 10, 3, true, 60, true, true);
+        Assert(blocked.TargetLane == 4,
+            "Patrol should choose an available passing lane around slower traffic.");
+        var trapped = PoliceRoadPlanner.Plan(150, 10, 3, true, 60, false, false);
+        Assert(trapped.TargetSpeed <= 60,
+            "Patrol unable to change lanes must brake for traffic.");
+        Assert(PoliceRoadPlanner.Plan(80, 8, 2, true, 40, true, false).TargetLane == 2,
+            "Patrol must not leave the right-hand carriageway into oncoming lane.");
+
+        Console.WriteLine("PASS: Huffman QFS, player name, AL/CL/CY segments, reverse gear, police gap steering and tickets");
     }
 }

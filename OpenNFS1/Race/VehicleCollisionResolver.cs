@@ -73,8 +73,12 @@ namespace OpenNFS1
                         Vector2.Dot(firstHeading, contact);
                     float newSpeedB = second.Speed + impulse / massB *
                         Vector2.Dot(secondHeading, contact);
-                    first.Speed = Math.Max(0, newSpeedA);
-                    second.Speed = Math.Max(0, newSpeedB);
+                    // Keep signed reverse velocity: clamping to zero made
+                    // every contact cancel the player's ability to back away.
+                    first.Speed = first.Speed < 0
+                        ? Math.Min(0, newSpeedA) : Math.Max(0, newSpeedA);
+                    second.Speed = second.Speed < 0
+                        ? Math.Min(0, newSpeedB) : Math.Max(0, newSpeedB);
 
                     // Subtle lateral response, never a full spin just from touching.
                     float sideA = firstHeading.X * contact.Y - firstHeading.Y * contact.X;

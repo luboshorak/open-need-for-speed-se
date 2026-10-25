@@ -52,9 +52,22 @@ namespace OpenNFS1.Vehicles
             bool spawn = _pursuit.Update(Engine.Instance.FrameTime,
                 Math.Abs(player.Vehicle.Speed), nodeGap);
 
+            if (_pursuit.WarningIssued)
+            {
+                _race.PoliceWarned = true;
+                _pursuit.ClearWarning();
+                if (_police != null)
+                {
+                    _race.Drivers.Remove(_police);
+                    _police = null;
+                }
+            }
+
             if (_pursuit.TicketIssued)
             {
                 _race.PoliceTicketed = true;
+                _race.PoliceTicketsCount = _pursuit.TicketCount;
+                _race.PoliceArrested = _pursuit.IsArrested;
                 _pursuit.ClearTicket();
                 if (_police != null)
                 {

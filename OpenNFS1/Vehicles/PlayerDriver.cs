@@ -18,11 +18,16 @@ namespace OpenNFS1.Vehicles.AI
 
 		public void Update(List<IDriver> otherDrivers)
 		{
-			_vehicle.ThrottlePedalInput = VehicleController.Acceleration;
-			_vehicle.BrakePedalInput = VehicleController.Brake;
-			_vehicle.SteeringInput= VehicleController.Turn;
-			_vehicle.GearDownInput = VehicleController.GearDown;
-			_vehicle.GearUpInput = VehicleController.GearUp;
+			var drive = ReverseDriveControl.Compute(GameConfig.ManualGearbox,
+                _vehicle.Motor.Gearbox.CurrentGear, _vehicle.Speed,
+                VehicleController.Acceleration, VehicleController.Brake,
+                VehicleController.GearUp, VehicleController.GearDown);
+            // A forced stop (countdown/pause) must never become reverse throttle.
+            _vehicle.ThrottlePedalInput = VehicleController.ForceBrake ? 0 : drive.Throttle;
+            _vehicle.BrakePedalInput = VehicleController.ForceBrake ? 1 : drive.Brake;
+            _vehicle.SteeringInput = VehicleController.Turn;
+            _vehicle.GearDownInput = !VehicleController.ForceBrake && drive.ShiftDown;
+            _vehicle.GearUpInput = !VehicleController.ForceBrake && drive.ShiftUp;
 			_vehicle.HandbrakeInput = VehicleController.Handbrake;
 			_vehicle.Update();
 		}

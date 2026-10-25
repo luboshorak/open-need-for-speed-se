@@ -24,6 +24,9 @@ namespace OpenNFS1
 		public bool Finished { get; private set; }
         public bool PolicePursuitActive { get; internal set; }
         public bool PoliceTicketed { get; internal set; }
+        public bool PoliceWarned { get; internal set; }
+        public bool PoliceArrested { get; internal set; }
+        public int PoliceTicketsCount { get; internal set; }
         public float PeakPlayerSpeed { get; private set; }
 		public PlayerDriver Player { get; private set; }
 		TrafficController _trafficController;

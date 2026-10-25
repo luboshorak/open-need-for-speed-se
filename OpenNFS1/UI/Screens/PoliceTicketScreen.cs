@@ -18,6 +18,8 @@ namespace OpenNFS1.UI.Screens
     {
         private readonly IGameScreen _return;
         private readonly Race _race;
+        private readonly bool _warning, _arrested;
+        private float _elapsed;
         private readonly BitmapChunk _ticket;
         private readonly SpriteFont _font;
         private readonly Texture2D _pixel;
@@ -25,6 +27,8 @@ namespace OpenNFS1.UI.Screens
         public PoliceTicketScreen(Race race, IGameScreen back)
         {
             _race = race;
+            _warning = race.PoliceWarned;
+            _arrested = race.PoliceArrested;
             _return = back;
             _font = Engine.Instance.ContentManager.Load<SpriteFont>("ArialBlack-Italic");
             _pixel = new Texture2D(Engine.Instance.Device, 1, 1);
@@ -43,13 +47,24 @@ namespace OpenNFS1.UI.Screens
 
         public void Update(GameTime time)
         {
+            _elapsed += (float)time.ElapsedGameTime.TotalSeconds;
             var input = Engine.Instance.Input;
-            if (input.WasPressed(Keys.Enter) || input.WasPressed(Keys.Escape) ||
-                input.WasPressed(Keys.Space) || input.WasLeftMouseClicked)
+            // A prompt compliance warning costs three seconds, as in
+            // the original, then the player rejoins the road.
+            if ((_warning && _elapsed >= 3f) ||
+                (!_warning && (input.WasPressed(Keys.Enter) ||
+                input.WasPressed(Keys.Escape) || input.WasPressed(Keys.Space) ||
+                input.WasLeftMouseClicked)))
             {
                 _race.PoliceTicketed = false;
+                _race.PoliceWarned = false;
+                if (_arrested)
+                {
+                    Engine.Instance.Screen = new HomeScreen();
+                    return;
+                }
                 if (_return is DoRaceScreen driving)
-                    driving.Resume(); // restore engine audio after the citation
+                    driving.Resume();
                 Engine.Instance.Screen = _return;
             }
         }
@@ -66,9 +81,14 @@ namespace OpenNFS1.UI.Screens
             if (art?.Texture != null)
                 sprite.Draw(art.Texture, art.GetDisplayAt(), Color.White);
             sprite.Draw(_pixel, new Rectangle(32, 376, 576, 88), Color.Black * .78f);
-            sprite.DrawString(_font, "PULLED OVER BY POLICE", new Vector2(65, 390),
+            string headline = _arrested ? "ARRESTED - THREE TICKETS" :
+                _warning ? "POLICE WARNING" : "SPEEDING TICKET " + _race.PoliceTicketsCount + " / 3";
+            sprite.DrawString(_font, headline, new Vector2(65, 390),
                 Color.Yellow, 0, Vector2.Zero, .53f, SpriteEffects.None, 0);
-            sprite.DrawString(_font, "ENTER / CLICK: RETURN TO THE ROAD",
+            string prompt = _warning ? "PLEASE WAIT - 3 SECOND WARNING" :
+                _arrested ? "ENTER: RETURN TO CONTROL CENTRAL" :
+                "ENTER: RETURN TO THE ROAD";
+            sprite.DrawString(_font, prompt,
                 new Vector2(65, 428), Color.White, 0,
                 Vector2.Zero, .31f, SpriteEffects.None, 0);
             sprite.End();

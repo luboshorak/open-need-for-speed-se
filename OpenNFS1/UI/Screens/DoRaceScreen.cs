@@ -58,7 +58,7 @@ namespace OpenNFS1
 			Engine.Instance.Device.Viewport = _raceViewport;
 
 			_race.Update();
-            if (_race.PoliceTicketed)
+            if (_race.PoliceTicketed || _race.PoliceWarned || _race.PoliceArrested)
             {
                 _car.AudioEnabled = false;
                 Engine.Instance.Screen = new PoliceTicketScreen(_race, this);
