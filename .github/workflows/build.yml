@@ -12,6 +12,19 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: Validate verified-build PowerShell syntax
+        shell: pwsh
+        run: |
+          $files = @('packaging/Build-Release.ps1', 'packaging/Verify-CurrentBuild.ps1')
+          foreach ($file in $files) {
+            $tokens = $null
+            $parseErrors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($file, [ref]$tokens, [ref]$parseErrors)
+            if ($parseErrors.Count -gt 0) {
+              $parseErrors | ForEach-Object { Write-Error "$file : $_" }
+              exit 1
+            }
+          }
       - name: Restore MGCB
         run: dotnet tool restore
       - name: Restore
