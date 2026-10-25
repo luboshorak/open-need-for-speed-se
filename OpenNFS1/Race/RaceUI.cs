@@ -168,7 +168,27 @@ namespace OpenNFS1.UI
 
             RenderTrackMap(sprite);
             RenderRivalMarkers(sprite);
+            RenderStartingCountdown(sprite);
             sprite.End();
+        }
+
+        private void RenderStartingCountdown(SpriteBatch sprite)
+        {
+            if (_race.Started || _race.SecondsTillStart <= 0) return;
+            int current = Math.Clamp(_race.SecondsTillStart, 1, 3);
+            // Original MASKHI.FSH digit glyphs, not substitute system text.
+            // Countdown occupies the top-center race view independently of
+            // the timer and remains synchronized with Race.StartCountdown.
+            for (int n = 3; n >= 1; n--)
+            {
+                int x = 279 + (3 - n) * 31;
+                Color tile = n == current ? Color.Yellow : new Color(72, 72, 72);
+                sprite.Draw(_pixel, new Rectangle(x - 2, 41, 28, 30), Color.Black);
+                sprite.Draw(_pixel, new Rectangle(x, 43, 24, 26), tile);
+                var glyph = _yellowDigits[n];
+                if (glyph?.Texture != null)
+                    sprite.Draw(glyph.Texture, new Rectangle(x + 5, 46, 14, 19), Color.White);
+            }
         }
 
         private void DrawClock(SpriteBatch sprite, TimeSpan time, int clock)
