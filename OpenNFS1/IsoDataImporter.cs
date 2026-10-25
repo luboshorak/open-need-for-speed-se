@@ -33,8 +33,28 @@ namespace OpenNFS1
             if (string.IsNullOrWhiteSpace(destinationPath))
                 throw new ArgumentException("CD data destination is empty.", nameof(destinationPath));
 
-            string destination = Path.GetFullPath(destinationPath)
-                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            // Safety barrier: mounted original CDs/ISO images must NEVER be
+            // destinations. Reject drive roots and optical media BEFORE any
+            // Directory.CreateDirectory, staging, deletion or file copy.
+            string fullDestination = Path.GetFullPath(destinationPath);
+            string driveRoot = Path.GetPathRoot(fullDestination);
+            if (string.IsNullOrEmpty(driveRoot) ||
+                string.Equals(
+                    Path.TrimEndingDirectorySeparator(fullDestination),
+                    Path.TrimEndingDirectorySeparator(driveRoot),
+                    StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Import destination cannot be a drive root or CD-ROM.");
+            try
+            {
+                if (new DriveInfo(driveRoot).DriveType == DriveType.CDRom)
+                    throw new InvalidDataException(
+                        "Cannot write to the original CD-ROM. ISO import must use a writable local folder.");
+            }
+            catch (ArgumentException)
+            {
+                throw new InvalidDataException("Invalid ISO import destination drive.");
+            }
+            string destination = Path.TrimEndingDirectorySeparator(fullDestination);
             string parent = Path.GetDirectoryName(destination);
             if (string.IsNullOrEmpty(parent))
                 throw new InvalidDataException("Invalid CD data destination.");
