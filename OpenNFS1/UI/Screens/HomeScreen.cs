@@ -161,6 +161,26 @@ namespace OpenNFS1.UI.Screens
             }
         }
 
+        // Returning from track/vehicle details must preserve the existing
+        // Control Central screen and every other selection.
+        internal void RefreshFromGameConfig()
+        {
+            if (GameConfig.SelectedVehicle != null)
+            {
+                int car = _vehicles.FindIndex(v => v.Descriptor == GameConfig.SelectedVehicle);
+                if (car >= 0) _currentVehicle = car;
+            }
+            if (GameConfig.SelectedTrackDescription != null)
+            {
+                TrackDescription chosen = GameConfig.SelectedTrackDescription;
+                int track = _tracks.FindIndex(t => t.Descriptor == chosen ||
+                    OpenRoadStageSelector.SameFamily(
+                        t.Descriptor.FileName, t.Descriptor.IsOpenRoad,
+                        chosen.FileName, chosen.IsOpenRoad));
+                if (track >= 0) _currentTrack = track;
+            }
+        }
+
         /// <summary>
         /// Inventory the genuine QFS assets available in the user's own CD copy.
         /// This helps identify artwork for the missing Race Type/Opponent panels
@@ -230,7 +250,7 @@ namespace OpenNFS1.UI.Screens
             {
                 if (_selectedControl == RaceButtonSelected) OpenRaceOptions();
                 else if (_selectedControl == OptionsButtonSelected)
-                    Engine.Instance.Screen = new OptionsScreen();
+                    Engine.Instance.Screen = new OptionsScreen(this);
                 else if (_selectedControl == CancelButtonSelected)
                     Engine.Instance.Screen = new GameModeScreen();
                 else if (_selectedControl == VehicleSelected)
@@ -368,13 +388,13 @@ namespace OpenNFS1.UI.Screens
         private void OpenShowroom()
         {
             GameConfig.SelectedVehicle = _vehicles[_currentVehicle].Descriptor;
-            Engine.Instance.Screen = new VehicleShowroomScreen(GameConfig.SelectedVehicle);
+            Engine.Instance.Screen = new VehicleShowroomScreen(GameConfig.SelectedVehicle, this);
         }
 
         private void OpenTrackDetails()
         {
             GameConfig.SelectedTrackDescription = _tracks[_currentTrack].Descriptor;
-            Engine.Instance.Screen = new TrackDetailsScreen(GameConfig.SelectedTrackDescription);
+            Engine.Instance.Screen = new TrackDetailsScreen(GameConfig.SelectedTrackDescription, this);
         }
 
         private void OpenRaceOptions()
