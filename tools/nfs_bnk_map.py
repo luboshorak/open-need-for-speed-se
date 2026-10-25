@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract *real* Need for Speed SE BNK sound samples for accurate event mapping.
+r"""Extract *real* Need for Speed SE BNK sound samples for accurate event mapping.
 
     py -3 tools/nfs_bnk_map.py "I:\SIMDATA\SOUNDBNK"
 
