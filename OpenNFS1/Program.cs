@@ -30,7 +30,10 @@ namespace OpenNFS1
         {
             try
             {
-                File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "exception.txt"), error.ToString());
+                var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OpenNFS1");
+                Directory.CreateDirectory(logDir);
+                File.WriteAllText(Path.Combine(logDir, "exception.txt"),
+                    DateTime.Now.ToString("O") + Environment.NewLine + error);
             }
             catch { /* never hide the original exception if the output folder is read-only */ }
         }
