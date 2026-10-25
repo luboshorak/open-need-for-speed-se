@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Microsoft.Xna.Framework.Audio;
+using Microsoft.Xna.Framework;
 using GameEngine;
 using OpenNFS1.Audio;
 using OpenNFS1.Parsers.Audio;
@@ -18,6 +19,7 @@ namespace OpenNFS1
         private SoundEffect _gearChange;
         private SoundEffect _skidEffect;
         private bool _isActive;
+        private float _engineBlend;
 
         public VehicleAudioProvider(DrivableVehicle car) { _car = car; }
 
@@ -83,13 +85,30 @@ namespace OpenNFS1
         public void UpdateEngine()
         {
             if (!_isActive) return;
-            var acceleration = _car.Motor.Throttle != 0 || _car.Motor.AtRedline;
-            SetPlayback(_accelerating, acceleration);
-            SetPlayback(_coasting, !acceleration);
-            float pitch = (_car.Motor.Rpm / Math.Max(1f, _car.Motor.RedlineRpm)) - 0.5f;
-            pitch = Math.Clamp(pitch, -1f, 1f);
-            if (_accelerating != null) { _accelerating.Pitch = pitch; _accelerating.Volume = 0.3f; }
-            if (_coasting != null) { _coasting.Pitch = pitch; _coasting.Volume = 0.3f; }
+            // Each car already selects its own original SoundBnkFile. Keep
+            // both genuine BNK engine loops running and crossfade by load,
+            // rather than abruptly stopping/restarting at each throttle tap.
+            SetPlayback(_accelerating, true);
+            SetPlayback(_coasting, true);
+            float throttle = Math.Clamp(_car.Motor.Throttle, 0f, 1f);
+            float target = Math.Clamp(throttle + (_car.Motor.AtRedline ? 0.2f : 0f), 0f, 1f);
+            float dt = Math.Clamp(Engine.Instance.FrameTime, 0f, .1f);
+            _engineBlend = MathHelper.Lerp(_engineBlend, target,
+                Math.Clamp(dt * 5f, 0f, 1f));
+            float normalized = Math.Clamp(
+                (_car.Motor.Rpm - 0.8f) / Math.Max(0.1f, _car.Motor.RedlineRpm - 0.8f),
+                0f, 1f);
+            float pitch = Math.Clamp((normalized - 0.5f) * 1.2f, -1f, 1f);
+            if (_accelerating != null)
+            {
+                _accelerating.Pitch = pitch;
+                _accelerating.Volume = 0.32f * _engineBlend;
+            }
+            if (_coasting != null)
+            {
+                _coasting.Pitch = pitch;
+                _coasting.Volume = 0.32f * (1f - _engineBlend);
+            }
         }
 
         public void PlaySkid(bool play)
