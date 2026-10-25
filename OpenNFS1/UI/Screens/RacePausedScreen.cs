@@ -1,22 +1,52 @@
 using System;
 using GameEngine;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using OpenNFS1.Parsers;
 
 namespace OpenNFS1.UI.Screens
 {
-    // Functional pause menu. Keep the live race object intact.
-    internal sealed class RacePausedScreen : BaseUIScreen, IGameScreen
+    /// <summary>
+    /// The actual NFS SE 640x480 PAUSE.QFS screen. The six lines and their
+    /// selected/deselected states are bitmap entries at original CD positions.
+    /// No arbitrary font, replacement background or manually drawn labels.
+    /// </summary>
+    internal sealed class RacePausedScreen : IGameScreen
     {
         private readonly DoRaceScreen _race;
-        private readonly string[] _items =
-        {
-            "CONTINUE", "REPLAY", "AUDIO", "GRAPHICS DETAIL",
-            "CHAT MODE", "QUIT CURRENT GAME"
-        };
+        private readonly BitmapChunk _art;
         private int _selected;
 
-        public RacePausedScreen(DoRaceScreen race) { _race = race; }
+        private static readonly string[] Normal =
+            { "cond", "repd", "audd", "grad", "chad", "quid" };
+        private static readonly string[] Lit =
+            { "conl", "repl", "audl", "gral", "chal", "quil" };
+        private static readonly int[] ItemY = { 110, 160, 208, 256, 304, 352 };
+
+        public RacePausedScreen(DoRaceScreen race)
+        {
+            _race = race;
+            _art = new QfsFile(@"FRONTEND\ART\CHECK\PAUSE.QFS").Content.Header;
+            if (_art.FindByName("bgnd")?.Texture == null)
+                throw new InvalidOperationException("Missing original NFS SE PAUSE.QFS background.");
+            foreach (string id in Normal)
+                RequireArt(id);
+            foreach (string id in Lit)
+                RequireArt(id);
+        }
+
+        private void RequireArt(string id)
+        {
+            if (_art.FindByName(id)?.Texture == null)
+                throw new InvalidOperationException("Original NFS SE PAUSE.QFS bitmap missing: " + id);
+        }
+
+        private void Art(string id)
+        {
+            BitmapEntry entry = _art.FindByName(id);
+            Engine.Instance.SpriteBatch.Draw(entry.Texture, entry.GetDisplayAt(), Color.White);
+        }
 
         private void ContinueRace()
         {
@@ -29,9 +59,11 @@ namespace OpenNFS1.UI.Screens
             switch (_selected)
             {
                 case 0: ContinueRace(); break;
-                case 1: // Replay is not implemented; do not mislabel a new race as a replay.
-                case 2:
-                case 3:
+                // Original replay data playback is not yet supported.
+                case 1: break;
+                case 2: Engine.Instance.Screen = new AudioOptionsScreen(this); break;
+                case 3: Engine.Instance.Screen = new OriginalGraphicsScreen(this); break;
+                // Chat mode is for original network support, still unmapped.
                 case 4: break;
                 case 5:
                     VehicleController.ForceBrake = false;
@@ -48,28 +80,41 @@ namespace OpenNFS1.UI.Screens
                 ContinueRace();
                 return;
             }
-            if (UIController.Up) _selected = (_selected + _items.Length - 1) % _items.Length;
-            if (UIController.Down) _selected = (_selected + 1) % _items.Length;
+            if (UIController.Up)
+                _selected = (_selected + ItemY.Length - 1) % ItemY.Length;
+            else if (UIController.Down || input.WasPressed(Keys.Tab))
+                _selected = (_selected + 1) % ItemY.Length;
             if (input.WasLeftMouseClicked)
             {
-                var p = input.GameMousePosition;
-                if (p.X >= 10 && p.X < 360 && p.Y >= 160 && p.Y < 160 + _items.Length * 48)
+                Vector2 point = input.GameMousePosition;
+                for (int i = 0; i < ItemY.Length; i++)
                 {
-                    _selected = Math.Clamp(((int)p.Y - 160) / 48, 0, _items.Length - 1);
-                    Activate();
-                    return;
+                    var entry = _art.FindByName(Normal[i]);
+                    if (point.X >= entry.GetDisplayAt().X &&
+                        point.X < entry.GetDisplayAt().X + entry.Texture.Width &&
+                        point.Y >= ItemY[i] &&
+                        point.Y < ItemY[i] + entry.Texture.Height)
+                    {
+                        _selected = i;
+                        Activate();
+                        return;
+                    }
                 }
             }
-            if (UIController.Ok) Activate();
+            if (UIController.Ok)
+                Activate();
         }
 
-        public override void Draw()
+        public void Draw()
         {
-            base.Draw();
-            WriteLine("PAUSE", Color.Red, 16, 14, 0.90f);
-            for (int i = 0; i < _items.Length; i++)
-                WriteLine(_items[i], i == _selected, 48, 14, .58f);
-            Engine.Instance.SpriteBatch.End();
+            Engine.Instance.Device.Viewport = new Viewport(0, 0, 640, 480);
+            var sprite = Engine.Instance.SpriteBatch;
+            sprite.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied,
+                SamplerState.PointClamp);
+            Art("bgnd");
+            for (int i = 0; i < Normal.Length; i++)
+                Art(i == _selected ? Lit[i] : Normal[i]);
+            sprite.End();
         }
     }
 }
