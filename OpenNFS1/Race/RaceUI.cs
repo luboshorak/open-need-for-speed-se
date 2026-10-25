@@ -211,8 +211,8 @@ namespace OpenNFS1.UI
             for (int index = 0; index < 5; index++)
             {
                 BitmapEntry tile = stage >= 5 ? _startGreen :
-                    index < 3 ? (index < stage ? _startRedLit : _startRedDark) :
-                    (index < stage ? _startYellowLit : _startYellowDark);
+                    index < 3 ? (index <= stage ? _startRedLit : _startRedDark) :
+                    (index <= stage ? _startYellowLit : _startYellowDark);
                 sprite.Draw(tile.Texture, new Vector2(index * 128, 0), Color.White);
             }
         }
